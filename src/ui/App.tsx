@@ -122,7 +122,10 @@ function Studio({
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
   const [cur, setCur] = useState(0);
-  const [dockOpen, setDockOpen] = useState(true);
+  /** 넓은 화면이면 대화창을 켜 둔다. 좁으면 화면을 다 덮으므로 접어 둔다. */
+  const [dockOpen, setDockOpen] = useState(
+    () => typeof window === "undefined" || window.innerWidth >= 1000,
+  );
 
   /** db 가 비어 있을 때 들어오는 갱신은 무시한다 */
   const update = (apply: (d: DB) => DB) => setDb((d) => (d ? apply(d) : d));

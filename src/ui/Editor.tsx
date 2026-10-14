@@ -208,7 +208,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
             }}
           />
         ) : (
-          <b style={{ fontSize: 14, cursor: "text" }} onClick={() => setEditTitle(true)} title="눌러서 이름 고치기">
+          <b style={{ fontSize: 16.5, cursor: "text" }} onClick={() => setEditTitle(true)} title="눌러서 이름 고치기">
             {project.title}
           </b>
         )}
@@ -324,8 +324,8 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
             </div>
           ) : (
             <div style={{ color: "#fff", textAlign: "center" }}>
-              <p style={{ fontSize: 15, marginBottom: 6 }}>아직 페이지가 없습니다</p>
-              <p style={{ fontSize: 13, opacity: 0.8 }}>왼쪽에서 “페이지 추가”를 눌러 주세요</p>
+              <p style={{ fontSize: 18, marginBottom: 6 }}>아직 페이지가 없습니다</p>
+              <p style={{ fontSize: 15.5, opacity: 0.8 }}>왼쪽에서 “페이지 추가”를 눌러 주세요</p>
             </div>
           )}
         </div>
@@ -336,8 +336,8 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
             <>
               <div className="row" style={{ marginBottom: 14 }}>
                 <div className="grow">
-                  <b style={{ fontSize: 14 }}>{slideType.name}</b>
-                  <div style={{ color: "var(--muted)", fontSize: 11.5, marginTop: 2 }}>
+                  <b style={{ fontSize: 16.5 }}>{slideType.name}</b>
+                  <div style={{ color: "var(--muted)", fontSize: 14, marginTop: 2 }}>
                     {cur + 1}번째 페이지
                   </div>
                 </div>

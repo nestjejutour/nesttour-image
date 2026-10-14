@@ -49,11 +49,11 @@ export function StyleView({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => 
             <div className="thumb" style={{ background: s.color.background, position: "relative" }}>
               <div style={{ textAlign: "left", width: "100%", padding: "0 18px" }}>
                 <div style={{ width: 34, height: 3, background: s.color.accent, marginBottom: 11 }} />
-                <div style={{ fontSize: 19, fontWeight: 700, color: s.color.ink, lineHeight: 1.25 }}>
+                <div style={{ fontSize: 22.5, fontWeight: 700, color: s.color.ink, lineHeight: 1.25 }}>
                   {s.brand}
                 </div>
-                <div style={{ fontSize: 15, color: s.color.ink }}>제안서 표지</div>
-                <div style={{ fontSize: 10, color: s.color.muted, marginTop: 7 }}>
+                <div style={{ fontSize: 18, color: s.color.ink }}>제안서 표지</div>
+                <div style={{ fontSize: 12, color: s.color.muted, marginTop: 7 }}>
                   {s.font.family} · {s.slide.widthIn}×{s.slide.heightIn}in
                 </div>
               </div>
@@ -83,7 +83,7 @@ export function StyleView({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => 
               <input value={newBrand} onChange={(e) => setNewBrand(e.target.value)}
                 placeholder="예: 엔이에스티투어" />
             </div>
-            <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "0 0 10px" }}>
+            <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 10px" }}>
               지금 스타일을 복제해서 만듭니다. 색·크기는 만든 뒤에 고치면 됩니다.
             </p>
             <div className="row">
@@ -101,7 +101,7 @@ export function StyleView({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => 
       </div>
 
       <p className="sec">페이지 타입 {db.pageTypes.length}종</p>
-      <p style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 0 }}>
+      <p style={{ fontSize: 15, color: "var(--muted)", marginTop: 0 }}>
         모든 스타일이 같은 페이지 타입을 함께 씁니다. 색·글꼴만 스타일을 따릅니다.
       </p>
       <table className="spec"><tbody>
@@ -162,7 +162,7 @@ function Detail({ s, onBack, db }: { s: StylePreset; onBack: () => void; db: DB 
 
       <p className="sec">이 스타일에만 걸린 규칙 {myRules.length}개</p>
       {myRules.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: "var(--muted)" }}>아직 없습니다.</p>
+        <p style={{ fontSize: 15, color: "var(--muted)" }}>아직 없습니다.</p>
       ) : (
         <table className="spec"><tbody>
           {myRules.map((r) => (

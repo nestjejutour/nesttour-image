@@ -137,7 +137,7 @@ export function Rules({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void
         <div className="tidybox">
           <b>{tidy.say}</b>
           {(tidy.proposals ?? []).length === 0 ? (
-            <p style={{ color: "var(--muted)", fontSize: 12.5 }}>고칠 것이 없습니다.</p>
+            <p style={{ color: "var(--muted)", fontSize: 15 }}>고칠 것이 없습니다.</p>
           ) : (
             <>
               {tidy.proposals.map((pr, i) => (

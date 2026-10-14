@@ -1,4 +1,5 @@
 import type { PageType, Slide, StylePreset } from "../core/types";
+import { Grip, usePanel } from "./panels";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 
@@ -34,8 +35,12 @@ interface Props {
 }
 
 export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMake, appendTo, onAppend }: Props) {
+  const panel = usePanel("tray", 296, 180, 560);
+
   return (
-    <div className="tray">
+    <>
+      <Grip onDrag={(dx) => panel.nudge(-dx)} onReset={panel.reset} />
+      <div className="tray" style={{ width: panel.size }}>
       <div className="tray-head">
         <b>담은 페이지 {items.length}장</b>
         {items.length > 0 && (
@@ -90,6 +95,7 @@ export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMak
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

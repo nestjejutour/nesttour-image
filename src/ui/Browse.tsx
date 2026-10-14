@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageType, Project, Slide, StylePreset } from "../core/types";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
@@ -34,6 +34,25 @@ export function Browse({
   project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpen, categoryName,
 }: Props) {
   const [cur, setCur] = useState(0);
+  const [zoom, setZoom] = useState(0.62);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  // 화면이 넓으면 크게 보여야 한다. 보면서 고칠 수 있어야 하니까.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const fit = () => {
+      const w = el.clientWidth - 130;   // 좌우 화살표 자리
+      const h = el.clientHeight - 80;   // 아래 버튼 자리
+      if (w <= 0 || h <= 0) return;
+      const z = Math.min(w / (style.slide.widthIn * 96), h / (style.slide.heightIn * 96));
+      setZoom(Math.max(0.25, Math.min(1.6, Number(z.toFixed(3)))));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [style.slide.widthIn, style.slide.heightIn]);
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
   const moods = useMemo(() => moodsOf(project, pageTypes), [project, pageTypes]);
 
@@ -58,8 +77,8 @@ export function Browse({
       <div className="browse-head">
         <button className="btn sm" onClick={onClose}>← 진열대</button>
         <div className="grow" style={{ minWidth: 0 }}>
-          <b style={{ fontSize: 14 }}>{project.title}</b>
-          <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 2 }}>
+          <b style={{ fontSize: 16.5 }}>{project.title}</b>
+          <div style={{ color: "var(--muted)", fontSize: 14.5, marginTop: 2 }}>
             {project.client || "고객사 없음"} · {categoryName} · {project.slides.length}장
             {moods.map((m) => (
               <span className="chip" key={m}>{m}</span>
@@ -75,14 +94,14 @@ export function Browse({
         </button>
       </div>
 
-      <div className="browse-stage">
+      <div className="browse-stage" ref={stageRef}>
         <button className="nav" onClick={() => go(-1)} disabled={cur === 0} aria-label="이전 장">‹</button>
         <div>
           <div className="stage-inner">
-            <SlideView ops={opsOf(cur)} style={style} zoom={0.62} />
+            <SlideView ops={opsOf(cur)} style={style} zoom={zoom} />
           </div>
           <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-            <span style={{ color: "#fff", fontSize: 12.5, minWidth: 74, textAlign: "center" }}>
+            <span style={{ color: "#fff", fontSize: 15, minWidth: 74, textAlign: "center" }}>
               {cur + 1} / {project.slides.length}
             </span>
             <button className="btn sm accent" onClick={() => slide && onTakePage(slide)}>

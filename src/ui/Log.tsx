@@ -51,8 +51,8 @@ export function Log({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void }
 
       {db.history.length === 0 && totalTurns === 0 && (
         <div className="empty-state">
-          <p style={{ fontSize: 15, color: "var(--ink)", marginTop: 0 }}>아직 기록이 없습니다</p>
-          <p style={{ fontSize: 13 }}>
+          <p style={{ fontSize: 18, color: "var(--ink)", marginTop: 0 }}>아직 기록이 없습니다</p>
+          <p style={{ fontSize: 15.5 }}>
             편집기에서 AI 와 대화하며 페이지를 고치면 여기 쌓입니다.
           </p>
         </div>
@@ -94,7 +94,7 @@ export function Log({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void }
               <div className="logitem" key={k} style={{ display: "block" }}>
                 <small style={{ color: "var(--muted)" }}>{nameOf(pid)}</small>
                 {turns.map((t, i) => (
-                  <div key={i} style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 4 }}>
+                  <div key={i} style={{ fontSize: 15, lineHeight: 1.6, marginTop: 4 }}>
                     <b style={{ color: t.role === "user" ? "var(--ink)" : "var(--accent)" }}>
                       {t.role === "user" ? "대표" : "AI"}
                     </b>{" "}

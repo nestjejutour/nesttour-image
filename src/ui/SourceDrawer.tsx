@@ -39,7 +39,7 @@ export function SourceDrawer(p: Props) {
   return (
     <div className="drawer">
       <div className="row" style={{ marginBottom: 10 }}>
-        <b style={{ fontSize: 13 }}>지난 자료</b>
+        <b style={{ fontSize: 15.5 }}>지난 자료</b>
         <div className="spacer" />
         <button className="btn sm" onClick={p.onClose}>닫기</button>
       </div>
@@ -75,8 +75,8 @@ export function SourceDrawer(p: Props) {
           <button className="btn sm" style={{ marginBottom: 10 }} onClick={() => setPickedId(null)}>
             ← 제안서 목록
           </button>
-          <p style={{ fontSize: 12, margin: "0 0 4px" }}><b>{picked.title}</b></p>
-          <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 10px" }}>
+          <p style={{ fontSize: 14.5, margin: "0 0 4px" }}><b>{picked.title}</b></p>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>
             넣고 싶은 장을 누르면 지금 보고 있는 페이지 <b>뒤에</b> 들어갑니다.
           </p>
           <div className="srcgrid">

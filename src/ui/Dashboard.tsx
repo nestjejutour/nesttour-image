@@ -198,8 +198,8 @@ export function Dashboard(p: Props) {
 
         {shown.length === 0 && (
           <div className="empty-state">
-            <p style={{ fontSize: 15, color: "var(--ink)", marginTop: 0 }}>여기엔 아직 자료가 없습니다</p>
-            <p style={{ fontSize: 13 }}>완성본을 올리거나 새 제안서를 만들면 여기 쌓입니다.</p>
+            <p style={{ fontSize: 18, color: "var(--ink)", marginTop: 0 }}>여기엔 아직 자료가 없습니다</p>
+            <p style={{ fontSize: 15.5 }}>완성본을 올리거나 새 제안서를 만들면 여기 쌓입니다.</p>
           </div>
         )}
 

@@ -9,7 +9,7 @@ export function Gate({ loading }: { loading?: boolean }) {
   return (
     <div className="gate">
       <div className="gatebox">
-        <div className="brand" style={{ fontSize: 17, marginBottom: 7 }}>
+        <div className="brand" style={{ fontSize: 20, marginBottom: 7 }}>
           MTMB <span>디자인 스튜디오</span>
         </div>
         {loading ? (

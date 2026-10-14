@@ -5,6 +5,7 @@ import { chatSystem, librarySystem, needsOk, type Action, type Reply } from "../
 import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
 import { renderToBlob } from "../render/canvas";
 import type { ChatTurn } from "../store/db";
+import { Grip, usePanel } from "./panels";
 
 /**
  * 대화 선반 — 화면 오른쪽에 늘 떠 있다.
@@ -62,6 +63,10 @@ export function ChatDock(p: Props) {
   const [sideBySide, setSideBySide] = useState(true);
   const wide = useWide(1480);
   const both = sideBySide && wide;
+  /** 대화칸 전체 너비 — 끌어서 조정, 기억된다. 나란히 둘 땐 최소가 넓다. */
+  const panel = usePanel("dock", 384, both ? 620 : 280, 1200);
+  /** 둘을 나란히 둘 때 Claude 쪽이 차지하는 비율 */
+  const ratio = usePanel("dockRatio", 50, 22, 78);
 
   if (!p.open) {
     return (
@@ -72,10 +77,12 @@ export function ChatDock(p: Props) {
   }
 
   return (
-    <div className={`dock ${both ? "split" : ""}`}>
+    <>
+      <Grip onDrag={(dx) => panel.nudge(-dx)} onReset={panel.reset} />
+      <div className={`dock ${both ? "split" : ""}`} style={{ width: panel.size }}>
       <div className="dock-head">
         {both ? (
-          <b style={{ fontSize: 12.5 }}>AI 와 대화</b>
+          <b style={{ fontSize: 15 }}>AI 와 대화</b>
         ) : (
           (["Claude", "ChatGPT"] as const).map((t) => (
             <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
@@ -97,11 +104,16 @@ export function ChatDock(p: Props) {
       <div className="dock-body">
         {both ? (
           <>
-            <div className="dock-col">
+            <div className="dock-col" style={{ flex: `${ratio.size} 1 0` }}>
               <div className="col-name">Claude <small>화면을 보고 디자인·구성</small></div>
               <ClaudeTab {...p} />
             </div>
-            <div className="dock-col">
+            <Grip
+              onDrag={(dx) => ratio.nudge((dx / Math.max(1, panel.size)) * 100)}
+              onReset={ratio.reset}
+              title="끌어서 두 대화칸 비율 조정"
+            />
+            <div className="dock-col" style={{ flex: `${100 - ratio.size} 1 0` }}>
               <div className="col-name gpt">ChatGPT <small>글 · 카피</small></div>
               <CopyTab {...p} />
             </div>
@@ -109,8 +121,9 @@ export function ChatDock(p: Props) {
         ) : (
           <div className="dock-col">{tab === "Claude" ? <ClaudeTab {...p} /> : <CopyTab {...p} />}</div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
