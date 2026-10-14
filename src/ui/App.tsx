@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { load, newProject, save, uid, type ChatTurn, type DB } from "../store/db";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "../store/db";
+import type { Backend } from "../store/backend";
+import { firebaseBackend, firebaseReady, logout, watchUser } from "../store/firebase";
+import { Gate } from "./Gate";
 import type { Category, Content, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
 import { overrideWith, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
@@ -13,15 +16,108 @@ import { Store } from "./Store";
 
 type View = "보관함" | "기록" | "창고";
 
+/** 어디에 저장할지는 설정값이 정한다. 화면 쪽은 몰라도 된다. */
+const backend: Backend = firebaseReady ? firebaseBackend() : localBackend();
+
+/**
+ * 사진을 파일 저장소로 올리고, 자료에는 주소만 남긴다.
+ * 올릴 게 없으면 null 을 돌려준다.
+ */
+async function liftAssets(d: DB): Promise<DB | null> {
+  if (!backend.putFile) return null;
+  let any = false;
+
+  const projects = await Promise.all(
+    d.projects.map(async (p) => {
+      const pairs = Object.entries(p.assets);
+      if (!pairs.some(([, v]) => v.startsWith("data:"))) return p;
+      const next: Record<string, string> = {};
+      for (const [k, v] of pairs) {
+        if (!v.startsWith("data:")) { next[k] = v; continue; }
+        try {
+          next[k] = await backend.putFile!(`${p.id}/${k}`, v);
+          any = true;
+        } catch {
+          next[k] = v; // 올리기 실패하면 그대로 둔다
+        }
+      }
+      return { ...p, assets: next };
+    }),
+  );
+
+  return any ? { ...d, projects } : null;
+}
+
 export function App() {
-  const [db, setDb] = useState<DB>(() => load());
+  const [db, setDb] = useState<DB | null>(null);
+  const [user, setUser] = useState<{ uid: string; email?: string | null } | null>(null);
+  const [ready, setReady] = useState(!backend.needsLogin);
+  const lastSaved = useRef("");
+  // 로그인 지켜보기 (회사 서버일 때만)
+  useEffect(() => {
+    if (!backend.needsLogin) return;
+    return watchUser((u) => {
+      setUser(u ? { uid: u.uid, email: u.email } : null);
+      setReady(true);
+    });
+  }, []);
+
+  // 자료 불러오기
+  useEffect(() => {
+    if (backend.needsLogin && !user) { setDb(null); return; }
+    let alive = true;
+    backend.load().then((saved) => {
+      if (!alive) return;
+      const merged = merge(saved);
+      lastSaved.current = JSON.stringify(merged);
+      setDb(merged);
+    }).catch(() => { if (alive) setDb(merge({})); });
+    return () => { alive = false; };
+  }, [user]);
+
+  // 자료 저장 (바뀐 게 있을 때만)
+  useEffect(() => {
+    if (!db) return;
+    const json = JSON.stringify(db);
+    if (json === lastSaved.current) return;
+    lastSaved.current = json;
+    const t = setTimeout(async () => {
+      // 사진은 따로 올린다. Firestore 는 문서 하나가 1MB 한도라 사진을 못 담는다.
+      const lifted = await liftAssets(db);
+      if (lifted) { setDb(lifted); return; }   // 주소로 바뀐 상태로 다시 저장된다
+      await backend.save(db).catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+  }, [db]);
+
+  if (!ready) return <Gate loading />;
+  if (backend.needsLogin && !user) return <Gate />;
+  if (!db) return <Gate loading />;
+
+  return <Studio db={db} setDb={setDb} who={user?.email ?? null} />;
+}
+
+/**
+ * 본체.
+ *
+ * 부팅(로그인·불러오기)과 떼어 놓는다.
+ * 한 함수 안에서 화면을 중간에 갈아끼우면 React 가 상태 장치 순서를 잃는다.
+ */
+function Studio({
+  db, setDb, who,
+}: {
+  db: DB;
+  setDb: React.Dispatch<React.SetStateAction<DB | null>>;
+  who: string | null;
+}) {
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
   const [browseId, setBrowseId] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [tray, setTray] = useState<TrayItem[]>([]);
 
-  useEffect(() => { save(db); }, [db]);
+  /** db 가 비어 있을 때 들어오는 갱신은 무시한다 */
+  const update = (apply: (d: DB) => DB) => setDb((d) => (d ? apply(d) : d));
 
   const baseStyle = db.styles[0];
   /** 이 제안서에 실제로 적용되는 규격 (기본 + 이 건만 바꾼 값) */
@@ -50,10 +146,10 @@ export function App() {
 
   /* ── 창고에 쓰기 ── */
   const putProject = (apply: (p: Project) => Project) =>
-    setDb((d) => ({ ...d, projects: d.projects.map((x) => (x.id === openId ? apply(x) : x)) }));
+    update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === openId ? apply(x) : x)) }));
 
   const addProject = (p: Project) => {
-    setDb((d) => ({ ...d, projects: [p, ...d.projects] }));
+    update((d) => ({ ...d, projects: [p, ...d.projects] }));
     setCreating(null); setBrowseId(null); setOpenId(p.id);
   };
 
@@ -63,7 +159,7 @@ export function App() {
       : scope === "스타일" ? baseStyle.id
       : scope === "분류" ? (project?.category ?? "proposal")
       : (openId ?? undefined);
-    setDb((d) => ({
+    update((d) => ({
       ...d,
       rules: [...d.rules, {
         id: uid(), text, scope, scopeId, source: "대표지시" as const,
@@ -74,7 +170,7 @@ export function App() {
   };
 
   const addHistory = (e: { slideIndex: number; instruction: string; before: Content; after: Content }) =>
-    setDb((d) => ({
+    update((d) => ({
       ...d,
       history: [...d.history,
         { id: uid(), projectId: openId ?? "", ...e, createdAt: new Date().toISOString() } as HistoryEntry],
@@ -91,7 +187,7 @@ export function App() {
       return;
     }
     // ② 이 브랜드 규격 전체
-    setDb((d) => {
+    update((d) => {
       const parts = path.split(".");
       const next = structuredClone(d.styles[0]) as any;
       let node = next;
@@ -112,14 +208,14 @@ export function App() {
   const chatKey = (slideId: string) => `${openId}:${slideId}`;
   const turnsOf = (slideId: string): ChatTurn[] => db.chats[chatKey(slideId)] ?? [];
   const onTurns = (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) =>
-    setDb((d) => {
+    update((d) => {
       const k = `${openId}:${slideId}`;
       return { ...d, chats: { ...d.chats, [k]: apply(d.chats[k] ?? []) } };
     });
 
   /* ── 분류(메뉴) 늘리고 고치기 ── */
   const addCategory = (name: string, kind: Category["kind"]) =>
-    setDb((d) => ({
+    update((d) => ({
       ...d,
       categories: [...d.categories, {
         id: uid(), name, kind,
@@ -128,13 +224,13 @@ export function App() {
     }));
 
   const renameCategory = (id: string, name: string) =>
-    setDb((d) => ({
+    update((d) => ({
       ...d,
       categories: d.categories.map((c) => (c.id === id && name.trim() ? { ...c, name: name.trim() } : c)),
     }));
 
   const deleteCategory = (id: string) =>
-    setDb((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }));
+    update((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }));
 
   /* ── 담은 선반 ── */
   const takePage = (s: Slide, from: Project) =>
@@ -182,7 +278,7 @@ export function App() {
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -199,7 +295,7 @@ export function App() {
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -219,7 +315,7 @@ export function App() {
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -239,7 +335,7 @@ export function App() {
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
@@ -253,17 +349,17 @@ export function App() {
             onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray} />
         </div>
       )}
-      {view === "기록" && <Log db={db} setDb={setDb} />}
-      {view === "창고" && <Store db={db} setDb={setDb} />}
+      {view === "기록" && <Log db={db} setDb={update} />}
+      {view === "창고" && <Store db={db} setDb={update} />}
     </Shell>
   );
 }
 
 function Shell({
-  view, setView, onNew, bare, children,
+  view, setView, onNew, bare, who, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
-  bare?: boolean; children: React.ReactNode;
+  bare?: boolean; who?: string | null; children: React.ReactNode;
 }) {
   return (
     <div className="app">
@@ -277,6 +373,8 @@ function Shell({
           </div>
         )}
         <div className="spacer" />
+        {who && <small className="who" title={who}>{who}</small>}
+        {who && <button className="btn sm" onClick={() => void logout()}>로그아웃</button>}
         {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}
       </div>
       {children}

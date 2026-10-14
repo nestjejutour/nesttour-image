@@ -526,3 +526,14 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   font-size: 10px; opacity: 0.6; margin-left: 5px;
   border: 1px solid currentColor; border-radius: 20px; padding: 0 5px;
 }
+
+/* ═══════════ 로그인 ═══════════ */
+.gate { height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.gatebox {
+  border: 1px solid var(--line); border-radius: 14px;
+  padding: 34px 30px; text-align: center; max-width: 380px; width: 100%;
+}
+.gatebox p { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0 0 20px; }
+.gateerr { color: var(--todo) !important; margin-top: 14px !important; margin-bottom: 0 !important; }
+.topbar .who { color: var(--muted); font-size: 11.5px; max-width: 160px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// 디자인 스튜디오 자료는 로그인한 사람만 읽고 쓸 수 있다.
+// 워크보드 등 다른 자료는 건드리지 않는다 (designStudio 아래만 다룬다).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /designStudio/{doc=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

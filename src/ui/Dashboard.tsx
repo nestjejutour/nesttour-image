@@ -163,7 +163,7 @@ export function Dashboard(p: Props) {
       <div className="dash-main">
         <div className="dash-top">
           <div>
-            <h1>진열대</h1>
+            <h1>보관함</h1>
             <p className="lede" style={{ margin: 0 }}>
               지난 완성본에서 출발하는 게 가장 빠릅니다. 훑다가 마음에 드는 장을 오른쪽에 담으세요.
             </p>
@@ -175,9 +175,6 @@ export function Dashboard(p: Props) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button className="btn primary" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}>
-            + 새 제안서
-          </button>
         </div>
 
         <div className="status">

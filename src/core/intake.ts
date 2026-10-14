@@ -75,7 +75,7 @@ export async function readFile(file: File, id: string): Promise<IntakeFile> {
 /** PDF 에서 글자만 뽑는다 */
 async function pdfText(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
-  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
   const buf = await file.arrayBuffer();

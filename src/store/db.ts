@@ -2,6 +2,7 @@ import type { Category, HistoryEntry, PageType, Project, Rule, StylePreset } fro
 import { BUILT_IN_STYLES } from "../core/style";
 import { BUILT_IN_PAGE_TYPES } from "../core/pageTypes";
 import { SEED_PROJECTS } from "./seed";
+import type { Backend } from "./backend";
 
 /**
  * 창고 보관소
@@ -157,5 +158,38 @@ export function newProject(title: string, client: string, category = "proposal")
     notes: "",
     createdAt: t,
     updatedAt: t,
+  };
+}
+
+
+/** 브라우저 저장. 설정이 없을 때 쓰는 임시 저장소다. */
+export function localBackend(): Backend {
+  return {
+    name: "이 브라우저",
+    async load() {
+      try {
+        const raw = localStorage.getItem(KEY);
+        return raw ? (JSON.parse(raw) as Partial<DB>) : {};
+      } catch {
+        return {};
+      }
+    },
+    async save(db) {
+      save(db);
+    },
+  };
+}
+
+/** 저장된 것과 기본값을 합친다 (어느 저장소에서 왔든 똑같이) */
+export function merge(saved: Partial<DB>): DB {
+  const db = seed();
+  return {
+    categories: mergeCategories(db.categories, saved.categories ?? []),
+    styles: saved.styles?.length ? saved.styles : db.styles,
+    pageTypes: [...db.pageTypes, ...(saved.pageTypes ?? []).filter((p) => !p.builtIn)],
+    rules: saved.rules?.length ? saved.rules : db.rules,
+    projects: saved.projects ?? db.projects,
+    history: saved.history ?? [],
+    chats: saved.chats ?? {},
   };
 }

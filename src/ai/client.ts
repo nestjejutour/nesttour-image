@@ -1,4 +1,5 @@
 import { capability, hasClaude } from "../platform";
+import { firebaseReady, functionsBase, idToken } from "../store/firebase";
 
 /**
  * AI 창구.
@@ -40,7 +41,11 @@ type Sample = ((
 export async function ask<T>(o: AskOptions): Promise<AiResult<T>> {
   // 옆 패널이면 Claude 기능, 아니면 내 PC 서버. 미리 판정하지 않고 그때 본다.
   const sample = await capability<Sample>("sample");
-  const raw = sample ? await viaClaude(o, sample) : await viaLocalServer(o);
+  const raw = sample
+    ? await viaClaude(o, sample)                 // 옆 패널 — 열쇠 없이 자동
+    : firebaseReady
+      ? await viaFunctions(o)                    // 회사 서버 — 열쇠는 서버에
+      : await viaLocalServer(o);                 // 내 PC — .env.local 의 열쇠
   if (!raw.ok) return { ok: false, error: raw.error };
 
   const data = extractJson<T>(raw.text!);
@@ -82,6 +87,31 @@ async function viaClaude(
     if (e?.code === "rate_limited") return { ok: false, error: "잠시 뒤에 다시 말씀해 주세요." };
     return { ok: false, error: e?.message ?? "AI 호출에 실패했습니다." };
   }
+}
+
+/* ───────────── 회사 서버 (Cloud Functions) ───────────── */
+
+async function viaFunctions(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string }> {
+  const token = await idToken();
+  if (!token) return { ok: false, error: "로그인이 필요합니다." };
+
+  const imagesBase64 = o.images?.length
+    ? await Promise.all(o.images.slice(0, 5).map(blobToBase64))
+    : undefined;
+
+  let r: Response;
+  try {
+    r = await fetch(`${functionsBase}/ai`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ system: o.system, messages: o.messages, imagesBase64 }),
+    });
+  } catch {
+    return { ok: false, error: "AI 창구에 닿지 못했습니다. 잠시 뒤 다시 시도해 주세요." };
+  }
+  const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
+  if (!r.ok || p.error) return { ok: false, error: p.error ?? "AI 호출 실패" };
+  return { ok: true, text: p.text };
 }
 
 /* ───────────── 내 PC ───────────── */
@@ -204,16 +234,21 @@ export async function askCopy<T>(o: { system: string; messages: Turn[] }): Promi
   if (hasClaude()) {
     return {
       ok: false,
-      error: "카피 작업실은 대표님 PC 에서 프로그램을 켰을 때만 됩니다. (옆 패널에서는 외부 연결이 막혀 있습니다)",
+      error: "카피 작업실은 옆 패널에서는 쓸 수 없습니다. (외부 연결이 막혀 있습니다) 회사 주소로 접속해서 쓰시면 됩니다.",
     };
   }
+
+  const url = firebaseReady ? `${functionsBase}/copy` : "/api/copy";
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (firebaseReady) {
+    const token = await idToken();
+    if (!token) return { ok: false, error: "로그인이 필요합니다." };
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   let r: Response;
   try {
-    r = await fetch("/api/copy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(o),
-    });
+    r = await fetch(url, { method: "POST", headers, body: JSON.stringify(o) });
   } catch {
     return { ok: false, error: "ChatGPT 창구에 닿지 못했습니다. 프로그램을 다시 켜 보세요." };
   }
