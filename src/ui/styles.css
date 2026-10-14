@@ -377,3 +377,55 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   padding: 8px 10px; min-height: 58px; resize: vertical; outline: none; font-size: 13px;
 }
 .chat-box textarea:focus { border-color: var(--ink); }
+
+/* ═══════════ 규칙 범위 ═══════════ */
+.addrule { display: flex; gap: 7px; margin-bottom: 22px; flex-wrap: wrap; }
+.addrule select {
+  border: 1px solid var(--line); border-radius: 7px; padding: 8px 9px;
+  background: #fff; outline: none;
+}
+.scopesel {
+  border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px;
+  font-size: 11px; background: #fff; color: var(--muted); flex-shrink: 0; outline: none;
+}
+.scopesel:hover { color: var(--ink); border-color: var(--ink); }
+.scopeid { color: var(--muted); font-size: 11px; }
+
+.rule { gap: 9px; align-items: center; }
+.rule .txt { font-size: 12.5px; }
+
+.scopeask {
+  display: block; font-size: 10.5px; color: var(--muted); margin-bottom: 5px;
+}
+.scopebtns { display: flex; flex-wrap: wrap; gap: 5px; }
+.scopebtns .btn { font-size: 11px; padding: 3px 8px; }
+
+/* ═══════════ 기록 ═══════════ */
+.logitem {
+  display: flex; align-items: center; gap: 9px;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 7px;
+}
+.logitem b { display: block; font-size: 12.5px; line-height: 1.5; }
+.logitem small { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* ═══════════ 규칙 정리 ═══════════ */
+.tidybox {
+  border: 1px solid var(--ink); border-radius: 10px;
+  padding: 14px; margin-bottom: 22px; background: var(--panel);
+}
+.tidybox > b { display: block; font-size: 13px; margin-bottom: 11px; }
+.tidyitem {
+  display: flex; gap: 9px; align-items: flex-start;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 11px; margin-bottom: 6px; cursor: pointer;
+}
+.tidyitem.clash { border-color: #ffd9d9; background: #fff8f8; cursor: default; }
+.tidyitem input { margin-top: 3px; flex-shrink: 0; }
+.tidyitem .kind {
+  display: inline-block; font-size: 10px; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 20px; padding: 0 7px; margin-bottom: 4px;
+}
+.tidyitem.clash .kind { color: var(--todo); border-color: var(--todo); }
+.tidyitem p { margin: 0; font-size: 12.5px; line-height: 1.55; }
+.tidyitem small { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }

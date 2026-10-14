@@ -1,4 +1,4 @@
-import type { PageType, Project, Rule, Slide, StylePreset } from "../core/types";
+import type { Content, HistoryEntry, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
 
 /**
  * ============================================================
@@ -14,7 +14,7 @@ import type { PageType, Project, Rule, Slide, StylePreset } from "../core/types"
 export interface Brain {
   system: string;
   /** 참고로 넘긴 것들 — 화면에 "무엇을 보고 만들었는지" 보여주기 위함 */
-  used: { rules: number; pageTypes: number; examples: number };
+  used: { rules: number; pageTypes: number; examples: number; instructions: number };
 }
 
 export function buildBrain(opts: {
@@ -23,8 +23,12 @@ export function buildBrain(opts: {
   pageTypes: PageType[];
   /** 지금까지 만든 제안서들 (사례 창고) */
   pastProjects: Project[];
+  /** 지금까지 받은 수정 지시 (기록 창고) */
+  history?: HistoryEntry[];
+  /** 지금 작업 중인 제안서 id — 이 건의 지시를 따로 앞세운다 */
+  currentProjectId?: string | null;
 }): Brain {
-  const { style, rules, pageTypes, pastProjects } = opts;
+  const { style, rules, pageTypes, pastProjects, history = [], currentProjectId } = opts;
   const on = rules.filter((r) => r.enabled);
 
   // ── 1. 스타일 규격 ──
@@ -71,6 +75,15 @@ export function buildBrain(opts: {
         .join("\n")
     : "(아직 없음. 제안서를 만들수록 여기가 채워지고 결과가 좋아진다)";
 
+  // ── 5. 기록 창고 — 대표가 내린 지시들 ──
+  const thisRun = history.filter((h) => h.projectId === currentProjectId).slice(-12);
+  const past = history.filter((h) => h.projectId !== currentProjectId).slice(-15);
+  const line = (h: HistoryEntry) => `· ${h.instruction}`;
+  const historyBlock = [
+    thisRun.length ? `[이번 제안서에서 대표가 이미 내린 지시 — 계속 지켜라]\n${thisRun.map(line).join("\n")}` : "",
+    past.length ? `[지난 제안서들에서 대표가 내린 지시 — 취향의 단서다]\n${past.map(line).join("\n")}` : "",
+  ].filter(Boolean).join("\n\n");
+
   const system = `당신은 ${style.brand}의 제안서를 만드는 디자이너다.
 좌표와 디자인은 이미 레이아웃이 책임진다. 당신은 "어떤 페이지를 어떤 순서로 놓고, 각 칸에 무슨 글을 넣을지"만 정한다.
 
@@ -86,6 +99,8 @@ ${typesBlock}
 [지난 제안서들의 페이지 구성 — 이 흐름을 참고하라]
 ${examplesBlock}
 
+${historyBlock}
+
 [글쓰기]
 - 한국어. 간결하고 단정하게. 과장·형용사 남발 금지.
 - 숫자는 천 단위 쉼표를 넣는다.
@@ -97,7 +112,10 @@ JSON만 출력하라. 설명·인사말·코드펜스 금지.`;
 
   return {
     system,
-    used: { rules: on.length, pageTypes: pageTypes.length, examples: examples.length },
+    used: {
+      rules: on.length, pageTypes: pageTypes.length, examples: examples.length,
+      instructions: thisRun.length + past.length,
+    },
   };
 }
 

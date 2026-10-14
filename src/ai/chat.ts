@@ -14,9 +14,9 @@ export type Action =
   | { do: "페이지추가"; pageTypeId: string; content: Content; at?: number }
   | { do: "페이지삭제"; at: number }
   | { do: "페이지이동"; from: number; to: number }
-  /* 아래 둘은 전체에 영향을 주므로 대표님 확인을 받는다 */
-  | { do: "스타일제안"; path: string; value: number | string; why: string }
-  | { do: "규칙제안"; text: string };
+  /* 아래 둘은 범위를 고르는 확인을 받는다 */
+  | { do: "스타일제안"; path: string; value: number | string; why: string; scope?: "제안서" | "스타일" }
+  | { do: "규칙제안"; text: string; scope?: "공통" | "스타일" | "분류" | "제안서" };
 
 export interface Reply {
   /** 사람에게 하는 말. 한두 문장 */
@@ -82,11 +82,15 @@ ${JSON.stringify(slide.content, null, 1)}
    — at 은 넣을 자리(0부터). 빼면 맨 뒤.
 {"do":"페이지삭제","at":숫자}
 {"do":"페이지이동","from":숫자,"to":숫자}
-{"do":"스타일제안","path":"type.pageTitle.size","value":26,"why":"이유"}
-   — 글자 크기·색을 바꾼다. 모든 제안서에 영향을 주므로 대표의 확인을 받는다.
+{"do":"스타일제안","path":"type.pageTitle.size","value":26,"why":"이유","scope":"제안서"}
+   — 글자 크기·색을 바꾼다. 대표의 확인을 받는다.
+     scope: "제안서"=이 제안서만 / "스타일"=이 브랜드 규격 전체.
+     확신이 없으면 "제안서"로 제안하라. 1회성 지시가 전체로 번지면 안 된다.
      쓸 수 있는 값: ${sizeTokens}, color.ink, color.muted, color.accent, color.line
-{"do":"규칙제안","text":"..."}
+{"do":"규칙제안","text":"...","scope":"스타일"}
    — 지시가 "앞으로도 이렇게"로 들릴 때만. 매번 제안하지 마라.
+     scope: "공통"=어떤 문서든 / "스타일"=이 브랜드만 / "분류"=이 문서 종류만 / "제안서"=이 건만.
+     어디까지 번져야 할지 애매하면 좁은 쪽을 고르라.
 
 ────────────────────────────────
 어떻게 답할지

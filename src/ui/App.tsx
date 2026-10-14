@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { load, newProject, save, uid, type DB } from "../store/db";
-import type { Category, Content, HistoryEntry, Project, Rule, Slide } from "../core/types";
+import { load, newProject, save, uid, type ChatTurn, type DB } from "../store/db";
+import type { Category, Content, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
+import { overrideWith, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
 import { Editor } from "./Editor";
 import { NewProject } from "./NewProject";
@@ -8,13 +9,14 @@ import { Dashboard } from "./Dashboard";
 import { Browse } from "./Browse";
 import { Tray, type TrayItem } from "./Tray";
 import { Rules } from "./Rules";
+import { Log } from "./Log";
 import { StyleView } from "./StyleView";
 
-type View = "진열대" | "규칙" | "스타일";
+type View = "보관함" | "규칙" | "스타일" | "기록";
 
 export function App() {
   const [db, setDb] = useState<DB>(() => load());
-  const [view, setView] = useState<View>("진열대");
+  const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
   const [browseId, setBrowseId] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
@@ -22,17 +24,29 @@ export function App() {
 
   useEffect(() => { save(db); }, [db]);
 
-  const style = db.styles[0];
+  const baseStyle = db.styles[0];
+  /** 이 제안서에 실제로 적용되는 규격 (기본 + 이 건만 바꾼 값) */
+  const styleOf = (p: Project | null) => styleFor(baseStyle, p?.styleOverride);
+  const style = baseStyle;
   const project = db.projects.find((p) => p.id === openId) ?? null;
   const browsing = db.projects.find((p) => p.id === browseId) ?? null;
 
   /* ── 공장에 쌓인 걸 전부 녹여 AI 지시문을 만든다 ── */
   const brain = useMemo(
     () => buildBrain({
-      style, rules: db.rules, pageTypes: db.pageTypes,
+      style: styleOf(project),
+      // 지금 이 건에 해당하는 규칙만 넘긴다. 200개가 쌓여도 읽는 건 일부다.
+      rules: rulesFor(db.rules, {
+        styleId: baseStyle.id,
+        categoryId: project?.category ?? "proposal",
+        projectId: openId,
+      }),
+      pageTypes: db.pageTypes,
       pastProjects: db.projects.filter((p) => p.id !== openId),
+      history: db.history,
+      currentProjectId: openId,
     }),
-    [style, db.rules, db.pageTypes, db.projects, openId],
+    [baseStyle, project, db.rules, db.pageTypes, db.projects, db.history, openId],
   );
 
   /* ── 창고에 쓰기 ── */
@@ -44,15 +58,21 @@ export function App() {
     setCreating(null); setBrowseId(null); setOpenId(p.id);
   };
 
-  const saveRule = (text: string) =>
+  const saveRule = (text: string, scope: RuleScope = "스타일") => {
+    const scopeId =
+      scope === "공통" ? undefined
+      : scope === "스타일" ? baseStyle.id
+      : scope === "분류" ? (project?.category ?? "proposal")
+      : (openId ?? undefined);
     setDb((d) => ({
       ...d,
       rules: [...d.rules, {
-        id: uid(), styleId: style.id, text, source: "대표지시" as const,
+        id: uid(), text, scope, scopeId, source: "대표지시" as const,
         sourceProjectId: openId ?? undefined, enabled: true,
         createdAt: new Date().toISOString(),
       }],
     }));
+  };
 
   const addHistory = (e: { slideIndex: number; instruction: string; before: Content; after: Content }) =>
     setDb((d) => ({
@@ -65,7 +85,13 @@ export function App() {
    * 전체 규격 바꾸기. "type.pageTitle.size" 같은 길로 찾아 들어가 바꾼다.
    * 모든 제안서에 영향을 주므로, 대표님이 [적용] 을 누른 뒤에만 불린다.
    */
-  const changeStyle = (path: string, value: number | string) =>
+  const changeStyle = (path: string, value: number | string, scope: "제안서" | "스타일" = "제안서") => {
+    // ① 이 제안서만 — 다른 건에 번지지 않는다
+    if (scope === "제안서") {
+      putProject((p) => ({ ...p, styleOverride: overrideWith(p.styleOverride, path, value) }));
+      return;
+    }
+    // ② 이 브랜드 규격 전체
     setDb((d) => {
       const parts = path.split(".");
       const next = structuredClone(d.styles[0]) as any;
@@ -80,6 +106,16 @@ export function App() {
       next.version = (next.version ?? 1) + 1;
       next.updatedAt = new Date().toISOString().slice(0, 10);
       return { ...d, styles: [next, ...d.styles.slice(1)] };
+    });
+  };
+
+  /* ── 대화 창고 ── */
+  const chatKey = (slideId: string) => `${openId}:${slideId}`;
+  const turnsOf = (slideId: string): ChatTurn[] => db.chats[chatKey(slideId)] ?? [];
+  const onTurns = (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) =>
+    setDb((d) => {
+      const k = `${openId}:${slideId}`;
+      return { ...d, chats: { ...d.chats, [k]: apply(d.chats[k] ?? []) } };
     });
 
   /* ── 분류(메뉴) 늘리고 고치기 ── */
@@ -162,10 +198,12 @@ export function App() {
     return (
       <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare>
         <Editor
-          project={project} style={style} pageTypes={db.pageTypes}
+          project={project} style={styleOf(project)} pageTypes={db.pageTypes}
+          categories={db.categories}
           onChange={putProject} onBack={() => setOpenId(null)}
           aiSystem={brain.system} onSaveRule={saveRule} onHistory={addHistory}
           onStyleChange={changeStyle}
+          turnsOf={turnsOf} onTurns={onTurns}
         />
       </Shell>
     );
@@ -176,7 +214,7 @@ export function App() {
       <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare>
         <div className="withtray">
           <Browse
-            project={browsing} style={style} pageTypes={db.pageTypes}
+            project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
             onClose={() => setBrowseId(null)}
             onUseAsBase={useAsBase}
             onTakePage={(s) => takePage(s, browsing)}
@@ -194,7 +232,7 @@ export function App() {
 
   return (
     <Shell view={view} setView={setView} onNew={() => setCreating("proposal")}>
-      {view === "진열대" && (
+      {view === "보관함" && (
         <div className="withtray">
           <Dashboard
             projects={db.projects} categories={db.categories}
@@ -209,6 +247,7 @@ export function App() {
       )}
       {view === "규칙" && <Rules db={db} setDb={setDb} />}
       {view === "스타일" && <StyleView db={db} />}
+      {view === "기록" && <Log db={db} setDb={setDb} />}
     </Shell>
   );
 }
@@ -225,7 +264,7 @@ function Shell({
         <div className="brand">MTMB <span>디자인 스튜디오</span></div>
         {!bare && (
           <div className="tabs">
-            {(["진열대", "규칙", "스타일"] as View[]).map((v) => (
+            {(["보관함", "규칙", "스타일", "기록"] as View[]).map((v) => (
               <button key={v} className={`tab ${view === v ? "on" : ""}`} onClick={() => setView(v)}>{v}</button>
             ))}
           </div>

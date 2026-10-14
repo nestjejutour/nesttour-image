@@ -3,12 +3,13 @@ import type { DrawOp, PageType, Slide, StylePreset } from "../core/types";
 import { ask, type Turn } from "../ai/client";
 import { chatSystem, needsOk, type Action, type Reply } from "../ai/chat";
 import { renderToBlob } from "../render/canvas";
+import type { ChatTurn } from "../store/db";
 
 /**
  * 화면을 보면서 하는 대화.
  *
  * 보낼 때마다 지금 페이지를 그림으로 떠서 같이 보낸다.
- * 그래서 "이 페이지 좀 답답해 보여" 같은 말이 통한다.
+ * 오간 말은 창고에 쌓인다. 다시 이 페이지로 오면 그대로 이어서 말하면 된다.
  */
 
 interface Props {
@@ -19,40 +20,42 @@ interface Props {
   slide: Slide;
   slideIndex: number;
   totalSlides: number;
-  /** 지금 페이지의 그리기 명령 (그림으로 뜬다) */
   ops: DrawOp[];
-  /** 확인 필요 없는 일들을 실제로 반영 */
+  /** 이 페이지에서 지금까지 오간 말 (창고에서 온다) */
+  turns: ChatTurn[];
+  onTurns: (apply: (t: ChatTurn[]) => ChatTurn[]) => void;
   onActions: (as: Action[]) => void;
-  /** 확인 받은 뒤 반영 */
-  onStyleChange: (path: string, value: number | string) => void;
-  onSaveRule: (text: string) => void;
-  /** 기록 창고에 남긴다 */
+  onStyleChange: (path: string, value: number | string, scope: "제안서" | "스타일") => void;
+  onSaveRule: (text: string, scope: "공통" | "스타일" | "분류" | "제안서") => void;
+  /** 지시를 기록 창고에 남긴다 */
   onNote: (instruction: string) => void;
 }
 
-interface Msg {
-  role: "user" | "assistant";
-  text: string;
-  pending?: Action[];
+/** 아직 대표 확인을 기다리는 일 */
+interface Pending {
+  at: number;
+  action: Action;
 }
 
 export function ChatPanel(p: Props) {
-  const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [pending, setPending] = useState<Pending[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
-  // 페이지를 옮기면 대화를 새로 시작한다 (다른 페이지 얘기가 섞이지 않게)
-  useEffect(() => { setMsgs([]); setErr(""); }, [p.slideIndex]);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs, busy]);
+  useEffect(() => { setPending([]); setErr(""); }, [p.slideIndex, p.slide.id]);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [p.turns.length, busy]);
 
   const send = async () => {
     const text = draft.trim();
     if (!text || busy) return;
 
-    const history: Turn[] = [...msgs.map((m) => ({ role: m.role, content: m.text })), { role: "user" as const, content: text }];
-    setMsgs((m) => [...m, { role: "user", text }]);
+    const history: Turn[] = [
+      ...p.turns.map((t) => ({ role: t.role, content: t.text })),
+      { role: "user" as const, content: text },
+    ];
+    p.onTurns((t) => [...t, { role: "user", text }]);
     setDraft("");
     setBusy(true);
     setErr("");
@@ -83,15 +86,22 @@ export function ChatPanel(p: Props) {
       p.onActions(now);
       p.onNote(text);
     }
-    setMsgs((m) => [...m, { role: "assistant", text: r.data!.say || "고쳤습니다.", pending: later }]);
+
+    const say = r.data.say || "고쳤습니다.";
+    p.onTurns((t) => {
+      const next = [...t, { role: "assistant" as const, text: say }];
+      if (later.length) setPending((q) => [...q, ...later.map((a) => ({ at: next.length - 1, action: a }))]);
+      return next;
+    });
   };
 
-  const resolve = (i: number, a: Action, ok: boolean) => {
-    if (ok) {
-      if (a.do === "스타일제안") p.onStyleChange(a.path, a.value);
-      if (a.do === "규칙제안") p.onSaveRule(a.text);
+  /** 범위까지 정해서 반영한다. 1회성 지시가 전체로 번지지 않게 */
+  const resolve = (pd: Pending, scope: string | null) => {
+    if (scope) {
+      if (pd.action.do === "스타일제안") p.onStyleChange(pd.action.path, pd.action.value, scope as any);
+      if (pd.action.do === "규칙제안") p.onSaveRule(pd.action.text, scope as any);
     }
-    setMsgs((m) => m.map((x, k) => (k === i ? { ...x, pending: (x.pending ?? []).filter((y) => y !== a) } : x)));
+    setPending((q) => q.filter((x) => x !== pd));
   };
 
   return (
@@ -102,34 +112,39 @@ export function ChatPanel(p: Props) {
       </p>
 
       <div className="chat-log">
-        {msgs.length === 0 && !busy && (
+        {p.turns.length === 0 && !busy && (
           <p className="chat-hint">
             지금 보고 있는 이 페이지를 두고 이야기하면 됩니다.
             <br /><br />
-            <i>“제목이 길어 보여. 두 줄로 나눠줘”</i>
-            <br />
-            <i>“숫자 세 개 중 가운데를 강조해줘”</i>
-            <br />
+            <i>“제목이 길어 보여. 두 줄로 나눠줘”</i><br />
+            <i>“숫자 세 개 중 가운데를 강조해줘”</i><br />
             <i>“이 페이지 좀 답답해 보이는데 어떻게 하면 좋을까?”</i>
             <br /><br />
             AI 가 <b>이 페이지 그림을 직접 보고</b> 답합니다.
+            오간 말은 저장되니 나중에 이어서 하셔도 됩니다.
           </p>
         )}
 
-        {msgs.map((m, i) => (
+        {p.turns.map((m, i) => (
           <div key={i} className={`bubble ${m.role}`}>
             <p>{m.text}</p>
-            {(m.pending ?? []).map((a, k) => (
+            {pending.filter((q) => q.at === i).map((q, k) => (
               <div className="confirm" key={k}>
-                <b>{a.do === "스타일제안" ? "전체 규격을 바꿀까요?" : "앞으로도 이렇게 할까요?"}</b>
+                <b>{q.action.do === "스타일제안" ? "규격을 바꿀까요?" : "앞으로도 이렇게 할까요?"}</b>
                 <p>
-                  {a.do === "스타일제안"
-                    ? `${a.path} → ${a.value}   (${a.why})`
-                    : a.do === "규칙제안" ? a.text : ""}
+                  {q.action.do === "스타일제안"
+                    ? `${q.action.path} → ${q.action.value}   (${q.action.why})`
+                    : q.action.do === "규칙제안" ? q.action.text : ""}
                 </p>
-                <div className="row">
-                  <button className="btn sm accent" onClick={() => resolve(i, a, true)}>적용</button>
-                  <button className="btn sm" onClick={() => resolve(i, a, false)}>안 함</button>
+                <small className="scopeask">어디까지 적용할까요?</small>
+                <div className="scopebtns">
+                  {(q.action.do === "스타일제안"
+                    ? [["제안서", "이 제안서만"], ["스타일", "이 브랜드 전체"]]
+                    : [["제안서", "이 제안서만"], ["분류", "이 문서 종류"], ["스타일", "이 브랜드"], ["공통", "어떤 문서든"]]
+                  ).map(([v, label]) => (
+                    <button key={v} className="btn sm accent" onClick={() => resolve(q, v)}>{label}</button>
+                  ))}
+                  <button className="btn sm" onClick={() => resolve(q, null)}>안 함</button>
                 </div>
               </div>
             ))}
@@ -146,13 +161,9 @@ export function ChatPanel(p: Props) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="이 페이지를 어떻게 고칠까요?"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-          }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
         />
-        <button className="btn primary" onClick={send} disabled={busy || !draft.trim()}>
-          보내기
-        </button>
+        <button className="btn primary" onClick={send} disabled={busy || !draft.trim()}>보내기</button>
       </div>
     </div>
   );

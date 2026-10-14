@@ -16,6 +16,14 @@ export interface TypeToken {
   charSpacing?: number;
 }
 
+/** 스타일을 부분만 덮어쓰기. 이 제안서에만 쓰는 값 */
+export interface StyleOverride {
+  color?: Record<string, string>;
+  type?: Record<string, Partial<TypeToken>>;
+  slide?: Partial<StylePreset["slide"]>;
+  hairline?: number;
+}
+
 export interface StylePreset {
   id: string;
   name: string;
@@ -152,10 +160,20 @@ export type Content = Record<string, any>;
 
 // ---------- 창고 3 : 규칙 ----------
 
+/**
+ * 규칙이 어디까지 적용되는가.
+ *
+ * 이게 없으면 1회성 지시가 전체로 번지고,
+ * 1년 뒤 쌓인 규칙들이 서로 싸운다.
+ */
+export type RuleScope = "공통" | "스타일" | "분류" | "제안서";
+
 export interface Rule {
   id: string;
-  styleId: string;
   text: string;
+  scope: RuleScope;
+  /** 범위가 스타일/분류/제안서일 때 그 대상의 id */
+  scopeId?: string;
   /** 어디서 나온 규칙인지 */
   source: "기본" | "대표지시" | "직접입력";
   sourceProjectId?: string;
@@ -220,6 +238,8 @@ export interface Project {
   summary: string;
   styleId: string;
   styleVersion: number;
+  /** 이 제안서에만 적용할 규격 바꿈 (전체로 번지지 않는다) */
+  styleOverride?: StyleOverride;
   slides: Slide[];
   /** 사진·로고를 data URL 로 들고 있다 (지금은 내 PC 저장이라서) */
   assets: Record<string, string>;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Content, PageType, Project, StylePreset, Todo } from "../core/types";
+import type { Category, Content, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
@@ -7,6 +7,7 @@ import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
 import { ChatPanel } from "./ChatPanel";
 import type { Action } from "../ai/chat";
+import type { ChatTurn } from "../store/db";
 import { inArtifact } from "../platform";
 
 interface Props {
@@ -16,22 +17,28 @@ interface Props {
   /** 반드시 '직전 상태'를 받아서 바꾼다. 두 가지 변경이 겹쳐도 서로 덮어쓰지 않는다. */
   onChange: (apply: (p: Project) => Project) => void;
   onBack: () => void;
+  /** 분류 목록 (편집기에서 분류를 바꿀 수 있게) */
+  categories: Category[];
   /** 쌓인 걸 전부 녹여 넣은 AI 지시문 */
   aiSystem: string;
   /** 지시가 원칙이 될 때 */
-  onSaveRule: (text: string) => void;
+  onSaveRule: (text: string, scope?: any) => void;
   /** 수정 기록 창고에 남긴다 */
   onHistory: (e: { slideIndex: number; instruction: string; before: Content; after: Content }) => void;
-  /** 전체 규격 바꾸기 (대표 확인을 받은 뒤에만 불린다) */
-  onStyleChange: (path: string, value: number | string) => void;
+  /** 규격 바꾸기 (대표 확인을 받은 뒤에만 불린다) */
+  onStyleChange: (path: string, value: number | string, scope: "제안서" | "스타일") => void;
+  /** 이 페이지에서 오간 대화 (창고에서 온다) */
+  turnsOf: (slideId: string) => ChatTurn[];
+  onTurns: (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) => void;
 }
 
-export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange }: Props) {
+export function Editor({ project, style, pageTypes, categories, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns }: Props) {
   const [cur, setCur] = useState(0);
   const [zoom, setZoom] = useState(0.78);
   const [adding, setAdding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [msg, setMsg] = useState("");
+  const [editTitle, setEditTitle] = useState(false);
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
 
@@ -161,9 +168,35 @@ export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, 
     <>
       <div className="topbar" style={{ borderTop: "1px solid var(--line)" }}>
         <button className="btn sm" onClick={onBack}>← 보관함</button>
-        <b style={{ fontSize: 14 }}>{project.title}</b>
+        {editTitle ? (
+          <input
+            autoFocus
+            className="search"
+            defaultValue={project.title}
+            style={{ width: 230 }}
+            onBlur={(e) => { patch(() => ({ title: e.target.value || "제목 없음" })); setEditTitle(false); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") setEditTitle(false);
+            }}
+          />
+        ) : (
+          <b style={{ fontSize: 14, cursor: "text" }} onClick={() => setEditTitle(true)} title="눌러서 이름 고치기">
+            {project.title}
+          </b>
+        )}
+        {/* 분류가 정해져야 어떤 규칙이 걸릴지 정해진다 */}
+        <select
+          className="scopesel"
+          value={project.category}
+          onChange={(e) => patch(() => ({ category: e.target.value }))}
+          title="분류 — 여기에 따라 적용되는 규칙이 달라집니다"
+        >
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
         <small style={{ color: "var(--muted)" }}>
           {project.client || "고객사 미입력"} · {project.slides.length}장 · {style.name}
+          {project.styleOverride && <span className="chip">이 건만 규격 바꿈</span>}
         </small>
         <div className="spacer" />
         {todos.length > 0 && (
@@ -273,6 +306,8 @@ export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, 
                 slideIndex={cur}
                 totalSlides={project.slides.length}
                 ops={plans[cur]?.ops ?? []}
+                turns={turnsOf(slide.id)}
+                onTurns={(apply) => onTurns(slide.id, apply)}
                 onActions={applyActions}
                 onStyleChange={onStyleChange}
                 onSaveRule={onSaveRule}
@@ -315,9 +350,14 @@ export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, 
   );
 }
 
+/** 페이지 이름표에 쓸 한 줄. 사진 경로 같은 건 건너뛴다. */
 function firstText(c: Record<string, any>): string {
   for (const v of Object.values(c)) {
-    if (typeof v === "string" && v.trim()) return v.slice(0, 22);
+    if (typeof v !== "string") continue;
+    const t = v.trim();
+    if (!t) continue;
+    if (t.startsWith("data:") || /\.(png|jpe?g|webp|svg|gif)$/i.test(t)) continue;
+    return t.slice(0, 22);
   }
   return "";
 }

@@ -13,6 +13,12 @@ import { SEED_PROJECTS } from "./seed";
 
 const KEY = "mtmb-studio-v1";
 
+/** 한 페이지에서 오간 대화 */
+export interface ChatTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
 export interface DB {
   categories: Category[];
   styles: StylePreset[];
@@ -20,23 +26,31 @@ export interface DB {
   rules: Rule[];
   projects: Project[];
   history: HistoryEntry[];
+  /** "프로젝트id:페이지id" → 그 페이지에서 오간 대화 */
+  chats: Record<string, ChatTurn[]>;
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
-/** 기본 규칙 — 기획서 7장에서 대표님이 확정한 원칙 그대로 */
-const DEFAULT_RULES: string[] = [
-  "기본은 흑백. 코랄(accent)은 임팩트에만 쓴다: 가장 중요한 숫자 1개, 구분 장 번호, 강조 단계 1개",
-  "서로 다른 CI 색(MTMB 네이비 + 핫플트립 코랄)을 섞지 않는다",
-  "새까만 박스·띠를 쓰지 않는다",
-  "회색 박스·카드를 남발하지 않는다. 영역은 얇은 선(0.75pt)으로만 구분한다",
-  "강조는 굵은 코랄 선이나 글자색으로 한다. 배경을 채우지 않는다",
-  "그림자, 사선 배경, 장식 원을 쓰지 않는다",
-  "상단 점 5개·가로줄·섹션 라벨을 넣지 않는다. 하단 영문 문구도 넣지 않는다",
-  "페이지 번호만 오른쪽 아래 아주 작게 넣는다",
-  "정렬을 정확히 맞춘다: 로고 왼쪽 끝 = 글자 시작선, 날짜는 로고 글자 몸통 중앙, 사진 아랫선 = 로고 줄",
-  "로고 PNG의 투명 여백을 계산해 실제 그림 기준으로 정렬한다",
-  "표지에 CI 는 1개만 넣는다",
+/**
+ * 처음 깔리는 규칙 (기획서 7장에서 대표님이 확정한 원칙)
+ *
+ * 범위를 나눠 둔다.
+ *  - 공통   : 어떤 문서든 지킨다
+ *  - 스타일 : 핫플트립 미니멀에만 해당. 다른 브랜드는 다를 수 있다
+ */
+const DEFAULT_RULES: { text: string; scope: "공통" | "스타일" }[] = [
+  { scope: "스타일", text: "기본은 흑백. 코랄(accent)은 임팩트에만 쓴다: 가장 중요한 숫자 1개, 구분 장 번호, 강조 단계 1개" },
+  { scope: "스타일", text: "서로 다른 CI 색(MTMB 네이비 + 핫플트립 코랄)을 섞지 않는다" },
+  { scope: "공통",   text: "새까만 박스·띠를 쓰지 않는다" },
+  { scope: "공통",   text: "회색 박스·카드를 남발하지 않는다. 영역은 얇은 선(0.75pt)으로만 구분한다" },
+  { scope: "스타일", text: "강조는 굵은 코랄 선이나 글자색으로 한다. 배경을 채우지 않는다" },
+  { scope: "공통",   text: "그림자, 사선 배경, 장식 원을 쓰지 않는다" },
+  { scope: "공통",   text: "상단 점 5개·가로줄·섹션 라벨을 넣지 않는다. 하단 영문 문구도 넣지 않는다" },
+  { scope: "공통",   text: "페이지 번호만 오른쪽 아래 아주 작게 넣는다" },
+  { scope: "공통",   text: "정렬을 정확히 맞춘다: 로고 왼쪽 끝 = 글자 시작선, 날짜는 로고 글자 몸통 중앙, 사진 아랫선 = 로고 줄" },
+  { scope: "스타일", text: "로고 PNG의 투명 여백을 계산해 실제 그림 기준으로 정렬한다" },
+  { scope: "스타일", text: "표지에 CI 는 1개만 넣는다" },
 ];
 
 /** 처음 깔리는 분류. 여기서부터 대표님이 + 로 늘려간다. */
@@ -55,16 +69,18 @@ function seed(): DB {
     categories: DEFAULT_CATEGORIES,
     styles: BUILT_IN_STYLES,
     pageTypes: BUILT_IN_PAGE_TYPES,
-    rules: DEFAULT_RULES.map((text) => ({
+    rules: DEFAULT_RULES.map((r) => ({
       id: uid(),
-      styleId: "hotpltrip-minimal",
-      text,
+      text: r.text,
+      scope: r.scope,
+      scopeId: r.scope === "스타일" ? "hotpltrip-minimal" : undefined,
       source: "기본" as const,
       enabled: true,
       createdAt: new Date().toISOString(),
     })),
     projects: SEED_PROJECTS,
     history: [],
+    chats: {},
   };
 }
 
@@ -88,6 +104,7 @@ export function load(): DB {
       rules: saved.rules?.length ? saved.rules : db.rules,
       projects: saved.projects ?? db.projects,
       history: saved.history ?? [],
+      chats: saved.chats ?? {},
     };
   } catch {
     return seed();
@@ -105,6 +122,7 @@ export function save(db: DB): void {
         rules: db.rules,
         projects: db.projects,
         history: db.history,
+        chats: db.chats,
       }),
     );
   } catch (e) {
