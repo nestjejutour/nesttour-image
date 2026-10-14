@@ -54,7 +54,9 @@ function visible(el: { showIf?: string; hideIf?: string }, scope: Content): bool
 
 function resolveSrc(v: unknown, assets?: Record<string, string>): string | null {
   if (typeof v !== "string" || v.trim() === "") return null;
+  // 바로 쓸 수 있는 주소인가 (data:, http, /..., seed/bus.jpg 같은 파일 경로)
   if (v.startsWith("data:") || v.startsWith("http") || v.startsWith("/")) return v;
+  if (/\.(png|jpe?g|webp|svg|gif)$/i.test(v)) return v;
   return assets?.[v] ?? null;
 }
 

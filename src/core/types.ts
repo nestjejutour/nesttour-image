@@ -190,18 +190,31 @@ export interface Slide {
   note?: string;
 }
 
-export type ProjectCategory =
-  | "제안서"
-  | "회사소개서"
-  | "입찰기획서"
-  | "상세페이지"
-  | "기타";
+// ---------- 창고 6 : 분류(메뉴) ----------
+
+/**
+ * 분류는 코드에 박지 않는다. 대표님이 + 버튼으로 늘린다.
+ *
+ * kind 가 중요하다.
+ *  - "우리 결과물": 우리가 만든 것. 구조를 그대로 뼈대로 쓸 수 있다.
+ *  - "참고 자료": 남에게 받은 것 중 디자인이 괜찮아 모아둔 것.
+ *                 보고 배우는 용도다. 통째로 베끼지 않는다.
+ */
+export interface Category {
+  id: string;
+  name: string;
+  kind: "우리 결과물" | "참고 자료";
+  /** 진열대에서 보이는 순서 */
+  order: number;
+  builtIn?: boolean;
+}
 
 export interface Project {
   id: string;
   title: string;
   client: string;
-  category: ProjectCategory;
+  /** 분류 id (창고 6) */
+  category: string;
   status: "진행 중" | "완료";
   tags: string[];
   summary: string;

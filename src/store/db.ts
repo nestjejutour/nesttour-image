@@ -1,6 +1,7 @@
-import type { HistoryEntry, PageType, Project, Rule, StylePreset } from "../core/types";
+import type { Category, HistoryEntry, PageType, Project, Rule, StylePreset } from "../core/types";
 import { BUILT_IN_STYLES } from "../core/style";
 import { BUILT_IN_PAGE_TYPES } from "../core/pageTypes";
+import { SEED_PROJECTS } from "./seed";
 
 /**
  * 창고 보관소
@@ -13,6 +14,7 @@ import { BUILT_IN_PAGE_TYPES } from "../core/pageTypes";
 const KEY = "mtmb-studio-v1";
 
 export interface DB {
+  categories: Category[];
   styles: StylePreset[];
   pageTypes: PageType[];
   rules: Rule[];
@@ -37,8 +39,20 @@ const DEFAULT_RULES: string[] = [
   "표지에 CI 는 1개만 넣는다",
 ];
 
+/** 처음 깔리는 분류. 여기서부터 대표님이 + 로 늘려간다. */
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: "proposal",  name: "제안서",       kind: "우리 결과물", order: 1, builtIn: true },
+  { id: "company",   name: "회사소개서",   kind: "우리 결과물", order: 2, builtIn: true },
+  { id: "bid",       name: "입찰기획서",   kind: "우리 결과물", order: 3, builtIn: true },
+  { id: "plan",      name: "기획서",       kind: "우리 결과물", order: 4, builtIn: true },
+  { id: "detail",    name: "상세페이지",   kind: "우리 결과물", order: 5, builtIn: true },
+  { id: "reference", name: "참고 보관함",  kind: "참고 자료",   order: 6, builtIn: true },
+  { id: "etc",       name: "기타",         kind: "우리 결과물", order: 7, builtIn: true },
+];
+
 function seed(): DB {
   return {
+    categories: DEFAULT_CATEGORIES,
     styles: BUILT_IN_STYLES,
     pageTypes: BUILT_IN_PAGE_TYPES,
     rules: DEFAULT_RULES.map((text) => ({
@@ -49,7 +63,7 @@ function seed(): DB {
       enabled: true,
       createdAt: new Date().toISOString(),
     })),
-    projects: [],
+    projects: SEED_PROJECTS,
     history: [],
   };
 }
@@ -63,13 +77,15 @@ export function load(): DB {
     // 기본 스타일·페이지 타입은 항상 최신 코드 쪽을 쓰고,
     // 대표님이 만든 것(규칙·프로젝트·기록)은 저장된 것을 쓴다.
     return {
+      // 기본 분류는 유지하되, 대표님이 더한 것과 이름을 바꾼 것은 저장된 쪽을 쓴다
+      categories: mergeCategories(db.categories, saved.categories ?? []),
       styles: db.styles,
       pageTypes: [
         ...db.pageTypes,
         ...(saved.pageTypes ?? []).filter((p) => !p.builtIn),
       ],
       rules: saved.rules?.length ? saved.rules : db.rules,
-      projects: saved.projects ?? [],
+      projects: saved.projects ?? db.projects,
       history: saved.history ?? [],
     };
   } catch {
@@ -82,6 +98,7 @@ export function save(db: DB): void {
     localStorage.setItem(
       KEY,
       JSON.stringify({
+        categories: db.categories,
         pageTypes: db.pageTypes.filter((p) => !p.builtIn),
         rules: db.rules,
         projects: db.projects,
@@ -93,14 +110,23 @@ export function save(db: DB): void {
   }
 }
 
+/** 기본 분류 + 대표님이 손댄 분류를 합친다 */
+function mergeCategories(base: Category[], saved: Category[]): Category[] {
+  if (!saved.length) return base;
+  const byId = new Map(saved.map((c) => [c.id, c]));
+  const merged = base.map((b) => byId.get(b.id) ?? b);
+  const extra = saved.filter((c) => !base.some((b) => b.id === c.id));
+  return [...merged, ...extra].sort((a, b) => a.order - b.order);
+}
+
 /** 새 프로젝트 틀 */
-export function newProject(title: string, client: string): Project {
+export function newProject(title: string, client: string, category = "proposal"): Project {
   const t = new Date().toISOString();
   return {
     id: uid(),
     title: title || "제목 없는 제안서",
     client,
-    category: "제안서",
+    category,
     status: "진행 중",
     tags: [],
     summary: "",
