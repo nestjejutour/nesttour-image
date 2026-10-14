@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import type { PageType, Project, StylePreset, Todo } from "../core/types";
+import type { Content, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
+import { AiPanel } from "./AiPanel";
+import { inArtifact } from "../platform";
 
 interface Props {
   project: Project;
@@ -13,13 +15,20 @@ interface Props {
   /** 반드시 '직전 상태'를 받아서 바꾼다. 두 가지 변경이 겹쳐도 서로 덮어쓰지 않는다. */
   onChange: (apply: (p: Project) => Project) => void;
   onBack: () => void;
+  /** 쌓인 걸 전부 녹여 넣은 AI 지시문 */
+  aiSystem: string;
+  /** 지시가 원칙이 될 때 */
+  onSaveRule: (text: string) => void;
+  /** 수정 기록 창고에 남긴다 */
+  onHistory: (e: { slideIndex: number; instruction: string; before: Content; after: Content }) => void;
 }
 
-export function Editor({ project, style, pageTypes, onChange, onBack }: Props) {
+export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, onSaveRule, onHistory }: Props) {
   const [cur, setCur] = useState(0);
   const [zoom, setZoom] = useState(0.78);
   const [adding, setAdding] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [msg, setMsg] = useState("");
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
 
@@ -123,13 +132,21 @@ export function Editor({ project, style, pageTypes, onChange, onBack }: Props) {
             빈칸 {todos.length}개
           </small>
         )}
-        <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
-          PDF 인쇄
-        </button>
+        {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
+        {/* 옆 패널에서는 인쇄 창을 열 수 없다 */}
+        {!inArtifact && (
+          <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
+            PDF 인쇄
+          </button>
+        )}
         <button
           className="btn sm primary"
           disabled={!project.slides.length}
-          onClick={() => downloadPptx(plans, style, project.title)}
+          onClick={async () => {
+            setMsg("");
+            const r = await downloadPptx(plans, style, project.title);
+            if (!r.ok) setMsg(r.error ?? "내보내기 실패");
+          }}
         >
           PPT 내보내기
         </button>
@@ -207,6 +224,21 @@ export function Editor({ project, style, pageTypes, onChange, onBack }: Props) {
                   disabled={cur === project.slides.length - 1}>↓</button>
                 <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
               </div>
+
+              <AiPanel
+                system={aiSystem}
+                pageType={slideType}
+                slide={slide}
+                onSaveRule={onSaveRule}
+                onApply={(next, instruction, before) => {
+                  patch((p) => ({
+                    slides: p.slides.map((s, i) => (i === cur ? { ...s, content: next } : s)),
+                  }));
+                  onHistory({ slideIndex: cur, instruction, before, after: next });
+                }}
+              />
+
+              <p className="sec">내용 직접 고치기</p>
 
               {todos.filter((t) => t.slideIndex === cur).length > 0 && (
                 <div className="warn">

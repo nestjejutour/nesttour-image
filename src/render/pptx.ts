@@ -1,5 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import type { DrawOp, StylePreset } from "../core/types";
+import { capability, inArtifact } from "../platform";
 
 /**
  * 손 ② — PPT 파일
@@ -95,12 +96,30 @@ export function buildDeck(slides: SlidePlan[], style: StylePreset): PptxGenJS {
   return pptx;
 }
 
-/** 브라우저에서 바로 내려받기 */
+type Downloads = { save(r: { filename: string; data: Blob }): Promise<{ status: string }> };
+
+/** PPT 파일을 만들어 내려준다. 어디서 도는지에 따라 방법이 다르다. */
 export async function downloadPptx(
   slides: SlidePlan[],
   style: StylePreset,
   fileName: string,
-): Promise<void> {
+): Promise<{ ok: boolean; error?: string }> {
+  const name = fileName.endsWith(".pptx") ? fileName : `${fileName}.pptx`;
   const pptx = buildDeck(slides, style);
-  await pptx.writeFile({ fileName: fileName.endsWith(".pptx") ? fileName : `${fileName}.pptx` });
+
+  if (inArtifact) {
+    const downloads = await capability<Downloads>("downloads");
+    if (!downloads) return { ok: false, error: "이 화면에서는 파일 내려받기를 쓸 수 없습니다." };
+    const blob = (await pptx.write({ outputType: "blob" })) as Blob;
+    try {
+      await downloads.save({ filename: name, data: blob });
+      return { ok: true };
+    } catch (e: any) {
+      if (e?.code === "declined") return { ok: false, error: "내려받기를 취소하셨습니다." };
+      return { ok: false, error: e?.message ?? "파일을 내려받지 못했습니다." };
+    }
+  }
+
+  await pptx.writeFile({ fileName: name });
+  return { ok: true };
 }

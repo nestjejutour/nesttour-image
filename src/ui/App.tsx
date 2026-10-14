@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { load, newProject, save, uid, type DB } from "../store/db";
-import type { Project, Rule } from "../core/types";
+import { load, save, uid, type DB } from "../store/db";
+import type { Content, HistoryEntry, Project, Rule } from "../core/types";
+import { buildBrain } from "../ai/brain";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { Editor } from "./Editor";
+import { NewProject } from "./NewProject";
 
 type View = "보관함" | "규칙" | "스타일";
 
@@ -11,6 +13,7 @@ export function App() {
   const [db, setDb] = useState<DB>(() => load());
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => { save(db); }, [db]);
 
@@ -23,14 +26,61 @@ export function App() {
       projects: d.projects.map((x) => (x.id === openId ? apply(x) : x)),
     }));
 
-  const create = () => {
-    const title = prompt("제안서 이름을 적어 주세요", "새 제안서");
-    if (title === null) return;
-    const client = prompt("고객사는 어디입니까? (몰라도 괜찮습니다)", "") ?? "";
-    const p = newProject(title, client);
-    setDb((d) => ({ ...d, projects: [p, ...d.projects] }));
-    setOpenId(p.id);
-  };
+  const create = () => setCreating(true);
+
+  /** 공장에 쌓인 것(스타일·규칙·페이지타입·지난 제안서)을 전부 녹여 AI 지시문을 만든다 */
+  const brain = useMemo(
+    () =>
+      buildBrain({
+        style,
+        rules: db.rules,
+        pageTypes: db.pageTypes,
+        pastProjects: db.projects.filter((p) => p.id !== openId),
+      }),
+    [style, db.rules, db.pageTypes, db.projects, openId],
+  );
+
+  const saveRule = (text: string) =>
+    setDb((d) => ({
+      ...d,
+      rules: [
+        ...d.rules,
+        {
+          id: uid(), styleId: style.id, text, source: "대표지시" as const,
+          sourceProjectId: openId ?? undefined, enabled: true,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+
+  const addHistory = (e: { slideIndex: number; instruction: string; before: Content; after: Content }) =>
+    setDb((d) => ({
+      ...d,
+      history: [
+        ...d.history,
+        { id: uid(), projectId: openId ?? "", ...e, createdAt: new Date().toISOString() } as HistoryEntry,
+      ],
+    }));
+
+  if (creating) {
+    return (
+      <div className="app">
+        <Header view={view} setView={setView} onNew={create} inEditor />
+        <NewProject
+          style={style}
+          rules={db.rules}
+          pageTypes={db.pageTypes}
+          pastProjects={db.projects}
+          onCancel={() => setCreating(false)}
+          onDone={(p) => {
+            setDb((d) => ({ ...d, projects: [p, ...d.projects] }));
+            setCreating(false);
+            setOpenId(p.id);
+          }}
+        />
+      </div>
+    );
+  }
 
   if (project) {
     return (
@@ -42,6 +92,9 @@ export function App() {
           pageTypes={db.pageTypes}
           onChange={putProject}
           onBack={() => setOpenId(null)}
+          aiSystem={brain.system}
+          onSaveRule={saveRule}
+          onHistory={addHistory}
         />
       </div>
     );

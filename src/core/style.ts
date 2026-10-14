@@ -17,7 +17,7 @@ export const HOTPLTRIP_MINIMAL: StylePreset = {
 
   slide: { widthIn: 10, heightIn: 5.625, marginIn: 0.6 },
 
-  font: { family: "Pretendard", fallback: ["맑은 고딕", "Malgun Gothic", "sans-serif"] },
+  font: { family: "Pretendard", fallback: ["Noto Sans KR", "맑은 고딕", "Malgun Gothic", "sans-serif"] },
 
   color: {
     ink: "#2B2B2B",        // 본문 글자
