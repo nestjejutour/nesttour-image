@@ -1,0 +1,270 @@
+// ============================================================
+//  공장의 자료 구조
+//
+//  핵심 생각: 페이지 모양은 "코드"가 아니라 "데이터"다.
+//  그래서 새 페이지 타입이 늘어나도 코드를 고칠 필요가 없다.
+// ============================================================
+
+// ---------- 창고 1 : 스타일 ----------
+
+/** 글자 규격 한 덩어리. 색은 색 이름(ink/muted/accent)으로 가리킨다. */
+export interface TypeToken {
+  size: number;
+  bold?: boolean;
+  color?: string;
+  lineSpacingMul?: number;
+  charSpacing?: number;
+}
+
+export interface StylePreset {
+  id: string;
+  name: string;
+  brand: string;
+  version: number;
+  slide: { widthIn: number; heightIn: number; marginIn: number };
+  font: { family: string; fallback: string[] };
+  /** ink, muted, line, background, accent, todo ... */
+  color: Record<string, string>;
+  /** pageTitle, subtitle, body, caption, keyNumber ... */
+  type: Record<string, TypeToken>;
+  /** 페이지 번호는 브랜드 규칙이라 스타일이 들고 있다. */
+  pageNo: { x: number; y: number; w: number; h: number; size: number; color: string };
+  /** 얇은 선의 기본 두께(pt) */
+  hairline: number;
+  logo?: string;
+  updatedAt: string;
+}
+
+// ---------- 창고 2 : 페이지 타입(레이아웃) ----------
+
+/** 사람이 채워 넣는 칸의 정의. 편집기 오른쪽 입력폼이 이걸 보고 만들어진다. */
+export interface Slot {
+  key: string;
+  label: string;
+  kind: "text" | "textarea" | "image" | "list";
+  required?: boolean;
+  hint?: string;
+  /** kind === "list" 일 때 각 항목이 가지는 칸들 */
+  itemSlots?: Slot[];
+  max?: number;
+}
+
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+type Visibility = {
+  /** 이 내용 칸이 채워져 있을 때만 그린다 */
+  showIf?: string;
+  /** 이 내용 칸이 채워져 있으면 그리지 않는다 */
+  hideIf?: string;
+};
+
+export interface TextEl extends Box, Visibility {
+  type: "text";
+  /** 내용에서 가져올 칸 이름. $index / $index2 / $count 는 특수값 */
+  bind?: string;
+  /** 고정 문구 */
+  literal?: string;
+  /** 스타일의 글자 규격 이름 */
+  token?: string;
+  color?: string;
+  size?: number;
+  bold?: boolean;
+  align?: "left" | "center" | "right";
+  valign?: "top" | "middle" | "bottom";
+  /** 비어 있으면 빨간 [ 확인 필요 ] 로 표시 */
+  required?: boolean;
+  prefix?: string;
+  suffix?: string;
+  lineSpacingMul?: number;
+  charSpacing?: number;
+}
+
+/** 얇은 선. w 또는 h 중 하나를 0 으로 두면 그 방향 선이 된다. */
+export interface LineEl extends Box, Visibility {
+  type: "line";
+  color?: string;
+  weight?: number;
+}
+
+export interface RectEl extends Box, Visibility {
+  type: "rect";
+  fill?: string;
+  alpha?: number;
+  stroke?: string;
+  strokeWeight?: number;
+}
+
+export interface ImageEl extends Box, Visibility {
+  type: "image";
+  bind: string;
+  fit?: "cover" | "contain";
+  /** 사진이 없을 때 자리를 표시할지 */
+  placeholder?: boolean;
+}
+
+/** 사진 위에 깔는 어두운 막 (사진 임팩트 장) */
+export interface ScrimEl extends Box, Visibility {
+  type: "scrim";
+  color?: string;
+  alpha: number;
+}
+
+/**
+ * 같은 묶음을 N번 반복한다. 카드 3열/4열/5열, 숫자 3개, 단계 흐름을
+ * 전부 이 하나로 처리한다. 하위 element 의 x/y 는 origin 기준 상대값.
+ */
+export interface RepeatEl {
+  type: "repeat";
+  /** 내용에서 반복할 배열 칸 이름 */
+  over: string;
+  origin: { x: number; y: number };
+  step: { x?: number; y?: number };
+  max?: number;
+  /** 한 줄에 몇 개까지 두고 줄바꿈할지 (2x2 격자용) */
+  perRow?: number;
+  rowStep?: { x?: number; y?: number };
+  elements: Element[];
+}
+
+export type Element = TextEl | LineEl | RectEl | ImageEl | ScrimEl | RepeatEl;
+
+export interface PageType {
+  id: string;
+  name: string;
+  description: string;
+  /** 보기 좋게 묶는 이름: 표지 / 본문 / 마무리 */
+  group: string;
+  slots: Slot[];
+  elements: Element[];
+  sample: Content;
+  /** 페이지 번호를 찍을지 (표지·구분장은 보통 안 찍는다) */
+  showPageNo?: boolean;
+  builtIn?: boolean;
+  createdAt: string;
+}
+
+export type Content = Record<string, any>;
+
+// ---------- 창고 3 : 규칙 ----------
+
+export interface Rule {
+  id: string;
+  styleId: string;
+  text: string;
+  /** 어디서 나온 규칙인지 */
+  source: "기본" | "대표지시" | "직접입력";
+  sourceProjectId?: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+// ---------- 창고 4·5 : 사례 / 수정 기록 ----------
+
+export interface HistoryEntry {
+  id: string;
+  projectId: string;
+  slideIndex: number;
+  /** 대표가 한 지시 */
+  instruction: string;
+  before: Content;
+  after: Content;
+  /** 규칙으로 승격했는지 */
+  promotedRuleId?: string;
+  createdAt: string;
+}
+
+// ---------- 프로젝트 ----------
+
+export interface Slide {
+  id: string;
+  pageTypeId: string;
+  content: Content;
+  /** 시안 A/B/C */
+  variants?: Content[];
+  chosenVariant?: number;
+  note?: string;
+}
+
+export type ProjectCategory =
+  | "제안서"
+  | "회사소개서"
+  | "입찰기획서"
+  | "상세페이지"
+  | "기타";
+
+export interface Project {
+  id: string;
+  title: string;
+  client: string;
+  category: ProjectCategory;
+  status: "진행 중" | "완료";
+  tags: string[];
+  summary: string;
+  styleId: string;
+  styleVersion: number;
+  slides: Slide[];
+  /** 사진·로고를 data URL 로 들고 있다 (지금은 내 PC 저장이라서) */
+  assets: Record<string, string>;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---------- 그리기 명령 ----------
+
+/**
+ * 해석이 끝난 상태. 스타일도 내용도 이미 다 녹아들어가 있고
+ * 좌표는 인치, 색은 #RRGGBB, 글자크기는 pt 로 확정되어 있다.
+ *
+ * 미리보기(HTML)와 PPT 는 "둘 다 이것만" 보고 그린다.
+ * 그래서 모양이 달라질 수 없다.
+ */
+export type DrawOp =
+  | {
+      kind: "text";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      text: string;
+      sizePt: number;
+      bold: boolean;
+      colorHex: string;
+      align: "left" | "center" | "right";
+      valign: "top" | "middle" | "bottom";
+      lineSpacingMul?: number;
+      charSpacing?: number;
+      isTodo?: boolean;
+    }
+  | {
+      kind: "rect";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      fillHex?: string;
+      fillAlpha?: number;
+      strokeHex?: string;
+      strokeWeightPt?: number;
+    }
+  | {
+      kind: "image";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      src: string;
+      fit: "cover" | "contain";
+    };
+
+/** 아직 못 채운 칸 */
+export interface Todo {
+  slideIndex: number;
+  pageTypeName: string;
+  label: string;
+}

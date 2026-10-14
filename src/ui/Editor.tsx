@@ -1,0 +1,248 @@
+import { useMemo, useState } from "react";
+import type { PageType, Project, StylePreset, Todo } from "../core/types";
+import { collectTodos, interpret } from "../core/interpret";
+import { SlideView } from "../render/html";
+import { downloadPptx } from "../render/pptx";
+import { SlotForm } from "./SlotForm";
+import { uid } from "../store/db";
+
+interface Props {
+  project: Project;
+  style: StylePreset;
+  pageTypes: PageType[];
+  /** 반드시 '직전 상태'를 받아서 바꾼다. 두 가지 변경이 겹쳐도 서로 덮어쓰지 않는다. */
+  onChange: (apply: (p: Project) => Project) => void;
+  onBack: () => void;
+}
+
+export function Editor({ project, style, pageTypes, onChange, onBack }: Props) {
+  const [cur, setCur] = useState(0);
+  const [zoom, setZoom] = useState(0.78);
+  const [adding, setAdding] = useState(false);
+  const [printing, setPrinting] = useState(false);
+
+  const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
+
+  /** 페이지마다 번호를 매긴다 (번호 안 찍는 페이지는 세지 않는다) */
+  const pageNumbers = useMemo(() => {
+    let n = 0;
+    return project.slides.map((s) => {
+      const t = typeOf(s.pageTypeId);
+      if (t?.showPageNo === false) return 0;
+      n += 1;
+      return n;
+    });
+  }, [project.slides, pageTypes]);
+
+  const plans = useMemo(
+    () =>
+      project.slides.map((s, i) => {
+        const t = typeOf(s.pageTypeId);
+        if (!t) return { ops: [] };
+        return {
+          ops: interpret(t, s.content, {
+            style,
+            assets: project.assets,
+            pageNumber: pageNumbers[i],
+          }),
+        };
+      }),
+    [project, style, pageTypes, pageNumbers],
+  );
+
+  const todos: Todo[] = useMemo(
+    () =>
+      project.slides.flatMap((s, i) => {
+        const t = typeOf(s.pageTypeId);
+        return t ? collectTodos(t, s.content, i) : [];
+      }),
+    [project.slides, pageTypes],
+  );
+
+  const slide = project.slides[cur];
+  const slideType = slide ? typeOf(slide.pageTypeId) : undefined;
+
+  const patch = (fn: (p: Project) => Partial<Project>) =>
+    onChange((prev) => ({ ...prev, ...fn(prev), updatedAt: new Date().toISOString() }));
+
+  const addPage = (t: PageType) => {
+    const s = { id: uid(), pageTypeId: t.id, content: structuredClone(t.sample) };
+    patch((p) => ({ slides: [...p.slides, s] }));
+    setCur(project.slides.length);
+    setAdding(false);
+  };
+
+  const removePage = (i: number) => {
+    patch((p) => ({ slides: p.slides.filter((_, k) => k !== i) }));
+    setCur(Math.max(0, Math.min(i, project.slides.length - 2)));
+  };
+
+  const movePage = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= project.slides.length) return;
+    patch((p) => {
+      const n = [...p.slides];
+      [n[i], n[j]] = [n[j], n[i]];
+      return { slides: n };
+    });
+    setCur(j);
+  };
+
+  // 인쇄(PDF)는 미리보기를 그대로 내보낸다. 그래서 모양이 같다.
+  const printPdf = () => {
+    setPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setPrinting(false);
+    }, 120);
+  };
+
+  if (printing) {
+    return (
+      <div className="print-root">
+        {plans.map((p, i) => (
+          <div className="print-page" key={i}>
+            <SlideView ops={p.ops} style={style} zoom={1} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="topbar" style={{ borderTop: "1px solid var(--line)" }}>
+        <button className="btn sm" onClick={onBack}>← 보관함</button>
+        <b style={{ fontSize: 14 }}>{project.title}</b>
+        <small style={{ color: "var(--muted)" }}>
+          {project.client || "고객사 미입력"} · {project.slides.length}장 · {style.name}
+        </small>
+        <div className="spacer" />
+        {todos.length > 0 && (
+          <small style={{ color: "var(--todo)", fontWeight: 600 }}>
+            빈칸 {todos.length}개
+          </small>
+        )}
+        <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
+          PDF 인쇄
+        </button>
+        <button
+          className="btn sm primary"
+          disabled={!project.slides.length}
+          onClick={() => downloadPptx(plans, style, project.title)}
+        >
+          PPT 내보내기
+        </button>
+      </div>
+
+      <div className="editor">
+        {/* ── 왼쪽: 페이지 목록 ── */}
+        <div className="pane-left">
+          <p className="sec" style={{ marginTop: 0 }}>페이지 {project.slides.length}</p>
+          {project.slides.map((s, i) => (
+            <button
+              key={s.id}
+              className={`pagechip ${i === cur ? "on" : ""}`}
+              onClick={() => setCur(i)}
+            >
+              {i + 1}. {typeOf(s.pageTypeId)?.name ?? "알 수 없음"}
+              <small>{firstText(s.content) || "비어 있음"}</small>
+            </button>
+          ))}
+          <button className="btn sm" style={{ width: "100%" }} onClick={() => setAdding(!adding)}>
+            + 페이지 추가
+          </button>
+          {adding && (
+            <div style={{ marginTop: 8 }}>
+              {["표지", "본문", "마무리"].map((g) => (
+                <div key={g}>
+                  <p className="sec">{g}</p>
+                  {pageTypes.filter((t) => t.group === g).map((t) => (
+                    <button key={t.id} className="pagechip" onClick={() => addPage(t)}>
+                      {t.name}
+                      <small>{t.description}</small>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── 가운데: 미리보기 (회색 바탕 위에) ── */}
+        <div className="stage">
+          {slide ? (
+            <div>
+              <div className="stage-inner">
+                <SlideView ops={plans[cur]?.ops ?? []} style={style} zoom={zoom} />
+              </div>
+              <div className="zoom" style={{ marginTop: 12, justifyContent: "center" }}>
+                <button className="btn sm" onClick={() => setZoom((z) => Math.max(0.3, z - 0.12))}>−</button>
+                <span style={{ minWidth: 48, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
+                <button className="btn sm" onClick={() => setZoom((z) => Math.min(1.6, z + 0.12))}>+</button>
+                <button className="btn sm" onClick={() => setZoom(0.78)}>맞춤</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ color: "#fff", textAlign: "center" }}>
+              <p style={{ fontSize: 15, marginBottom: 6 }}>아직 페이지가 없습니다</p>
+              <p style={{ fontSize: 13, opacity: 0.8 }}>왼쪽에서 “페이지 추가”를 눌러 주세요</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── 오른쪽: 내용 고치기 ── */}
+        <div className="pane-right">
+          {slide && slideType ? (
+            <>
+              <div className="row" style={{ marginBottom: 14 }}>
+                <div className="grow">
+                  <b style={{ fontSize: 14 }}>{slideType.name}</b>
+                  <div style={{ color: "var(--muted)", fontSize: 11.5, marginTop: 2 }}>
+                    {cur + 1}번째 페이지
+                  </div>
+                </div>
+                <button className="btn sm" onClick={() => movePage(cur, -1)} disabled={cur === 0}>↑</button>
+                <button className="btn sm" onClick={() => movePage(cur, 1)}
+                  disabled={cur === project.slides.length - 1}>↓</button>
+                <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
+              </div>
+
+              {todos.filter((t) => t.slideIndex === cur).length > 0 && (
+                <div className="warn">
+                  <b>이 페이지에 안 채운 칸이 있습니다</b>
+                  <ul>
+                    {todos.filter((t) => t.slideIndex === cur).map((t, i) => (
+                      <li key={i}>{t.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <SlotForm
+                slots={slideType.slots}
+                content={slide.content}
+                assets={project.assets}
+                onAsset={(k, v) => patch((p) => ({ assets: { ...p.assets, [k]: v } }))}
+                onChange={(next) =>
+                  patch((p) => ({
+                    slides: p.slides.map((s, i) => (i === cur ? { ...s, content: next } : s)),
+                  }))
+                }
+              />
+            </>
+          ) : (
+            <p style={{ color: "var(--muted)" }}>페이지를 고르면 여기서 내용을 고칠 수 있습니다.</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function firstText(c: Record<string, any>): string {
+  for (const v of Object.values(c)) {
+    if (typeof v === "string" && v.trim()) return v.slice(0, 22);
+  }
+  return "";
+}

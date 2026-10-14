@@ -1,0 +1,166 @@
+:root {
+  --ink: #1d1d1f;
+  --muted: #86868b;
+  --line: #e5e5e7;
+  --bg: #ffffff;
+  --panel: #fafafa;
+  --stage: #8e8e93;
+  --accent: #ff6d6a;
+  --todo: #e03131;
+  --radius: 10px;
+  --font: "Pretendard", "맑은 고딕", "Malgun Gothic", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+button { font-family: var(--font); cursor: pointer; }
+input, textarea, select { font-family: var(--font); font-size: 13px; }
+
+/* ---------- 틀 ---------- */
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.topbar {
+  display: flex; align-items: center; gap: 18px;
+  height: 56px; padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0; background: var(--bg);
+}
+.brand { font-weight: 700; font-size: 15px; letter-spacing: -0.2px; }
+.brand span { color: var(--accent); }
+.tabs { display: flex; gap: 2px; }
+.tab {
+  border: 0; background: transparent; color: var(--muted);
+  padding: 7px 13px; border-radius: 7px; font-size: 13.5px; font-weight: 500;
+}
+.tab:hover { background: var(--panel); color: var(--ink); }
+.tab.on { background: var(--ink); color: #fff; }
+.spacer { flex: 1; }
+
+.btn {
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500;
+}
+.btn:hover { background: var(--panel); }
+.btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn.primary:hover { opacity: 0.85; }
+.btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.sm { padding: 4px 9px; font-size: 12px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- 보관함 ---------- */
+.page { padding: 28px 32px; overflow: auto; flex: 1; }
+.page h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.4px; }
+.page .lede { color: var(--muted); margin: 0 0 24px; font-size: 13.5px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.card {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; background: #fff; text-align: left; padding: 0;
+  display: flex; flex-direction: column;
+}
+.card:hover { border-color: #c7c7cc; }
+.card .thumb {
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  height: 148px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.card .thumb .empty { color: var(--muted); font-size: 12px; }
+.card .meta { padding: 12px 14px; }
+.card .meta b { display: block; font-size: 14px; margin-bottom: 3px; }
+.card .meta small { color: var(--muted); font-size: 12px; }
+
+.empty-state {
+  border: 1px dashed var(--line); border-radius: var(--radius);
+  padding: 48px; text-align: center; color: var(--muted);
+}
+
+/* ---------- 편집기 ---------- */
+.editor { display: flex; flex: 1; min-height: 0; }
+
+.pane-left {
+  width: 198px; border-right: 1px solid var(--line);
+  overflow: auto; padding: 12px; flex-shrink: 0; background: var(--bg);
+}
+.pane-right {
+  width: 340px; border-left: 1px solid var(--line);
+  overflow: auto; padding: 16px; flex-shrink: 0; background: var(--bg);
+}
+.stage {
+  flex: 1; background: var(--stage); overflow: auto;
+  display: flex; align-items: center; justify-content: center; padding: 28px;
+}
+.stage-inner { box-shadow: 0 6px 28px rgba(0,0,0,0.22); }
+
+.pagechip {
+  display: block; width: 100%; text-align: left;
+  border: 1px solid var(--line); background: #fff; border-radius: 8px;
+  padding: 8px 10px; margin-bottom: 6px; font-size: 12.5px; line-height: 1.35;
+}
+.pagechip.on { border-color: var(--ink); background: var(--ink); color: #fff; }
+.pagechip small { display: block; opacity: 0.6; font-size: 11px; margin-top: 2px; }
+
+.sec { font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 9px; }
+.sec:not(:first-child) { margin-top: 24px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.field .hint { color: var(--muted); font-weight: 400; font-size: 11px; }
+.field input, .field textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 6px;
+  padding: 7px 9px; outline: none; background: #fff;
+}
+.field input:focus, .field textarea:focus { border-color: var(--ink); }
+.field textarea { resize: vertical; min-height: 56px; }
+
+.listitem {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px; margin-bottom: 8px; background: var(--panel);
+}
+.listitem .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.listitem .head b { font-size: 11.5px; color: var(--muted); }
+
+.rule { display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 0; border-bottom: 1px solid var(--line); }
+.rule input { margin-top: 2px; flex-shrink: 0; }
+.rule .txt { flex: 1; font-size: 13px; line-height: 1.5; }
+.rule.off .txt { color: #c0c0c5; text-decoration: line-through; }
+.rule .tag { font-size: 10.5px; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 20px; padding: 1px 7px; flex-shrink: 0; }
+
+.warn {
+  border: 1px solid #ffd9d9; background: #fff5f5; color: #c92a2a;
+  border-radius: 8px; padding: 11px 13px; font-size: 12.5px; margin-bottom: 14px;
+}
+.warn b { display: block; margin-bottom: 5px; }
+.warn ul { margin: 0; padding-left: 16px; }
+
+.row { display: flex; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+
+.zoom { display: flex; gap: 4px; align-items: center; color: #fff; font-size: 12px; }
+
+table.spec { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.spec td { padding: 7px 0; border-bottom: 1px solid var(--line); }
+table.spec td:first-child { color: var(--muted); width: 38%; }
+.swatch { display: inline-block; width: 13px; height: 13px; border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.1); vertical-align: -2px; margin-right: 6px; }
+
+/* 인쇄(PDF) — 화면 미리보기 그대로 나가게 한다 */
+@media print {
+  @page { size: 10in 5.625in; margin: 0; }
+  body * { visibility: hidden; }
+  .print-root, .print-root * { visibility: visible; }
+  .print-root { position: absolute; inset: 0; }
+  .print-page { page-break-after: always; box-shadow: none !important; }
+}
