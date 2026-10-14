@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PageType, Project, Slide, StylePreset } from "../core/types";
+import type { Category, PageType, Project, Slide, StylePreset } from "../core/types";
+import { GripH, usePanel } from "./panels";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { moodsOf } from "../core/mood";
@@ -28,13 +29,21 @@ interface Props {
   onOpen: (id: string) => void;
   /** 분류 이름 (내부 id 가 아니라 사람이 읽는 이름) */
   categoryName: string;
+  /** 나가지 않고 다른 제안서로 건너뛰기 */
+  allProjects: Project[];
+  categories: Category[];
+  onPick: (id: string) => void;
 }
 
 export function Browse({
-  project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpen, categoryName,
+  project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpen, categoryName, allProjects, categories, onPick,
 }: Props) {
   const [cur, setCur] = useState(0);
+  const [navOpen, setNavOpen] = useState(false);
+  const [navCat, setNavCat] = useState<string>("all");
   const [zoom, setZoom] = useState(0.62);
+  /** 아래 페이지 줄 높이 — 끌어서 조정, 기억된다 */
+  const strip = usePanel("filmstrip", 104, 62, 420);
   const stageRef = useRef<HTMLDivElement>(null);
 
   // 화면이 넓으면 크게 보여야 한다. 보면서 고칠 수 있어야 하니까.
@@ -75,7 +84,10 @@ export function Browse({
   return (
     <div className="browse">
       <div className="browse-head">
-        <button className="btn sm" onClick={onClose}>← 진열대</button>
+        <button className="btn sm" onClick={onClose}>← 보관함</button>
+        <button className={`btn sm ${navOpen ? "accent" : ""}`} onClick={() => setNavOpen(!navOpen)}>
+          다른 제안서
+        </button>
         <div className="grow" style={{ minWidth: 0 }}>
           <b style={{ fontSize: 16.5 }}>{project.title}</b>
           <div style={{ color: "var(--muted)", fontSize: 14.5, marginTop: 2 }}>
@@ -93,6 +105,40 @@ export function Browse({
           이걸 뼈대로 새 제안서
         </button>
       </div>
+
+      <div className="browse-body">
+        {navOpen && (
+          <div className="browsenav">
+            <p className="sec" style={{ marginTop: 0 }}>분류</p>
+            <button className={`navitem ${navCat === "all" ? "on" : ""}`} onClick={() => setNavCat("all")}>
+              전체 <span>{allProjects.length}</span>
+            </button>
+            {categories.map((c) => {
+              const n = allProjects.filter((x) => x.category === c.id).length;
+              if (!n) return null;
+              return (
+                <button key={c.id} className={`navitem ${navCat === c.id ? "on" : ""}`}
+                  onClick={() => setNavCat(c.id)}>
+                  {c.name} <span>{n}</span>
+                </button>
+              );
+            })}
+
+            <p className="sec">제안서</p>
+            {allProjects
+              .filter((x) => navCat === "all" || x.category === navCat)
+              .map((x) => (
+                <button key={x.id}
+                  className={`navitem ${x.id === project.id ? "on" : ""}`}
+                  onClick={() => { onPick(x.id); setCur(0); }}>
+                  <span style={{ marginLeft: 0, opacity: 1, overflow: "hidden",
+                                 textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {x.title}
+                  </span>
+                </button>
+              ))}
+          </div>
+        )}
 
       <div className="browse-stage" ref={stageRef}>
         <button className="nav" onClick={() => go(-1)} disabled={cur === 0} aria-label="이전 장">‹</button>
@@ -112,11 +158,13 @@ export function Browse({
         <button className="nav" onClick={() => go(1)}
           disabled={cur === project.slides.length - 1} aria-label="다음 장">›</button>
       </div>
+      </div>
 
-      <div className="filmstrip">
+      <GripH onDrag={(dy) => strip.nudge(-dy)} onReset={strip.reset} />
+      <div className="filmstrip" style={{ height: strip.size }}>
         {project.slides.map((s, i) => (
           <button key={s.id} className={`frame ${i === cur ? "on" : ""}`} onClick={() => setCur(i)}>
-            <SlideView ops={opsOf(i)} style={style} zoom={0.113} />
+            <SlideView ops={opsOf(i)} style={style} zoom={(strip.size - 26) / (style.slide.heightIn * 96)} />
             <small>{i + 1}</small>
           </button>
         ))}

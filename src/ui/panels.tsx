@@ -90,3 +90,46 @@ export function Grip({
     </div>
   );
 }
+
+
+/**
+ * 위아래로 끌어서 높이를 바꾸는 손잡이.
+ * 아래로 끌면 아래쪽 칸이 작아진다.
+ */
+export function GripH({
+  onDrag, onReset, title,
+}: {
+  onDrag: (dy: number) => void;
+  onReset?: () => void;
+  title?: string;
+}) {
+  const down = (e: React.PointerEvent) => {
+    e.preventDefault();
+    let last = e.clientY;
+    const move = (ev: PointerEvent) => {
+      onDrag(ev.clientY - last);
+      last = ev.clientY;
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  return (
+    <div
+      className="griph"
+      onPointerDown={down}
+      onDoubleClick={onReset}
+      title={title ?? "끌어서 높이 조정 · 두 번 누르면 원래대로"}
+    >
+      <span />
+    </div>
+  );
+}

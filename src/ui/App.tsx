@@ -469,6 +469,9 @@ function Studio({
             takenCount={tray.length}
             onOpen={(id) => { setBrowseId(null); setOpenId(id); setLastEdited(id); setCur(0); }}
             categoryName={db.categories.find((c) => c.id === browsing.category)?.name ?? "미분류"}
+            allProjects={db.projects}
+            categories={db.categories}
+            onPick={setBrowseId}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
