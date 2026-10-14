@@ -79,7 +79,8 @@ export function load(): DB {
     return {
       // 기본 분류는 유지하되, 대표님이 더한 것과 이름을 바꾼 것은 저장된 쪽을 쓴다
       categories: mergeCategories(db.categories, saved.categories ?? []),
-      styles: db.styles,
+      // 대표님이 바꾼 규격이 있으면 그걸 쓴다 (AI 대화에서 바꿀 수 있다)
+      styles: saved.styles?.length ? saved.styles : db.styles,
       pageTypes: [
         ...db.pageTypes,
         ...(saved.pageTypes ?? []).filter((p) => !p.builtIn),
@@ -99,6 +100,7 @@ export function save(db: DB): void {
       KEY,
       JSON.stringify({
         categories: db.categories,
+        styles: db.styles,
         pageTypes: db.pageTypes.filter((p) => !p.builtIn),
         rules: db.rules,
         projects: db.projects,

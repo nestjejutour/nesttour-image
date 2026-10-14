@@ -5,7 +5,8 @@ import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
-import { AiPanel } from "./AiPanel";
+import { ChatPanel } from "./ChatPanel";
+import type { Action } from "../ai/chat";
 import { inArtifact } from "../platform";
 
 interface Props {
@@ -21,9 +22,11 @@ interface Props {
   onSaveRule: (text: string) => void;
   /** 수정 기록 창고에 남긴다 */
   onHistory: (e: { slideIndex: number; instruction: string; before: Content; after: Content }) => void;
+  /** 전체 규격 바꾸기 (대표 확인을 받은 뒤에만 불린다) */
+  onStyleChange: (path: string, value: number | string) => void;
 }
 
-export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, onSaveRule, onHistory }: Props) {
+export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange }: Props) {
   const [cur, setCur] = useState(0);
   const [zoom, setZoom] = useState(0.78);
   const [adding, setAdding] = useState(false);
@@ -95,6 +98,42 @@ export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, 
       return { slides: n };
     });
     setCur(j);
+  };
+
+  /** AI 가 돌려준 할 일 목록을 실제로 반영한다 */
+  const applyActions = (as: Action[]) => {
+    patch((p) => {
+      let slides = [...p.slides];
+      for (const a of as) {
+        switch (a.do) {
+          case "내용수정":
+            slides[cur] = { ...slides[cur], content: a.content };
+            break;
+          case "타입바꾸기":
+            if (pageTypes.some((t) => t.id === a.pageTypeId))
+              slides[cur] = { ...slides[cur], pageTypeId: a.pageTypeId, content: a.content };
+            break;
+          case "페이지추가": {
+            if (!pageTypes.some((t) => t.id === a.pageTypeId)) break;
+            const at = Math.max(0, Math.min(slides.length, a.at ?? slides.length));
+            slides.splice(at, 0, { id: uid(), pageTypeId: a.pageTypeId, content: a.content ?? {} });
+            break;
+          }
+          case "페이지삭제":
+            if (slides.length > 1 && slides[a.at]) slides.splice(a.at, 1);
+            break;
+          case "페이지이동": {
+            const f = a.from, t = a.to;
+            if (slides[f] && t >= 0 && t < slides.length) {
+              const [m] = slides.splice(f, 1);
+              slides.splice(t, 0, m);
+            }
+            break;
+          }
+        }
+      }
+      return { slides };
+    });
   };
 
   // 인쇄(PDF)는 미리보기를 그대로 내보낸다. 그래서 모양이 같다.
@@ -225,17 +264,21 @@ export function Editor({ project, style, pageTypes, onChange, onBack, aiSystem, 
                 <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
               </div>
 
-              <AiPanel
-                system={aiSystem}
+              <ChatPanel
+                brain={aiSystem}
+                style={style}
+                pageTypes={pageTypes}
                 pageType={slideType}
                 slide={slide}
+                slideIndex={cur}
+                totalSlides={project.slides.length}
+                ops={plans[cur]?.ops ?? []}
+                onActions={applyActions}
+                onStyleChange={onStyleChange}
                 onSaveRule={onSaveRule}
-                onApply={(next, instruction, before) => {
-                  patch((p) => ({
-                    slides: p.slides.map((s, i) => (i === cur ? { ...s, content: next } : s)),
-                  }));
-                  onHistory({ slideIndex: cur, instruction, before, after: next });
-                }}
+                onNote={(instruction) =>
+                  onHistory({ slideIndex: cur, instruction, before: slide.content, after: slide.content })
+                }
               />
 
               <p className="sec">내용 직접 고치기</p>

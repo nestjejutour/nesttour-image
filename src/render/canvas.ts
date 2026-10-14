@@ -1,0 +1,145 @@
+import type { DrawOp, StylePreset } from "../core/types";
+
+/**
+ * 손 ③ — 그림(PNG)
+ *
+ * 미리보기·PPT 와 똑같은 그리기 명령을 받아 그림으로 뜬다.
+ * 이걸 AI 에게 보내면 AI 가 "화면을 보고" 판단할 수 있다.
+ *
+ * 레이아웃 정의가 하나뿐이라서 손이 셋이 되어도 모양이 갈라지지 않는다.
+ */
+
+const DPI = 192; // 1인치 = 192px (2배). AI 가 글자를 읽을 수 있을 정도
+
+export async function renderToBlob(ops: DrawOp[], style: StylePreset): Promise<Blob | null> {
+  const w = Math.round(style.slide.widthIn * DPI);
+  const h = Math.round(style.slide.heightIn * DPI);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.fillStyle = style.color.background;
+  ctx.fillRect(0, 0, w, h);
+
+  const family = [style.font.family, ...style.font.fallback].map((f) => `"${f}"`).join(", ");
+
+  // 사진을 먼저 다 읽어 둔다
+  const images = new Map<string, HTMLImageElement>();
+  await Promise.all(
+    ops.filter((o) => o.kind === "image").map(async (o) => {
+      const src = (o as Extract<DrawOp, { kind: "image" }>).src;
+      if (images.has(src)) return;
+      const img = await loadImage(src);
+      if (img) images.set(src, img);
+    }),
+  );
+
+  for (const op of ops) {
+    const x = op.x * DPI;
+    const y = op.y * DPI;
+    const bw = op.w * DPI;
+    const bh = op.h * DPI;
+
+    if (op.kind === "rect") {
+      if (op.fillHex) {
+        ctx.globalAlpha = op.fillAlpha ?? 1;
+        ctx.fillStyle = op.fillHex;
+        ctx.fillRect(x, y, bw, bh);
+        ctx.globalAlpha = 1;
+      }
+      if (op.strokeHex) {
+        ctx.strokeStyle = op.strokeHex;
+        ctx.lineWidth = Math.max(1, ((op.strokeWeightPt ?? 0.75) / 72) * DPI);
+        ctx.strokeRect(x, y, bw, bh);
+      }
+      continue;
+    }
+
+    if (op.kind === "image") {
+      const img = images.get(op.src);
+      if (!img) continue;
+      drawFitted(ctx, img, x, y, bw, bh, op.fit);
+      continue;
+    }
+
+    // 글자
+    const sizePx = (op.sizePt / 72) * DPI;
+    ctx.font = `${op.bold ? "700" : "400"} ${sizePx}px ${family}`;
+    ctx.fillStyle = op.colorHex;
+    ctx.textBaseline = "top";
+    ctx.textAlign = op.align;
+
+    const lineH = sizePx * (op.lineSpacingMul ?? 1.3);
+    const lines = wrap(ctx, op.text, bw);
+    const blockH = lines.length * lineH;
+    const startY =
+      op.valign === "middle" ? y + (bh - blockH) / 2 : op.valign === "bottom" ? y + bh - blockH : y;
+    const tx = op.align === "center" ? x + bw / 2 : op.align === "right" ? x + bw : x;
+
+    lines.forEach((line, i) => ctx.fillText(line, tx, startY + i * lineH));
+  }
+
+  return new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
+}
+
+/** 줄바꿈. 한글은 어디서나 끊기지만 가능하면 띄어쓰기에서 끊는다 */
+function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const out: string[] = [];
+  for (const para of text.split("\n")) {
+    if (ctx.measureText(para).width <= maxW) {
+      out.push(para);
+      continue;
+    }
+    let line = "";
+    for (const word of para.split(/(\s+)/)) {
+      const next = line + word;
+      if (ctx.measureText(next).width > maxW && line.trim()) {
+        out.push(line.trimEnd());
+        line = word.trimStart();
+      } else {
+        line = next;
+      }
+    }
+    if (line.trim()) out.push(line.trimEnd());
+  }
+  return out.length ? out : [""];
+}
+
+function drawFitted(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number, y: number, w: number, h: number,
+  fit: "cover" | "contain",
+) {
+  const ar = img.naturalWidth / img.naturalHeight;
+  const boxAr = w / h;
+  let dw = w, dh = h, dx = x, dy = y;
+
+  if (fit === "cover") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    if (ar > boxAr) { dh = h; dw = h * ar; dx = x - (dw - w) / 2; }
+    else { dw = w; dh = w / ar; dy = y - (dh - h) / 2; }
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  } else {
+    if (ar > boxAr) { dw = w; dh = w / ar; dy = y + (h - dh) / 2; }
+    else { dh = h; dw = h * ar; dx = x + (w - dw) / 2; }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((res) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}

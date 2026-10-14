@@ -40,14 +40,37 @@ export function aiPlugin(): Plugin {
 
         try {
           const body = await readJson(req);
-          const { system, user } = body as { system: string; user: string };
+          const { system, messages, imageBase64 } = body as {
+            system: string;
+            messages: { role: "user" | "assistant"; content: string }[];
+            imageBase64?: string;
+          };
+
+          // 마지막 사용자 말에 지금 보고 있는 페이지 그림을 붙인다.
+          // 그래야 AI 가 "화면을 보고" 판단한다.
+          const built: Anthropic.MessageParam[] = messages.map((m, i) => {
+            const last = i === messages.length - 1;
+            if (last && m.role === "user" && imageBase64) {
+              return {
+                role: "user" as const,
+                content: [
+                  {
+                    type: "image" as const,
+                    source: { type: "base64" as const, media_type: "image/png" as const, data: imageBase64 },
+                  },
+                  { type: "text" as const, text: m.content },
+                ],
+              };
+            }
+            return { role: m.role, content: m.content };
+          });
 
           const client = new Anthropic({ apiKey });
           const r = await client.beta.messages.create({
             model: MODEL,
             max_tokens: 16000,
             system,
-            messages: [{ role: "user", content: user }],
+            messages: built,
             thinking: { type: "adaptive" },
             // 안전장치가 요청을 거절할 때 서버가 알아서 다른 모델로 넘긴다
             betas: ["server-side-fallback-2026-07-01"],
@@ -88,7 +111,7 @@ function readJson(req: any): Promise<unknown> {
     let raw = "";
     req.on("data", (c: Buffer) => {
       raw += c;
-      if (raw.length > 5_000_000) reject(new Error("보낸 내용이 너무 깁니다"));
+      if (raw.length > 40_000_000) reject(new Error("보낸 내용이 너무 깁니다"));
     });
     req.on("end", () => {
       try {

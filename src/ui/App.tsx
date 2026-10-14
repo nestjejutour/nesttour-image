@@ -61,6 +61,27 @@ export function App() {
         { id: uid(), projectId: openId ?? "", ...e, createdAt: new Date().toISOString() } as HistoryEntry],
     }));
 
+  /**
+   * 전체 규격 바꾸기. "type.pageTitle.size" 같은 길로 찾아 들어가 바꾼다.
+   * 모든 제안서에 영향을 주므로, 대표님이 [적용] 을 누른 뒤에만 불린다.
+   */
+  const changeStyle = (path: string, value: number | string) =>
+    setDb((d) => {
+      const parts = path.split(".");
+      const next = structuredClone(d.styles[0]) as any;
+      let node = next;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (node[parts[i]] === undefined) return d; // 없는 길이면 아무것도 안 한다
+        node = node[parts[i]];
+      }
+      const leaf = parts[parts.length - 1];
+      if (node[leaf] === undefined) return d;
+      node[leaf] = value;
+      next.version = (next.version ?? 1) + 1;
+      next.updatedAt = new Date().toISOString().slice(0, 10);
+      return { ...d, styles: [next, ...d.styles.slice(1)] };
+    });
+
   /* ── 분류(메뉴) 늘리고 고치기 ── */
   const addCategory = (name: string, kind: Category["kind"]) =>
     setDb((d) => ({
@@ -144,6 +165,7 @@ export function App() {
           project={project} style={style} pageTypes={db.pageTypes}
           onChange={putProject} onBack={() => setOpenId(null)}
           aiSystem={brain.system} onSaveRule={saveRule} onHistory={addHistory}
+          onStyleChange={changeStyle}
         />
       </Shell>
     );
