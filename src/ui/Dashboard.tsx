@@ -22,6 +22,7 @@ interface Props {
   onBrowse: (id: string) => void;
   onOpen: (id: string) => void;
   onNew: (categoryId: string) => void;
+  onDelete: (id: string) => void;
   onAddCategory: (name: string, kind: Category["kind"]) => void;
   onRenameCategory: (id: string, name: string) => void;
   onDeleteCategory: (id: string) => void;
@@ -60,7 +61,12 @@ export function Dashboard(p: Props) {
 
   const inCat = (id: string) => projects.filter((x) => x.category === id && match(x));
   const filtered = projects.filter(match);
-  const inProgress = projects.filter((x) => x.status === "진행 중");
+  // 최근에 손댄 것부터. 너무 많으면 고르기가 더 어렵다.
+  const inProgress = projects
+    .filter((x) => x.status === "진행 중")
+    .slice()
+    .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
+    .slice(0, 3);
 
   const cats = [...categories].sort((a, b) => a.order - b.order);
   const shown = sel === "all" ? cats.filter((c) => inCat(c.id).length > 0) : cats.filter((c) => c.id === sel);
@@ -186,11 +192,16 @@ export function Dashboard(p: Props) {
 
         {inProgress.length > 0 && sel === "all" && !q.trim() && !mood && (
           <>
-            <p className="sec">이어서 하기</p>
+            <p className="sec">
+              이어서 하기 <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+                — 최근에 손댄 것부터
+              </span>
+            </p>
             <div className="strip">
               {inProgress.map((pr) => (
                 <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
-                  moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onOpen(pr.id)} cta="이어서" />
+                  moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onOpen(pr.id)}
+                  onDelete={() => p.onDelete(pr.id)} />
               ))}
             </div>
           </>
@@ -224,7 +235,8 @@ export function Dashboard(p: Props) {
               <div className={expanded ? "cards" : "strip"}>
                 {visible.map((pr) => (
                   <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
-                    moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)} cta="넘겨보기" />
+                    moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)}
+                    onDelete={() => p.onDelete(pr.id)} />
                 ))}
               </div>
             </section>
@@ -235,19 +247,49 @@ export function Dashboard(p: Props) {
   );
 }
 
+/** 언제 손봤는지 */
+function when(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (sameDay) return `오늘 ${hh}:${mm}`;
+  const yr = d.getFullYear() === now.getFullYear() ? "" : `${d.getFullYear()}. `;
+  return `${yr}${d.getMonth() + 1}. ${d.getDate()}. ${hh}:${mm}`;
+}
+
 function Card({
-  pr, style, pageTypes, moods, onClick, cta,
+  pr, style, pageTypes, moods, onClick, onDelete,
 }: {
   pr: Project; style: StylePreset; pageTypes: PageType[];
-  moods: Mood[]; onClick: () => void; cta: string;
+  moods: Mood[]; onClick: () => void; onDelete?: () => void;
 }) {
+  const [asking, setAsking] = useState(false);
   const first = pr.slides[0];
   const t = first && pageTypes.find((x) => x.id === first.pageTypeId);
-  const ops = t ? interpret(t, first.content, { style, assets: pr.assets }) : [];
+  const ops = t
+    ? interpret(t, first.content, { style, assets: pr.assets, adjust: first.adjust, extras: first.extras })
+    : [];
   const kind = clientKind(pr.client);
 
   return (
-    <button className="card" onClick={onClick}>
+    <div className="card cardwrap" onClick={asking ? undefined : onClick} role="button">
+      {onDelete && (
+        asking ? (
+          <div className="cardask" onClick={(e) => e.stopPropagation()}>
+            <b>지울까요?</b>
+            <div className="row">
+              <button className="btn sm accent" onClick={() => { onDelete(); setAsking(false); }}>지움</button>
+              <button className="btn sm" onClick={() => setAsking(false)}>취소</button>
+            </div>
+          </div>
+        ) : (
+          <button className="carddel" title="지우기"
+            onClick={(e) => { e.stopPropagation(); setAsking(true); }}>×</button>
+        )
+      )}
       <div className="thumb">
         {ops.length ? <SlideView ops={ops} style={style} zoom={0.26} /> : <span className="empty">표지 없음</span>}
       </div>
@@ -257,11 +299,11 @@ function Card({
           {pr.client || "고객사 없음"}
           {kind !== "미분류" && ` · ${kind}`} · {pr.slides.length}장
         </small>
+        <small className="whenline">{when(pr.updatedAt)}에 고침</small>
         <div className="chips">
           {moods.slice(0, 3).map((m) => <span className="chip" key={m}>{m}</span>)}
         </div>
-        <span className="cta">{cta} →</span>
       </div>
-    </button>
+    </div>
   );
 }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category, Content, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
+import { setAt } from "../core/content";
+import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
 import { SlotForm } from "./SlotForm";
@@ -48,6 +50,9 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
   const [msg, setMsg] = useState("");
   const [editTitle, setEditTitle] = useState(false);
   const [srcOpen, setSrcOpen] = useState(false);
+  /** 화면에서 집어 둔 것 */
+  const [picked, setPicked] = useState<string | null>(null);
+  const addPhoto = useRef<HTMLInputElement>(null);
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
 
@@ -72,6 +77,8 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
             style,
             assets: project.assets,
             pageNumber: pageNumbers[i],
+            adjust: s.adjust,
+            extras: s.extras,
           }),
         };
       }),
@@ -150,6 +157,68 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
       }
       return { slides };
     });
+  };
+
+  /** 화면에서 끌어 옮긴 자리를 저장한다 */
+  const nudgeAt = (at: string, d: Nudge) =>
+    patch((p) => ({
+      slides: p.slides.map((s2, i) => {
+        if (i !== cur) return s2;
+        const prev: Nudge = s2.adjust?.[at] ?? {};
+        return {
+          ...s2,
+          adjust: {
+            ...(s2.adjust ?? {}),
+            [at]: {
+              dx: (prev.dx ?? 0) + (d.dx ?? 0),
+              dy: (prev.dy ?? 0) + (d.dy ?? 0),
+              dw: (prev.dw ?? 0) + (d.dw ?? 0),
+              dh: (prev.dh ?? 0) + (d.dh ?? 0),
+            },
+          },
+        };
+      }),
+    }));
+
+  /** 화면에서 고친 글을 내용에 쓴다 */
+  const writeText = (bindPath: string, text: string) =>
+    patch((p) => ({
+      slides: p.slides.map((s2, i) => (i === cur ? { ...s2, content: setAt(s2.content, bindPath, text) } : s2)),
+    }));
+
+  /** 이 페이지에만 사진 한 장 더 넣기 */
+  const addExtraPhoto = (dataUrl: string) => {
+    const key = `추가사진-${uid()}`;
+    const ex: Extra = { id: uid(), type: "image", x: 3.2, y: 1.8, w: 3.2, h: 2.1, value: key };
+    patch((p) => ({
+      assets: { ...p.assets, [key]: dataUrl },
+      slides: p.slides.map((s2, i) => (i === cur ? { ...s2, extras: [...(s2.extras ?? []), ex] } : s2)),
+    }));
+    setPicked(`x:${ex.id}`);
+  };
+
+  /** 집어 둔 것 지우기 (추가한 것만 지울 수 있다) */
+  const removePicked = () => {
+    if (!picked?.startsWith("x:")) return;
+    const id = picked.slice(2);
+    patch((p) => ({
+      slides: p.slides.map((s2, i) =>
+        i === cur ? { ...s2, extras: (s2.extras ?? []).filter((x) => x.id !== id) } : s2),
+    }));
+    setPicked(null);
+  };
+
+  /** 집어 둔 것을 원래 자리로 */
+  const resetPicked = () => {
+    if (!picked) return;
+    patch((p) => ({
+      slides: p.slides.map((s2, i) => {
+        if (i !== cur) return s2;
+        const next = { ...(s2.adjust ?? {}) };
+        delete next[picked];
+        return { ...s2, adjust: next };
+      }),
+    }));
   };
 
   // 창이나 서랍이 열리고 닫힐 때마다 미리보기를 폭에 맞춘다
@@ -313,13 +382,37 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           {slide ? (
             <div>
               <div className="stage-inner">
-                <SlideView ops={plans[cur]?.ops ?? []} style={style} zoom={zoom} />
+                <SlideView
+                  ops={plans[cur]?.ops ?? []}
+                  style={style}
+                  zoom={zoom}
+                  edit={{
+                    picked,
+                    onPick: setPicked,
+                    onMove: (at, dx, dy) => nudgeAt(at, { dx, dy }),
+                    onResize: (at, dw, dh) => nudgeAt(at, { dw, dh }),
+                    onText: writeText,
+                  }}
+                />
               </div>
               <div className="zoom" style={{ marginTop: 12, justifyContent: "center" }}>
                 <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.max(0.2, z - 0.1)); }}>−</button>
                 <span style={{ minWidth: 48, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
                 <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(1.6, z + 0.1)); }}>+</button>
                 <button className={`btn sm ${autoFit ? "accent" : ""}`} onClick={() => setAutoFit(true)}>맞춤</button>
+                <span style={{ width: 14 }} />
+                <button className="btn sm" onClick={() => addPhoto.current?.click()}>+ 사진</button>
+                <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    const r = new FileReader();
+                    r.onload = () => addExtraPhoto(String(r.result));
+                    r.readAsDataURL(f);
+                  }} />
+                {picked && <button className="btn sm" onClick={resetPicked}>자리 되돌리기</button>}
+                {picked?.startsWith("x:") && <button className="btn sm" onClick={removePicked}>지우기</button>}
               </div>
             </div>
           ) : (

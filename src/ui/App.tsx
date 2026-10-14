@@ -56,6 +56,8 @@ export function App() {
   const [user, setUser] = useState<{ uid: string; email?: string | null } | null>(null);
   const [ready, setReady] = useState(!backend.needsLogin);
   const lastSaved = useRef("");
+  /** 마지막으로 저장된 때 — 버튼이 없으니 보여줘야 안심이 된다 */
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   // 로그인 지켜보기 (회사 서버일 때만)
   useEffect(() => {
     if (!backend.needsLogin) return;
@@ -89,6 +91,7 @@ export function App() {
       const lifted = await liftAssets(db);
       if (lifted) { setDb(lifted); return; }   // 주소로 바뀐 상태로 다시 저장된다
       await backend.save(db).catch(() => {});
+      setSavedAt(new Date());
     }, 600);
     return () => clearTimeout(t);
   }, [db]);
@@ -97,7 +100,7 @@ export function App() {
   if (backend.needsLogin && !user) return <Gate />;
   if (!db) return <Gate loading />;
 
-  return <Studio db={db} setDb={setDb} who={user?.email ?? null} />;
+  return <Studio db={db} setDb={setDb} who={user?.email ?? null} savedAt={savedAt} />;
 }
 
 /**
@@ -107,11 +110,12 @@ export function App() {
  * 한 함수 안에서 화면을 중간에 갈아끼우면 React 가 상태 장치 순서를 잃는다.
  */
 function Studio({
-  db, setDb, who,
+  db, setDb, who, savedAt,
 }: {
   db: DB;
   setDb: React.Dispatch<React.SetStateAction<DB | null>>;
   who: string | null;
+  savedAt: Date | null;
 }) {
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -163,6 +167,19 @@ function Studio({
     update((d) => ({ ...d, projects: [p, ...d.projects] }));
     setCreating(null); setBrowseId(null); setOpenId(p.id); setLastEdited(p.id); setCur(0);
   };
+
+  /** 제안서 지우기. 딸린 대화 기록도 같이 지운다. */
+  const deleteProject = (id: string) =>
+    update((d) => {
+      const chats = { ...d.chats };
+      for (const k of Object.keys(chats)) if (k.startsWith(`${id}:`)) delete chats[k];
+      return {
+        ...d,
+        projects: d.projects.filter((x) => x.id !== id),
+        history: d.history.filter((h) => h.projectId !== id),
+        chats,
+      };
+    });
 
   const saveRule = (text: string, scope: RuleScope = "스타일") => {
     const scopeId =
@@ -319,6 +336,7 @@ function Studio({
       activePageType && activeSlide && project
         ? interpret(activePageType, activeSlide.content, {
             style: activeStyle, assets: project.assets, pageNumber: cur + 1,
+            adjust: activeSlide.adjust, extras: activeSlide.extras,
           })
         : [],
     [activePageType, activeSlide, project, activeStyle, cur],
@@ -424,7 +442,7 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -441,7 +459,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -459,7 +477,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -483,13 +501,14 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
             projects={db.projects} categories={db.categories}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={setBrowseId} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
+            onDelete={deleteProject}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
@@ -505,10 +524,10 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, dock, dockOpen, onDock, children,
+  view, setView, onNew, bare, who, savedAt, dock, dockOpen, onDock, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
-  bare?: boolean; who?: string | null; dock?: React.ReactNode;
+  bare?: boolean; who?: string | null; savedAt?: Date | null; dock?: React.ReactNode;
   dockOpen?: boolean; onDock?: () => void; children: React.ReactNode;
 }) {
   return (
@@ -523,6 +542,12 @@ function Shell({
           </div>
         )}
         <div className="spacer" />
+        {/* 저장 버튼이 없다. 알아서 저장되니, 저장됐다는 걸 보여줘야 한다. */}
+        <small className="savedtag" title="따로 저장하실 필요가 없습니다">
+          {savedAt
+            ? `저장됨 ${String(savedAt.getHours()).padStart(2, "0")}:${String(savedAt.getMinutes()).padStart(2, "0")}`
+            : "자동 저장"}
+        </small>
         {onDock && (
           <button className={`btn sm ${dockOpen ? "accent" : ""}`} onClick={onDock}>
             {dockOpen ? "대화 닫기" : "AI 와 대화"}

@@ -73,7 +73,12 @@ export function Browse({
   const opsOf = (i: number) => {
     const s = project.slides[i];
     const t = s && typeOf(s.pageTypeId);
-    return t ? interpret(t, s.content, { style, assets: project.assets, pageNumber: pageNumbers[i] }) : [];
+    return t
+      ? interpret(t, s.content, {
+          style, assets: project.assets, pageNumber: pageNumbers[i],
+          adjust: s.adjust, extras: s.extras,
+        })
+      : [];
   };
 
   const go = (d: number) =>
@@ -98,11 +103,13 @@ export function Browse({
           </div>
         </div>
         <button className="btn sm accent" onClick={() => onOpen(project.id)}>AI 와 고치기</button>
-        <button className="btn sm" onClick={() => onUseAsBase(project, false)}>
-          구성만 뼈대로
+        <button className="btn sm" onClick={() => onUseAsBase(project, false)}
+          title="페이지 구성만 가져오고 글은 비운 새 제안서를 만듭니다">
+          구성만 베껴 새로 만들기
         </button>
-        <button className="btn sm primary" onClick={() => onUseAsBase(project, true)}>
-          이걸 뼈대로 새 제안서
+        <button className="btn sm primary" onClick={() => onUseAsBase(project, true)}
+          title="글까지 그대로 복사한 새 제안서를 만듭니다">
+          통째로 베껴 새로 만들기
         </button>
       </div>
 

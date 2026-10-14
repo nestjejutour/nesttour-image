@@ -61,7 +61,10 @@ export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMak
             {items.map((it, i) => {
               const t = pageTypes.find((x) => x.id === it.slide.pageTypeId);
               const ops = t
-                ? interpret(t, it.slide.content, { style, assets: it.fromAssets })
+                ? interpret(t, it.slide.content, {
+                    style, assets: it.fromAssets,
+                    adjust: it.slide.adjust, extras: it.slide.extras,
+                  })
                 : [];
               return (
                 <div className="tray-item" key={it.key}>

@@ -58,7 +58,9 @@ export function SourceDrawer(p: Props) {
           {list.map((x) => {
             const first = x.slides[0];
             const t = p.pageTypes.find((y) => y.id === first.pageTypeId);
-            const ops = t ? interpret(t, first.content, { style: p.style, assets: x.assets }) : [];
+            const ops = t
+              ? interpret(t, first.content, { style: p.style, assets: x.assets, adjust: first.adjust, extras: first.extras })
+              : [];
             return (
               <button className="srcitem" key={x.id} onClick={() => setPickedId(x.id)}>
                 <div className="shot"><SlideView ops={ops} style={p.style} zoom={0.082} /></div>
@@ -82,7 +84,9 @@ export function SourceDrawer(p: Props) {
           <div className="srcgrid">
             {picked.slides.map((s, i) => {
               const t = p.pageTypes.find((y) => y.id === s.pageTypeId);
-              const ops = t ? interpret(t, s.content, { style: p.style, assets: picked.assets }) : [];
+              const ops = t
+                ? interpret(t, s.content, { style: p.style, assets: picked.assets, adjust: s.adjust, extras: s.extras })
+                : [];
               return (
                 <button className="srcpage" key={s.id}
                   onClick={() => p.onInsert(s, picked.assets)}

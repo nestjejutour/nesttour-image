@@ -198,10 +198,37 @@ export interface HistoryEntry {
 
 // ---------- 프로젝트 ----------
 
+/** 화면에서 끌어서 옮긴 자리. 이 페이지에만 적용된다. */
+export interface Nudge {
+  dx?: number;
+  dy?: number;
+  dw?: number;
+  dh?: number;
+}
+
+/** 레이아웃에 없는데 이 페이지에만 더 넣은 것 (사진 추가 등) */
+export interface Extra {
+  id: string;
+  type: "image" | "text";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** 사진이면 자산 키나 주소, 글이면 문구 */
+  value: string;
+  size?: number;
+  bold?: boolean;
+  color?: string;
+}
+
 export interface Slide {
   id: string;
   pageTypeId: string;
   content: Content;
+  /** 화면에서 끌어 옮긴 자리들 */
+  adjust?: Record<string, Nudge>;
+  /** 이 페이지에만 더 넣은 것들 */
+  extras?: Extra[];
   /** 시안 A/B/C */
   variants?: Content[];
   chosenVariant?: number;
@@ -257,8 +284,18 @@ export interface Project {
  * 미리보기(HTML)와 PPT 는 "둘 다 이것만" 보고 그린다.
  * 그래서 모양이 달라질 수 없다.
  */
+/** 그리기 명령에 붙는 꼬리표 — 화면에서 집어서 고칠 때 쓴다 */
+interface Handle {
+  /** 레이아웃에서의 자리 (끌어 옮긴 값을 여기에 매단다) */
+  at?: string;
+  /** 내용에서의 자리 (화면에서 고친 글을 여기에 쓴다). 예: "cards.2.title" */
+  bindPath?: string;
+  /** 이 페이지에만 더 넣은 것인가 */
+  extraId?: string;
+}
+
 export type DrawOp =
-  | {
+  | ({
       kind: "text";
       x: number;
       y: number;
@@ -273,8 +310,8 @@ export type DrawOp =
       lineSpacingMul?: number;
       charSpacing?: number;
       isTodo?: boolean;
-    }
-  | {
+    } & Handle)
+  | ({
       kind: "rect";
       x: number;
       y: number;
@@ -284,8 +321,8 @@ export type DrawOp =
       fillAlpha?: number;
       strokeHex?: string;
       strokeWeightPt?: number;
-    }
-  | {
+    } & Handle)
+  | ({
       kind: "image";
       x: number;
       y: number;
@@ -293,7 +330,7 @@ export type DrawOp =
       h: number;
       src: string;
       fit: "cover" | "contain";
-    };
+    } & Handle);
 
 /** 아직 못 채운 칸 */
 export interface Todo {

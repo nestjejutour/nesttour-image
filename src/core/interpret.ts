@@ -2,6 +2,8 @@ import type {
   Content,
   DrawOp,
   Element,
+  Extra,
+  Nudge,
   PageType,
   Slot,
   StylePreset,
@@ -29,6 +31,10 @@ export interface InterpretCtx {
   assets?: Record<string, string>;
   /** 페이지 번호. 0 이거나 없으면 안 찍는다 */
   pageNumber?: number;
+  /** 화면에서 끌어 옮긴 자리들 */
+  adjust?: Record<string, Nudge>;
+  /** 이 페이지에만 더 넣은 것들 */
+  extras?: Extra[];
 }
 
 /** pt 를 인치로 */
@@ -71,7 +77,28 @@ function token(style: StylePreset, name: string | undefined): TypeToken {
  */
 export function interpret(pageType: PageType, content: Content, ctx: InterpretCtx): DrawOp[] {
   const ops: DrawOp[] = [];
-  walk(pageType.elements, content, 0, 0, ctx, ops);
+  walk(pageType.elements, content, 0, 0, ctx, ops, "e", "");
+
+  // 이 페이지에만 더 넣은 것들 (사진 추가 등) — 레이아웃 위에 얹는다
+  for (const x of ctx.extras ?? []) {
+    const n = ctx.adjust?.[`x:${x.id}`] ?? {};
+    const box = {
+      x: x.x + (n.dx ?? 0), y: x.y + (n.dy ?? 0),
+      w: Math.max(0.2, x.w + (n.dw ?? 0)), h: Math.max(0.15, x.h + (n.dh ?? 0)),
+    };
+    if (x.type === "image") {
+      const src = resolveSrc(x.value, ctx.assets);
+      if (src) ops.push({ kind: "image", ...box, src, fit: "cover", at: `x:${x.id}`, extraId: x.id });
+    } else {
+      ops.push({
+        kind: "text", ...box, text: x.value,
+        sizePt: x.size ?? 14, bold: x.bold ?? false,
+        colorHex: resolveColor(ctx.style, x.color, "ink"),
+        align: "left", valign: "top",
+        at: `x:${x.id}`, extraId: x.id,
+      });
+    }
+  }
 
   // 페이지 번호는 브랜드 규칙이므로 스타일이 들고 있고, 해석기가 자동으로 찍는다.
   if (pageType.showPageNo !== false && ctx.pageNumber && ctx.pageNumber > 0) {
@@ -100,10 +127,17 @@ function walk(
   dy: number,
   ctx: InterpretCtx,
   out: DrawOp[],
+  /** 레이아웃에서의 자리 (끌어 옮긴 값을 찾는 열쇠) */
+  path: string,
+  /** 내용에서의 자리 (화면에서 고친 글을 쓸 곳) */
+  bindPrefix: string,
 ): void {
   const { style } = ctx;
 
-  for (const el of elements) {
+  for (let idx = 0; idx < elements.length; idx++) {
+    const el = elements[idx];
+    const at = `${path}${idx}`;
+    const n = ctx.adjust?.[at] ?? {};
     if (el.type !== "repeat" && !visible(el, scope)) continue;
 
     switch (el.type) {
@@ -128,10 +162,12 @@ function walk(
 
         out.push({
           kind: "text",
-          x: el.x + dx,
-          y: el.y + dy,
-          w: el.w,
-          h: el.h,
+          at,
+          bindPath: el.bind && !el.bind.startsWith("$") ? `${bindPrefix}${el.bind}` : undefined,
+          x: el.x + dx + (n.dx ?? 0),
+          y: el.y + dy + (n.dy ?? 0),
+          w: Math.max(0.2, el.w + (n.dw ?? 0)),
+          h: Math.max(0.1, el.h + (n.dh ?? 0)),
           text,
           sizePt: el.size ?? t.size,
           bold: el.bold ?? t.bold ?? false,
@@ -153,10 +189,11 @@ function walk(
         const horizontal = el.h === 0 || el.h < weightIn;
         out.push({
           kind: "rect",
-          x: el.x + dx,
-          y: el.y + dy,
-          w: horizontal ? el.w : Math.max(el.w, weightIn),
-          h: horizontal ? Math.max(el.h, weightIn) : el.h,
+          at,
+          x: el.x + dx + (n.dx ?? 0),
+          y: el.y + dy + (n.dy ?? 0),
+          w: horizontal ? el.w + (n.dw ?? 0) : Math.max(el.w, weightIn),
+          h: horizontal ? Math.max(el.h, weightIn) : el.h + (n.dh ?? 0),
           fillHex: resolveColor(style, el.color, "line"),
         });
         break;
@@ -165,10 +202,11 @@ function walk(
       case "rect": {
         out.push({
           kind: "rect",
-          x: el.x + dx,
-          y: el.y + dy,
-          w: el.w,
-          h: el.h,
+          at,
+          x: el.x + dx + (n.dx ?? 0),
+          y: el.y + dy + (n.dy ?? 0),
+          w: Math.max(0.05, el.w + (n.dw ?? 0)),
+          h: Math.max(0.05, el.h + (n.dh ?? 0)),
           fillHex: el.fill ? resolveColor(style, el.fill) : undefined,
           fillAlpha: el.alpha,
           strokeHex: el.stroke ? resolveColor(style, el.stroke, "line") : undefined,
@@ -209,10 +247,12 @@ function walk(
         }
         out.push({
           kind: "image",
-          x: el.x + dx,
-          y: el.y + dy,
-          w: el.w,
-          h: el.h,
+          at,
+          bindPath: `${bindPrefix}${el.bind}`,
+          x: el.x + dx + (n.dx ?? 0),
+          y: el.y + dy + (n.dy ?? 0),
+          w: Math.max(0.2, el.w + (n.dw ?? 0)),
+          h: Math.max(0.15, el.h + (n.dh ?? 0)),
           src,
           fit: el.fit ?? "cover",
         });
@@ -242,7 +282,8 @@ function walk(
             $notFirst: i > 0 ? "y" : "",
             $notLast: i < items.length - 1 ? "y" : "",
           };
-          walk(el.elements, itemScope, ox + dx, oy + dy, ctx, out);
+          walk(el.elements, itemScope, ox + dx, oy + dy, ctx, out,
+               `${at}:${i}:`, `${bindPrefix}${el.over}.${i}.`);
         });
         break;
       }
