@@ -327,7 +327,23 @@ function Studio({
   });
 
   /** AI 가 돌려준 할 일 목록을 실제로 반영한다 */
-  const applyActions = (as: Action[]) =>
+  const applyActions = (as: Action[]) => {
+    // 보관함에서 "제안서 만들어줘" 한 경우 — 만들고 바로 연다
+    const made = as.find((a) => a.do === "새제안서");
+    if (made && made.do === "새제안서") {
+      const known = new Set(db.pageTypes.map((t) => t.id));
+      const slides = (made.slides ?? [])
+        .filter((x) => known.has(x.pageTypeId))
+        .map((x) => ({ id: uid(), pageTypeId: x.pageTypeId, content: x.content ?? {} }));
+      if (slides.length) {
+        addProject({
+          ...newProject(made.title || "새 제안서", made.client ?? "", made.category || "proposal"),
+          slides,
+        });
+        return;
+      }
+    }
+    if (!openId) return;
     putProject((p) => {
       const slides = [...p.slides];
       for (const a of as) {
@@ -359,6 +375,7 @@ function Studio({
       }
       return { ...p, slides, updatedAt: new Date().toISOString() };
     });
+  };
 
   const setSlideContent = (next: Content) =>
     putProject((p) => ({
@@ -373,6 +390,8 @@ function Studio({
       style={activeStyle}
       pageTypes={db.pageTypes}
       rules={activeRules}
+      categories={db.categories}
+      allProjects={db.projects}
       project={project}
       slide={activeSlide}
       pageType={activePageType}
@@ -402,7 +421,7 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -419,7 +438,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -437,7 +456,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -458,7 +477,7 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} dock={dock}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
@@ -480,10 +499,11 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, dock, children,
+  view, setView, onNew, bare, who, dock, dockOpen, onDock, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
-  bare?: boolean; who?: string | null; dock?: React.ReactNode; children: React.ReactNode;
+  bare?: boolean; who?: string | null; dock?: React.ReactNode;
+  dockOpen?: boolean; onDock?: () => void; children: React.ReactNode;
 }) {
   return (
     <div className="app">
@@ -497,6 +517,11 @@ function Shell({
           </div>
         )}
         <div className="spacer" />
+        {onDock && (
+          <button className={`btn sm ${dockOpen ? "accent" : ""}`} onClick={onDock}>
+            {dockOpen ? "대화 닫기" : "AI 와 대화"}
+          </button>
+        )}
         {who && <small className="who" title={who}>{who}</small>}
         {who && <button className="btn sm" onClick={() => void logout()}>로그아웃</button>}
         {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}

@@ -103,7 +103,8 @@ export function load(): DB {
         ...(saved.pageTypes ?? []).filter((p) => !p.builtIn),
       ],
       rules: saved.rules?.length ? saved.rules : db.rules,
-      projects: saved.projects ?? db.projects,
+      // 빈 목록이면 씨앗(인천시티투어)을 되살린다. 진열대가 비면 아무것도 못 한다.
+    projects: saved.projects?.length ? saved.projects : db.projects,
       history: saved.history ?? [],
       chats: saved.chats ?? {},
     };
@@ -188,7 +189,8 @@ export function merge(saved: Partial<DB>): DB {
     styles: saved.styles?.length ? saved.styles : db.styles,
     pageTypes: [...db.pageTypes, ...(saved.pageTypes ?? []).filter((p) => !p.builtIn)],
     rules: saved.rules?.length ? saved.rules : db.rules,
-    projects: saved.projects ?? db.projects,
+    // 빈 목록이면 씨앗(인천시티투어)을 되살린다. 진열대가 비면 아무것도 못 한다.
+    projects: saved.projects?.length ? saved.projects : db.projects,
     history: saved.history ?? [],
     chats: saved.chats ?? {},
   };

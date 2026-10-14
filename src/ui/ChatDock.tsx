@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { Content, DrawOp, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
+import type { Category, Content, DrawOp, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
 import { ask, askCopy, diagnose, type Diagnosis, type Turn } from "../ai/client";
-import { chatSystem, needsOk, type Action, type Reply } from "../ai/chat";
+import { chatSystem, librarySystem, needsOk, type Action, type Reply } from "../ai/chat";
 import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
 import { renderToBlob } from "../render/canvas";
 import type { ChatTurn } from "../store/db";
@@ -21,6 +21,9 @@ interface Props {
   style: StylePreset;
   pageTypes: PageType[];
   rules: Rule[];
+  /** 보관함에서 대화할 때 쓰는 것들 */
+  categories: Category[];
+  allProjects: Project[];
   /** 지금 열어 둔 제안서 (없으면 보관함을 보고 있는 중) */
   project: Project | null;
   /** 지금 보고 있는 페이지 */
@@ -39,8 +42,26 @@ interface Props {
   onToggle: () => void;
 }
 
+/** 화면이 둘을 나란히 놓을 만큼 넓은가 */
+function useWide(px: number): boolean {
+  const [wide, setWide] = useState(
+    typeof window !== "undefined" ? window.matchMedia(`(min-width:${px}px)`).matches : false,
+  );
+  useEffect(() => {
+    const m = window.matchMedia(`(min-width:${px}px)`);
+    const fn = () => setWide(m.matches);
+    m.addEventListener("change", fn);
+    return () => m.removeEventListener("change", fn);
+  }, [px]);
+  return wide;
+}
+
 export function ChatDock(p: Props) {
   const [tab, setTab] = useState<"Claude" | "ChatGPT">("Claude");
+  /** 나란히 보기. 좁아지면 저절로 탭으로 바뀐다. */
+  const [sideBySide, setSideBySide] = useState(true);
+  const wide = useWide(1480);
+  const both = sideBySide && wide;
 
   if (!p.open) {
     return (
@@ -51,19 +72,44 @@ export function ChatDock(p: Props) {
   }
 
   return (
-    <div className="dock">
+    <div className={`dock ${both ? "split" : ""}`}>
       <div className="dock-head">
-        {(["Claude", "ChatGPT"] as const).map((t) => (
-          <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
-            {t}
-            <small>{t === "Claude" ? "디자인" : "글"}</small>
-          </button>
-        ))}
+        {both ? (
+          <b style={{ fontSize: 12.5 }}>AI 와 대화</b>
+        ) : (
+          (["Claude", "ChatGPT"] as const).map((t) => (
+            <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
+              {t}
+              <small>{t === "Claude" ? "디자인" : "글"}</small>
+            </button>
+          ))
+        )}
         <div className="spacer" />
+        {wide && (
+          <button className="btn sm" onClick={() => setSideBySide(!sideBySide)}
+            title={both ? "하나씩 크게 보기" : "둘을 나란히 보기"}>
+            {both ? "탭으로" : "나란히"}
+          </button>
+        )}
         <button className="btn sm" onClick={p.onToggle}>닫기</button>
       </div>
 
-      {tab === "Claude" ? <ClaudeTab {...p} /> : <CopyTab {...p} />}
+      <div className="dock-body">
+        {both ? (
+          <>
+            <div className="dock-col">
+              <div className="col-name">Claude <small>화면을 보고 디자인·구성</small></div>
+              <ClaudeTab {...p} />
+            </div>
+            <div className="dock-col">
+              <div className="col-name gpt">ChatGPT <small>글 · 카피</small></div>
+              <CopyTab {...p} />
+            </div>
+          </>
+        ) : (
+          <div className="dock-col">{tab === "Claude" ? <ClaudeTab {...p} /> : <CopyTab {...p} />}</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -79,14 +125,15 @@ function ClaudeTab(p: Props) {
   const [checking, setChecking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setPending([]); setErr(""); }, [p.slide?.id]);
+  useEffect(() => { setPending([]); setErr(""); }, [p.slide?.id, p.project?.id]);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [p.turns.length, busy]);
 
-  const ready = !!(p.slide && p.pageType);
+  /** 페이지를 보고 있는가 (아니면 보관함에서 하는 대화) */
+  const onPage = !!(p.slide && p.pageType);
 
   const send = async () => {
     const text = draft.trim();
-    if (!text || busy || !ready) return;
+    if (!text || busy) return;
 
     const history: Turn[] = [
       ...p.turns.map((t) => ({ role: t.role, content: t.text })),
@@ -96,17 +143,23 @@ function ClaudeTab(p: Props) {
     setDraft(""); setBusy(true); setErr("");
 
     let image: Blob | null = null;
-    try { image = await renderToBlob(p.ops, p.style); } catch { /* 그림 없이 */ }
+    if (onPage) {
+      try { image = await renderToBlob(p.ops, p.style); } catch { /* 그림 없이 */ }
+    }
 
-    const r = await ask<Reply>({
-      system: chatSystem({
-        brain: p.brain, style: p.style, pageTypes: p.pageTypes,
-        pageType: p.pageType!, slide: p.slide!,
-        slideIndex: p.slideIndex, totalSlides: p.project?.slides.length ?? 1,
-      }),
-      messages: history,
-      images: image ? [image] : undefined,
-    });
+    const system = onPage
+      ? chatSystem({
+          brain: p.brain, style: p.style, pageTypes: p.pageTypes,
+          pageType: p.pageType!, slide: p.slide!,
+          slideIndex: p.slideIndex, totalSlides: p.project?.slides.length ?? 1,
+        })
+      : librarySystem({
+          brain: p.brain,
+          categories: p.categories.map((c) => ({ id: c.id, name: c.name })),
+          projects: p.allProjects.map((x) => ({ title: x.title, client: x.client, slides: x.slides })),
+        });
+
+    const r = await ask<Reply>({ system, messages: history, images: image ? [image] : undefined });
     setBusy(false);
 
     if (!r.ok || !r.data) { setErr(r.error ?? "답을 받지 못했습니다."); return; }
@@ -135,15 +188,15 @@ function ClaudeTab(p: Props) {
   return (
     <>
       <div className="dock-where">
-        {ready
+        {onPage
           ? <>지금 보는 <b>{p.slideIndex + 1}번째 페이지</b> · {p.pageType!.name}<span className="eye">화면을 보고 답합니다</span></>
-          : <>제안서를 열면 그 페이지를 보고 함께 고칩니다.</>}
+          : <>보관함 · 제안서 <b>{p.allProjects.length}건</b><span className="eye">무엇이든 물어보세요</span></>}
       </div>
 
       <div className="dock-log">
         {p.turns.length === 0 && !busy && (
           <p className="chat-hint">
-            {ready ? (
+            {onPage ? (
               <>
                 <i>“제목이 길어 보여. 두 줄로 나눠줘”</i><br />
                 <i>“숫자 세 개 중 가운데를 강조해줘”</i><br />
@@ -152,7 +205,14 @@ function ClaudeTab(p: Props) {
                 AI 가 <b>이 페이지 그림을 직접 보고</b> 답합니다. 오간 말은 저장됩니다.
               </>
             ) : (
-              <>보관함에서 제안서를 열면 여기서 함께 고칠 수 있습니다.</>
+              <>
+                <i>“인천관광공사 제안서 하나 만들어줘”</i><br />
+                <i>“지난 제안서 중에 숫자 중심인 거 뭐 있어?”</i><br />
+                <i>“회사소개서는 보통 몇 장으로 해?”</i>
+                <br /><br />
+                만들어 달라고 하면 <b>바로 만들어서 열어</b> 드립니다.
+                제안서를 열면 그 페이지를 <b>보면서</b> 고칩니다.
+              </>
             )}
           </p>
         )}
@@ -205,10 +265,9 @@ function ClaudeTab(p: Props) {
 
       <div className="dock-box">
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
-          placeholder={ready ? "이 페이지를 어떻게 고칠까요?" : "제안서를 열어 주세요"}
-          disabled={!ready}
+          placeholder={onPage ? "이 페이지를 어떻게 고칠까요?" : "무엇을 만들까요? 무엇이든 물어보세요"}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-        <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !ready}>보내기</button>
+        <button className="btn primary" onClick={send} disabled={busy || !draft.trim()}>보내기</button>
       </div>
     </>
   );
@@ -229,11 +288,12 @@ function CopyTab(p: Props) {
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [shown.length, busy, revised]);
 
-  const ready = !!(p.slide && p.pageType);
+  /** 페이지를 보고 있는가 (아니면 보관함에서 하는 대화) */
+  const onPage = !!(p.slide && p.pageType);
 
   const send = async () => {
     const text = draft.trim();
-    if (!text || busy || !ready) return;
+    if (!text || busy || !onPage) return;
     const base = pullCopy(p.pageType!, p.slide!.content);
 
     setShown((s) => [...s, { role: "user", text }]);
@@ -274,14 +334,14 @@ function CopyTab(p: Props) {
   return (
     <>
       <div className="dock-where">
-        글만 다룹니다. 레이아웃은 Claude 탭에서.
+        글만 다룹니다. 레이아웃은 Claude 쪽에서.
         <span className="eye gpt">규칙 {p.rules.length}개를 함께 읽습니다</span>
       </div>
 
       <div className="dock-log">
         {shown.length === 0 && !busy && (
           <p className="chat-hint">
-            {ready ? (
+            {onPage ? (
               <>
                 <i>“제목을 더 힘 있게”</i><br />
                 <i>“설명이 길다. 한 줄로”</i><br />
@@ -327,10 +387,10 @@ function CopyTab(p: Props) {
 
       <div className="dock-box">
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
-          placeholder={ready ? "문구를 어떻게 다듬을까요?" : "제안서를 열어 주세요"}
-          disabled={!ready}
+          placeholder={onPage ? "문구를 어떻게 다듬을까요?" : "제안서를 열어 주세요"}
+          disabled={!onPage}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-        <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !ready}>보내기</button>
+        <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !onPage}>보내기</button>
       </div>
     </>
   );

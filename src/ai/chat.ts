@@ -16,7 +16,10 @@ export type Action =
   | { do: "페이지이동"; from: number; to: number }
   /* 아래 둘은 범위를 고르는 확인을 받는다 */
   | { do: "스타일제안"; path: string; value: number | string; why: string; scope?: "제안서" | "스타일" }
-  | { do: "규칙제안"; text: string; scope?: "공통" | "스타일" | "분류" | "제안서" };
+  | { do: "규칙제안"; text: string; scope?: "공통" | "스타일" | "분류" | "제안서" }
+  /* 보관함에서 — 제안서 자체를 새로 만든다 */
+  | { do: "새제안서"; title: string; client?: string; category?: string;
+      slides: { pageTypeId: string; content: Content }[] };
 
 export interface Reply {
   /** 사람에게 하는 말. 한두 문장 */
@@ -102,4 +105,49 @@ ${JSON.stringify(slide.content, null, 1)}
 - 추측해서 숫자를 지어내지 마라. 모르면 그 칸은 "" 로 두고 say 에서 물어라.
 - 위에 적힌 "반드시 지킬 원칙"을 어기는 요청이면, 그대로 하지 말고 왜 그런지 한 문장으로 말하고 대안을 제시하라.
 - JSON 만 출력하라. 설명·코드펜스 금지.`;
+}
+
+
+/**
+ * 보관함에서 하는 대화 — 아직 연 제안서가 없을 때.
+ *
+ * "인천관광공사 제안서 하나 만들어줘" 라고 하면 바로 만들어 준다.
+ * 제안서를 열어야만 말을 걸 수 있으면 대화창이 아니다.
+ */
+export function librarySystem(opts: {
+  brain: string;
+  categories: { id: string; name: string }[];
+  projects: { title: string; client: string; slides: unknown[] }[];
+}): string {
+  const cats = opts.categories.map((c) => `${c.id}(${c.name})`).join(", ");
+  const shelf = opts.projects.length
+    ? opts.projects.map((p) => `· ${p.title} — ${p.client || "고객사 없음"} · ${p.slides.length}장`).join("\n")
+    : "(아직 없음)";
+
+  return `${opts.brain}
+
+────────────────────────────────
+지금 대표는 보관함(첫 화면)을 보고 있다. 아직 연 제안서가 없다.
+
+[보관함에 있는 것]
+${shelf}
+
+[분류] ${cats}
+
+────────────────────────────────
+네가 할 수 있는 일
+
+{"do":"새제안서","title":"...","client":"...","category":"proposal",
+ "slides":[{"pageTypeId":"...","content":{...}}]}
+   — 제안서를 통째로 만든다. 만들면 바로 열려서 대표가 보게 된다.
+     자료가 부족하면 지어내지 말고, 먼저 무엇이 필요한지 물어라.
+{"do":"규칙제안","text":"...","scope":"공통"}
+   — 대화 중 "앞으로도 이렇게" 가 나왔을 때만.
+
+{"say":"대표에게 할 말","actions":[ ... ]}
+
+- 묻는 말이면 actions 를 비우고 say 로만 답하라.
+- 제안서를 만들라고 하면 바로 만들어라. 다시 묻지 마라.
+  다만 고객사·주제처럼 꼭 필요한 게 없으면 그것만 짧게 물어라.
+- JSON 만 출력하라.`;
 }
