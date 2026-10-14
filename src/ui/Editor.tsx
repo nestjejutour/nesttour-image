@@ -8,7 +8,7 @@ import { uid } from "../store/db";
 import { ChatPanel } from "./ChatPanel";
 import type { Action } from "../ai/chat";
 import type { ChatTurn } from "../store/db";
-import { inArtifact } from "../platform";
+import { hasClaude } from "../platform";
 
 interface Props {
   project: Project;
@@ -206,7 +206,7 @@ export function Editor({ project, style, pageTypes, categories, onChange, onBack
         )}
         {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
         {/* 옆 패널에서는 인쇄 창을 열 수 없다 */}
-        {!inArtifact && (
+        {!hasClaude() && (
           <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
             PDF 인쇄
           </button>

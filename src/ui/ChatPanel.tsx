@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { DrawOp, PageType, Slide, StylePreset } from "../core/types";
-import { ask, type Turn } from "../ai/client";
+import { ask, diagnose, type Diagnosis, type Turn } from "../ai/client";
 import { chatSystem, needsOk, type Action, type Reply } from "../ai/chat";
 import { renderToBlob } from "../render/canvas";
 import type { ChatTurn } from "../store/db";
@@ -42,6 +42,8 @@ export function ChatPanel(p: Props) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [pending, setPending] = useState<Pending[]>([]);
+  const [diag, setDiag] = useState<Diagnosis | null>(null);
+  const [checking, setChecking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setPending([]); setErr(""); }, [p.slideIndex, p.slide.id]);
@@ -152,7 +154,23 @@ export function ChatPanel(p: Props) {
         ))}
 
         {busy && <div className="bubble assistant"><p className="thinking">화면을 보는 중…</p></div>}
-        {err && <div className="warn">{err}</div>}
+        {err && (
+          <div className="warn">
+            <b>{err}</b>
+            <button className="btn sm" style={{ marginTop: 7 }} disabled={checking}
+              onClick={async () => { setChecking(true); setDiag(await diagnose()); setChecking(false); }}>
+              {checking ? "점검하는 중…" : "왜 안 되는지 점검하기"}
+            </button>
+          </div>
+        )}
+
+        {diag && (
+          <div className={diag.ok ? "diagbox ok" : "diagbox"}>
+            <b>{diag.ok ? "정상입니다" : "여기서 막혔습니다"}</b>
+            {diag.lines.map((l, i) => <p key={i}>{l}</p>)}
+            <button className="btn sm" onClick={() => setDiag(null)}>닫기</button>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 

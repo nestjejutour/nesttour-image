@@ -1,4 +1,4 @@
-import { capability, inArtifact } from "../platform";
+import { capability, hasClaude } from "../platform";
 
 /**
  * AI 창구.
@@ -38,7 +38,9 @@ type Sample = ((
 };
 
 export async function ask<T>(o: AskOptions): Promise<AiResult<T>> {
-  const raw = inArtifact ? await viaClaude(o) : await viaLocalServer(o);
+  // 옆 패널이면 Claude 기능, 아니면 내 PC 서버. 미리 판정하지 않고 그때 본다.
+  const sample = await capability<Sample>("sample");
+  const raw = sample ? await viaClaude(o, sample) : await viaLocalServer(o);
   if (!raw.ok) return { ok: false, error: raw.error };
 
   const data = extractJson<T>(raw.text!);
@@ -53,10 +55,10 @@ export function askAi<T>(system: string, user: string): Promise<AiResult<T>> {
 
 /* ───────────── 옆 패널 ───────────── */
 
-async function viaClaude(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string }> {
-  const sample = await capability<Sample>("sample");
-  if (!sample) return { ok: false, error: "이 화면에서는 AI 기능을 쓸 수 없습니다. 권한을 허용했는지 봐 주세요." };
-
+async function viaClaude(
+  o: AskOptions,
+  sample: Sample,
+): Promise<{ ok: boolean; text?: string; error?: string }> {
   // Claude 기능은 지난 대화를 기억하지 않는다. 지시문을 첫 말에 붙여 통째로 보낸다.
   const turns: Turn[] = o.messages.map((m, i) =>
     i === 0 && m.role === "user"
@@ -94,7 +96,12 @@ async function viaLocalServer(o: AskOptions): Promise<{ ok: boolean; text?: stri
       body: JSON.stringify({ system: o.system, messages: o.messages, imageBase64 }),
     });
   } catch {
-    return { ok: false, error: "AI 서버에 닿지 못했습니다. 프로그램을 다시 켜 보세요." };
+    return {
+      ok: false,
+      error: hasClaude()
+        ? "AI 를 부르지 못했습니다. 잠시 뒤 다시 시도해 주세요."
+        : "AI 서버에 닿지 못했습니다. 내 PC 에서 돌릴 때는 .env.local 에 열쇠를 넣고 다시 켜 주세요.",
+    };
   }
   const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
   if (!r.ok || p.error) return { ok: false, error: p.error ?? "AI 호출 실패" };
@@ -137,4 +144,49 @@ export function extractJson<T>(text: string): T | null {
     }
   }
   return null;
+}
+
+
+/* ───────────── 점검 ───────────── */
+
+export interface Diagnosis {
+  ok: boolean;
+  lines: string[];
+}
+
+/** 무엇이 왜 안 되는지 사람이 읽는 말로 알려준다 */
+export async function diagnose(): Promise<Diagnosis> {
+  const lines: string[] = [];
+
+  const inPanel = hasClaude();
+  lines.push(inPanel ? "① 옆 패널에서 돌고 있습니다" : "① 내 PC 에서 돌고 있습니다");
+
+  const sample = await capability<Sample>("sample");
+  if (inPanel && !sample) {
+    lines.push("② AI 기능을 못 가져왔습니다 — 권한을 허용하지 않았거나, 이 화면에서 막혀 있습니다");
+    return { ok: false, lines };
+  }
+  lines.push(sample ? "② AI 기능을 가져왔습니다" : "② 내 PC 서버로 갑니다");
+
+  if (sample) {
+    try {
+      const lim = await sample.limits?.();
+      lines.push(lim?.images === false ? "③ 그림은 못 보냅니다 (글자만)" : "③ 그림도 보낼 수 있습니다");
+    } catch {
+      lines.push("③ 그림 지원 여부를 확인하지 못했습니다");
+    }
+  }
+
+  const t = await ask<{ ok: boolean }>({
+    system: '당신은 연결 점검용이다. 무조건 {"ok":true} 만 출력하라.',
+    messages: [{ role: "user", content: "점검" }],
+  });
+
+  if (t.ok) {
+    lines.push("④ 시험 호출 성공 — AI 가 정상으로 답했습니다");
+    return { ok: true, lines };
+  }
+  lines.push(`④ 시험 호출 실패 — ${t.error ?? "알 수 없음"}`);
+  if (t.text) lines.push(`   AI 가 보낸 말: ${t.text.slice(0, 160)}`);
+  return { ok: false, lines };
 }

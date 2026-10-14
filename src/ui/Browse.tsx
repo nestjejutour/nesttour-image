@@ -66,7 +66,7 @@ export function Browse({
             ))}
           </div>
         </div>
-        <button className="btn sm" onClick={() => onOpen(project.id)}>편집기에서 열기</button>
+        <button className="btn sm accent" onClick={() => onOpen(project.id)}>AI 와 고치기</button>
         <button className="btn sm" onClick={() => onUseAsBase(project, false)}>
           구성만 뼈대로
         </button>

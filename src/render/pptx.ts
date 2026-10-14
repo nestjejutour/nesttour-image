@@ -1,6 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import type { DrawOp, StylePreset } from "../core/types";
-import { capability, inArtifact } from "../platform";
+import { capability } from "../platform";
 
 /**
  * 손 ② — PPT 파일
@@ -107,9 +107,8 @@ export async function downloadPptx(
   const name = fileName.endsWith(".pptx") ? fileName : `${fileName}.pptx`;
   const pptx = buildDeck(slides, style);
 
-  if (inArtifact) {
-    const downloads = await capability<Downloads>("downloads");
-    if (!downloads) return { ok: false, error: "이 화면에서는 파일 내려받기를 쓸 수 없습니다." };
+  const downloads = await capability<Downloads>("downloads", 1500);
+  if (downloads) {
     const blob = (await pptx.write({ outputType: "blob" })) as Blob;
     try {
       await downloads.save({ filename: name, data: blob });

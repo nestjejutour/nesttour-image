@@ -246,7 +246,7 @@ export function App() {
         </div>
       )}
       {view === "규칙" && <Rules db={db} setDb={setDb} />}
-      {view === "스타일" && <StyleView db={db} />}
+      {view === "스타일" && <StyleView db={db} setDb={setDb} />}
       {view === "기록" && <Log db={db} setDb={setDb} />}
     </Shell>
   );
