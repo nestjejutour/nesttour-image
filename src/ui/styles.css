@@ -750,3 +750,14 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 /* 완료/진행중 딱지가 한 줄을 다 먹지 않게 */
 .card .whenrow { display: flex; align-items: center; gap: 2px; }
 .card .whenrow b { display: inline-block; margin-bottom: 0; }
+/* 상태 딱지 — 눌러서 바꾼다 */
+.statustag {
+  font-size: 11px; border-radius: 20px; padding: 2px 9px; margin-right: 5px;
+  background: #fff; cursor: pointer; line-height: 1.4;
+}
+.statustag.done { color: #2f9e44; border: 1px solid #2f9e44; }
+.statustag.doing { color: var(--accent); border: 1px solid var(--accent); }
+.statustag:hover { background: currentColor; }
+.statustag.done:hover, .statustag.doing:hover { color: #fff; }
+.statustag.done:hover { background: #2f9e44; }
+.statustag.doing:hover { background: var(--accent); }

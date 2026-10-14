@@ -181,6 +181,19 @@ function Studio({
       };
     });
 
+  /** 완료 ↔ 진행 중 바꾸기. 완료로 바꿀 때 그 시각을 찍는다. */
+  const toggleStatus = (id: string) =>
+    update((d) => ({
+      ...d,
+      projects: d.projects.map((x) =>
+        x.id === id
+          ? x.status === "완료"
+            ? { ...x, status: "진행 중" as const, completedAt: undefined }
+            : { ...x, status: "완료" as const, completedAt: new Date().toISOString() }
+          : x,
+      ),
+    }));
+
   const saveRule = (text: string, scope: RuleScope = "스타일") => {
     const scopeId =
       scope === "공통" ? undefined
@@ -508,7 +521,7 @@ function Studio({
             projects={db.projects} categories={db.categories}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={setBrowseId} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
-            onDelete={deleteProject}
+            onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}

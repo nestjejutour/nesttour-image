@@ -23,6 +23,7 @@ interface Props {
   onOpen: (id: string) => void;
   onNew: (categoryId: string) => void;
   onDelete: (id: string) => void;
+  onToggleStatus: (id: string) => void;
   onAddCategory: (name: string, kind: Category["kind"]) => void;
   onRenameCategory: (id: string, name: string) => void;
   onDeleteCategory: (id: string) => void;
@@ -254,7 +255,8 @@ export function Dashboard(p: Props) {
               {inProgress.map((pr) => (
                 <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
                   moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onOpen(pr.id)}
-                  onDelete={() => p.onDelete(pr.id)} />
+                  onDelete={() => p.onDelete(pr.id)}
+                  onToggleStatus={() => p.onToggleStatus(pr.id)} />
               ))}
             </div>
           </>
@@ -289,7 +291,8 @@ export function Dashboard(p: Props) {
                 {visible.map((pr) => (
                   <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
                     moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)}
-                    onDelete={() => p.onDelete(pr.id)} />
+                    onDelete={() => p.onDelete(pr.id)}
+                  onToggleStatus={() => p.onToggleStatus(pr.id)} />
                 ))}
               </div>
             </section>
@@ -314,10 +317,11 @@ function when(iso: string): string {
 }
 
 function Card({
-  pr, style, pageTypes, moods, onClick, onDelete,
+  pr, style, pageTypes, moods, onClick, onDelete, onToggleStatus,
 }: {
   pr: Project; style: StylePreset; pageTypes: PageType[];
   moods: Mood[]; onClick: () => void; onDelete?: () => void;
+  onToggleStatus?: () => void;
 }) {
   const [asking, setAsking] = useState(false);
   const first = pr.slides[0];
@@ -357,11 +361,17 @@ function Card({
         </div>
         {/* 날짜는 카드마다 같은 자리(바닥)에 둔다. 그래야 눈으로 훑어진다. */}
         <div className="whenrow">
-          {pr.status === "완료" ? (
-            <><b className="done">완료</b> {when(pr.completedAt ?? pr.updatedAt)}</>
-          ) : (
-            <><b className="doing">진행 중</b> {when(pr.updatedAt)} 고침</>
-          )}
+          {/* 딱지를 눌러 상태를 바꾼다 */}
+          <button
+            className={`statustag ${pr.status === "완료" ? "done" : "doing"}`}
+            title={pr.status === "완료" ? "눌러서 다시 진행 중으로" : "눌러서 완료로 표시"}
+            onClick={(e) => { e.stopPropagation(); onToggleStatus?.(); }}
+          >
+            {pr.status}
+          </button>
+          {pr.status === "완료"
+            ? when(pr.completedAt ?? pr.updatedAt)
+            : `${when(pr.updatedAt)} 고침`}
         </div>
       </div>
     </div>
