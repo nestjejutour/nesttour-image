@@ -11,7 +11,11 @@ import type { DrawOp, StylePreset } from "../core/types";
 
 const DPI = 192; // 1인치 = 192px (2배). AI 가 글자를 읽을 수 있을 정도
 
-export async function renderToBlob(ops: DrawOp[], style: StylePreset): Promise<Blob | null> {
+export async function renderToBlob(
+  ops: DrawOp[],
+  style: StylePreset,
+  as: { type?: string; quality?: number } = {},
+): Promise<Blob | null> {
   const w = Math.round(style.slide.widthIn * DPI);
   const h = Math.round(style.slide.heightIn * DPI);
 
@@ -82,7 +86,9 @@ export async function renderToBlob(ops: DrawOp[], style: StylePreset): Promise<B
     lines.forEach((line, i) => ctx.fillText(line, tx, startY + i * lineH));
   }
 
-  return new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
+  return new Promise((res) =>
+    canvas.toBlob((b) => res(b), as.type ?? "image/png", as.quality),
+  );
 }
 
 /** 줄바꿈. 한글은 어디서나 끊기지만 가능하면 띄어쓰기에서 끊는다 */

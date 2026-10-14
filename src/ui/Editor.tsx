@@ -5,6 +5,7 @@ import { setAt } from "../core/content";
 import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
+import { downloadPdf } from "../render/pdf";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
 import { SourceDrawer } from "./SourceDrawer";
@@ -47,6 +48,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
   const stageRef = useRef<HTMLDivElement>(null);
   const [adding, setAdding] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [busyOut, setBusyOut] = useState("");
   const [msg, setMsg] = useState("");
   const [editTitle, setEditTitle] = useState(false);
   const [srcOpen, setSrcOpen] = useState(false);
@@ -297,6 +299,18 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         <button className={`btn sm ${srcOpen ? "accent" : ""}`} onClick={() => setSrcOpen(!srcOpen)}>
           지난 자료
         </button>
+        <button className="btn sm" onClick={() => addPhoto.current?.click()}>
+          + 사진 추가
+        </button>
+        <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = () => addExtraPhoto(String(r.result));
+            r.readAsDataURL(f);
+          }} />
         <button
           className={`btn sm ${project.status === "완료" ? "accent" : ""}`}
           title={project.status === "완료" ? "다시 진행 중으로" : "완료로 표시합니다"}
@@ -317,22 +331,30 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           </small>
         )}
         {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
-        {/* 옆 패널에서는 인쇄 창을 열 수 없다 */}
-        {!hasClaude() && (
-          <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
-            PDF 인쇄
-          </button>
-        )}
+        {busyOut && <small style={{ color: "var(--muted)" }}>{busyOut}</small>}
+        <button
+          className="btn sm"
+          disabled={!project.slides.length || !!busyOut}
+          onClick={async () => {
+            setMsg(""); setBusyOut("PDF 만드는 중…");
+            const r = await downloadPdf(plans, style, project.title,
+              (d, t) => setBusyOut(`PDF 만드는 중… ${d}/${t}장`));
+            setBusyOut("");
+            if (!r.ok) setMsg(r.error ?? "PDF 저장 실패");
+          }}
+        >
+          PDF 저장
+        </button>
         <button
           className="btn sm primary"
-          disabled={!project.slides.length}
+          disabled={!project.slides.length || !!busyOut}
           onClick={async () => {
             setMsg("");
             const r = await downloadPptx(plans, style, project.title);
             if (!r.ok) setMsg(r.error ?? "내보내기 실패");
           }}
         >
-          PPT 내보내기
+          PPT 저장
         </button>
       </div>
 
@@ -414,16 +436,6 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
                 <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(1.6, z + 0.1)); }}>+</button>
                 <button className={`btn sm ${autoFit ? "accent" : ""}`} onClick={() => setAutoFit(true)}>맞춤</button>
                 <span style={{ width: 14 }} />
-                <button className="btn sm" onClick={() => addPhoto.current?.click()}>+ 사진</button>
-                <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!f) return;
-                    const r = new FileReader();
-                    r.onload = () => addExtraPhoto(String(r.result));
-                    r.readAsDataURL(f);
-                  }} />
                 {picked && <button className="btn sm" onClick={resetPicked}>자리 되돌리기</button>}
                 {picked?.startsWith("x:") && <button className="btn sm" onClick={removePicked}>지우기</button>}
               </div>
@@ -447,9 +459,17 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
                     {cur + 1}번째 페이지
                   </div>
                 </div>
-                <button className="btn sm" onClick={() => movePage(cur, -1)} disabled={cur === 0}>↑</button>
-                <button className="btn sm" onClick={() => movePage(cur, 1)}
-                  disabled={cur === project.slides.length - 1}>↓</button>
+                <button className="btn sm" title="이전 페이지 보기"
+                  onClick={() => onCur(Math.max(0, cur - 1))} disabled={cur === 0}>◀</button>
+                <button className="btn sm" title="다음 페이지 보기"
+                  onClick={() => onCur(Math.min(project.slides.length - 1, cur + 1))}
+                  disabled={cur === project.slides.length - 1}>▶</button>
+                <span className="fdiv" />
+                <button className="btn sm" title="이 페이지를 앞으로 옮기기"
+                  onClick={() => movePage(cur, -1)} disabled={cur === 0}>순서 ↑</button>
+                <button className="btn sm" title="이 페이지를 뒤로 옮기기"
+                  onClick={() => movePage(cur, 1)}
+                  disabled={cur === project.slides.length - 1}>순서 ↓</button>
                 <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
               </div>
 

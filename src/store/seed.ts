@@ -34,6 +34,7 @@ export const SEED_PROJECTS: Project[] = [
           subtitle: "핫플트립 판매처 입점 · 위탁판매",
           date: "2026. 10",
           photo: "seed/cover-bus.jpg",
+          logo: "seed/logo.png",
         },
       },
       {
@@ -128,6 +129,7 @@ export const SEED_PROJECTS: Project[] = [
           message: "인천시티투어의 온라인 판로를 함께 넓히겠습니다.",
           thanks: "감사합니다.",
           contact: "핫플트립 · 02-374-0333",
+          logo: "seed/logo.png",
         },
       },
     ],

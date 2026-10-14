@@ -62,7 +62,7 @@ export const HOTPLTRIP_MINIMAL: StylePreset = {
   // 영역은 얇은 선으로만 구분 (기획서 95줄). 0.75pt
   hairline: 0.75,
 
-  logo: "assets/logo/hotpltrip.png",
+  logo: "seed/logo.png",
   updatedAt: "2026-10-14",
 };
 
