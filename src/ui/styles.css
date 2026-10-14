@@ -537,3 +537,97 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .gateerr { color: var(--todo) !important; margin-top: 14px !important; margin-bottom: 0 !important; }
 .topbar .who { color: var(--muted); font-size: 11.5px; max-width: 160px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 담은 선반 바닥 — 목록이 길어져도 버튼은 항상 보인다 */
+.tray-foot {
+  position: sticky; bottom: 0; background: var(--bg);
+  padding-top: 9px; border-top: 1px solid var(--line); margin-top: 4px;
+}
+.tray { position: relative; }
+
+/* ═══════════ 작업 공간 + 대화 선반 ═══════════ */
+.workspace { display: flex; flex: 1; min-height: 0; min-width: 0; }
+.workmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.dock {
+  width: 340px; flex-shrink: 0; display: flex; flex-direction: column;
+  border-left: 1px solid var(--line); background: var(--bg); min-height: 0;
+}
+.dock-head {
+  display: flex; align-items: center; gap: 3px;
+  padding: 9px 11px; border-bottom: 1px solid var(--line);
+}
+.dock-head .tab small {
+  display: block; font-size: 9.5px; opacity: 0.6; font-weight: 400; margin-top: 1px;
+}
+.dock-where {
+  padding: 9px 13px; font-size: 11.5px; color: var(--muted);
+  border-bottom: 1px solid var(--line); line-height: 1.5;
+}
+.dock-where b { color: var(--ink); }
+.dock-where .eye {
+  display: inline-block; font-size: 9.5px; font-weight: 600; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 20px; padding: 0 6px; margin-left: 6px;
+}
+.dock-where .eye.gpt { color: #2f9e44; border-color: #2f9e44; }
+
+.dock-log { flex: 1; overflow-y: auto; padding: 13px; background: var(--panel); min-height: 0; }
+.dock-box {
+  padding: 10px 11px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+}
+.dock-box textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; min-height: 62px; resize: vertical; outline: none; font-size: 13px;
+}
+.dock-box textarea:focus { border-color: var(--ink); }
+.dock-box textarea:disabled { background: var(--panel); color: var(--muted); }
+
+.dock-closed {
+  width: 34px; flex-shrink: 0; border: 0; border-left: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); font-size: 12px; line-height: 1.35;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+}
+.dock-closed:hover { background: var(--ink); color: #fff; }
+
+/* ═══════════ 지난 자료 서랍 ═══════════ */
+.drawer {
+  width: 252px; flex-shrink: 0; overflow-y: auto; padding: 13px;
+  border-right: 1px solid var(--line); background: var(--panel);
+}
+.srcitem {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px;
+  margin-bottom: 6px; background: #fff;
+}
+.srcitem:hover { border-color: var(--ink); }
+.srcitem .shot { border: 1px solid var(--line); line-height: 0; overflow: hidden; flex-shrink: 0; }
+.srcitem b { display: block; font-size: 11.5px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.srcitem small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.srcgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.srcpage {
+  position: relative; border: 1px solid var(--line); border-radius: 5px;
+  padding: 0; background: #fff; overflow: hidden; line-height: 0;
+}
+.srcpage:hover { border-color: var(--accent); }
+.srcpage .no {
+  position: absolute; left: 3px; bottom: 2px; font-size: 9px; color: var(--muted); line-height: 1;
+}
+.srcpage .add {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,109,106,0.9); color: #fff; font-size: 11px; font-weight: 700;
+  opacity: 0; transition: opacity .1s; line-height: 1;
+}
+.srcpage:hover .add { opacity: 1; }
+
+@media (max-width: 1280px) { .dock { width: 300px; } .drawer { width: 214px; } }
+@media (max-width: 1000px) {
+  .workspace { flex-direction: column; }
+  .dock { width: 100%; border-left: 0; border-top: 1px solid var(--line); max-height: 48vh; }
+  .dock-closed { width: 100%; height: 34px; flex-direction: row; border-left: 0;
+    border-top: 1px solid var(--line); }
+  .drawer { width: 100%; border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; }
+  .srcgrid { grid-template-columns: repeat(4, 1fr); }
+}

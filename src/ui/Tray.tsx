@@ -28,9 +28,12 @@ interface Props {
   onMove: (key: string, d: -1 | 1) => void;
   onClear: () => void;
   onMake: () => void;
+  /** 이어 붙일 제안서 (작업하던 게 있을 때만) */
+  appendTo?: { id: string; title: string } | null;
+  onAppend?: () => void;
 }
 
-export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMake }: Props) {
+export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMake, appendTo, onAppend }: Props) {
   return (
     <div className="tray">
       <div className="tray-head">
@@ -49,7 +52,7 @@ export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMak
         </p>
       ) : (
         <>
-          <div className="tray-list">
+          <div className="tray-list" style={{ overflowY: "auto" }}>
             {items.map((it, i) => {
               const t = pageTypes.find((x) => x.id === it.slide.pageTypeId);
               const ops = t
@@ -74,9 +77,17 @@ export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMak
               );
             })}
           </div>
-          <button className="btn primary" style={{ width: "100%" }} onClick={onMake}>
-            담은 {items.length}장으로 새 제안서 만들기
-          </button>
+          {/* 바닥에 붙여 둔다. 목록이 길어져도 항상 보여야 한다. */}
+          <div className="tray-foot">
+            <button className="btn primary" style={{ width: "100%" }} onClick={onMake}>
+              담은 {items.length}장으로 새 제안서 만들기
+            </button>
+            {appendTo && onAppend && (
+              <button className="btn" style={{ width: "100%", marginTop: 6 }} onClick={onAppend}>
+                「{appendTo.title}」 에 이어 붙이기
+              </button>
+            )}
+          </div>
         </>
       )}
     </div>

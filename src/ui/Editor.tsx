@@ -1,15 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category, Content, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
-import { ChatPanel } from "./ChatPanel";
+import { SourceDrawer } from "./SourceDrawer";
 import type { Action } from "../ai/chat";
 import type { ChatTurn } from "../store/db";
-import { CopyDesk } from "./CopyDesk";
-import type { Rule } from "../core/types";
+
 import { hasClaude } from "../platform";
 
 interface Props {
@@ -21,8 +20,11 @@ interface Props {
   onBack: () => void;
   /** 분류 목록 (편집기에서 분류를 바꿀 수 있게) */
   categories: Category[];
-  /** 이 건에 걸린 규칙 — 카피 작업실도 같은 규칙을 읽는다 */
-  activeRules: Rule[];
+  /** 지난 자료 서랍에 보여줄 제안서들 */
+  allProjects: Project[];
+  /** 지금 보고 있는 페이지 (위에서 들고 있다. 대화 선반이 같이 봐야 한다) */
+  cur: number;
+  onCur: (i: number) => void;
   /** 쌓인 걸 전부 녹여 넣은 AI 지시문 */
   aiSystem: string;
   /** 지시가 원칙이 될 때 */
@@ -36,14 +38,16 @@ interface Props {
   onTurns: (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) => void;
 }
 
-export function Editor({ project, style, pageTypes, categories, activeRules, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns }: Props) {
-  const [cur, setCur] = useState(0);
+export function Editor({ project, style, pageTypes, categories, allProjects, cur, onCur, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns }: Props) {
   const [zoom, setZoom] = useState(0.78);
+  /** 폭에 맞춰 자동으로 줄인다. +/- 를 누르면 손맛을 지킨다. */
+  const [autoFit, setAutoFit] = useState(true);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [adding, setAdding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [msg, setMsg] = useState("");
   const [editTitle, setEditTitle] = useState(false);
-  const [copyOpen, setCopyOpen] = useState(false);
+  const [srcOpen, setSrcOpen] = useState(false);
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
 
@@ -92,13 +96,13 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
   const addPage = (t: PageType) => {
     const s = { id: uid(), pageTypeId: t.id, content: structuredClone(t.sample) };
     patch((p) => ({ slides: [...p.slides, s] }));
-    setCur(project.slides.length);
+    onCur(project.slides.length);
     setAdding(false);
   };
 
   const removePage = (i: number) => {
     patch((p) => ({ slides: p.slides.filter((_, k) => k !== i) }));
-    setCur(Math.max(0, Math.min(i, project.slides.length - 2)));
+    onCur(Math.max(0, Math.min(i, project.slides.length - 2)));
   };
 
   const movePage = (i: number, d: -1 | 1) => {
@@ -109,7 +113,7 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
       [n[i], n[j]] = [n[j], n[i]];
       return { slides: n };
     });
-    setCur(j);
+    onCur(j);
   };
 
   /** AI 가 돌려준 할 일 목록을 실제로 반영한다 */
@@ -147,6 +151,24 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
       return { slides };
     });
   };
+
+  // 창이나 서랍이 열리고 닫힐 때마다 미리보기를 폭에 맞춘다
+  useEffect(() => {
+    if (!autoFit) return;
+    const el = stageRef.current;
+    if (!el) return;
+    const fit = () => {
+      const w = el.clientWidth - 56;
+      const h = el.clientHeight - 86;
+      if (w <= 0 || h <= 0) return;
+      const z = Math.min(w / (style.slide.widthIn * 96), h / (style.slide.heightIn * 96));
+      setZoom(Math.max(0.2, Math.min(1.2, Number(z.toFixed(3)))));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [autoFit, style.slide.widthIn, style.slide.heightIn]);
 
   // 인쇄(PDF)는 미리보기를 그대로 내보낸다. 그래서 모양이 같다.
   const printPdf = () => {
@@ -203,6 +225,9 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
           {project.client || "고객사 미입력"} · {project.slides.length}장 · {style.name}
           {project.styleOverride && <span className="chip">이 건만 규격 바꿈</span>}
         </small>
+        <button className={`btn sm ${srcOpen ? "accent" : ""}`} onClick={() => setSrcOpen(!srcOpen)}>
+          지난 자료
+        </button>
         <div className="spacer" />
         {todos.length > 0 && (
           <small style={{ color: "var(--todo)", fontWeight: 600 }}>
@@ -210,9 +235,6 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
           </small>
         )}
         {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
-        <button className={`btn sm ${copyOpen ? "accent" : ""}`} onClick={() => setCopyOpen(!copyOpen)}>
-          카피 작업실
-        </button>
         {/* 옆 패널에서는 인쇄 창을 열 수 없다 */}
         {!hasClaude() && (
           <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
@@ -233,6 +255,26 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
       </div>
 
       <div className="editor">
+        {/* ── 지난 자료 서랍 — 편집기를 나가지 않고 낱장을 꺼내 쓴다 ── */}
+        {srcOpen && (
+          <SourceDrawer
+            projects={allProjects}
+            categories={categories}
+            style={style}
+            pageTypes={pageTypes}
+            currentId={project.id}
+            onClose={() => setSrcOpen(false)}
+            onInsert={(s2, fromAssets) => {
+              patch((p) => {
+                const slides = [...p.slides];
+                slides.splice(cur + 1, 0, { ...s2, id: uid() });
+                return { slides, assets: { ...fromAssets, ...p.assets } };
+              });
+              onCur(cur + 1);
+            }}
+          />
+        )}
+
         {/* ── 왼쪽: 페이지 목록 ── */}
         <div className="pane-left">
           <p className="sec" style={{ marginTop: 0 }}>페이지 {project.slides.length}</p>
@@ -240,7 +282,7 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
             <button
               key={s.id}
               className={`pagechip ${i === cur ? "on" : ""}`}
-              onClick={() => setCur(i)}
+              onClick={() => onCur(i)}
             >
               {i + 1}. {typeOf(s.pageTypeId)?.name ?? "알 수 없음"}
               <small>{firstText(s.content) || "비어 있음"}</small>
@@ -267,17 +309,17 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
         </div>
 
         {/* ── 가운데: 미리보기 (회색 바탕 위에) ── */}
-        <div className="stage">
+        <div className="stage" ref={stageRef}>
           {slide ? (
             <div>
               <div className="stage-inner">
                 <SlideView ops={plans[cur]?.ops ?? []} style={style} zoom={zoom} />
               </div>
               <div className="zoom" style={{ marginTop: 12, justifyContent: "center" }}>
-                <button className="btn sm" onClick={() => setZoom((z) => Math.max(0.3, z - 0.12))}>−</button>
+                <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.max(0.2, z - 0.1)); }}>−</button>
                 <span style={{ minWidth: 48, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
-                <button className="btn sm" onClick={() => setZoom((z) => Math.min(1.6, z + 0.12))}>+</button>
-                <button className="btn sm" onClick={() => setZoom(0.78)}>맞춤</button>
+                <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(1.6, z + 0.1)); }}>+</button>
+                <button className={`btn sm ${autoFit ? "accent" : ""}`} onClick={() => setAutoFit(true)}>맞춤</button>
               </div>
             </div>
           ) : (
@@ -287,20 +329,6 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
             </div>
           )}
         </div>
-
-        {/* ── 카피 작업실 (글만. ChatGPT) ── */}
-        {copyOpen && slide && slideType && (
-          <CopyDesk
-            style={style}
-            rules={activeRules}
-            pageType={slideType}
-            content={slide.content}
-            onClose={() => setCopyOpen(false)}
-            onApply={(next) =>
-              patch((p) => ({ slides: p.slides.map((s, i) => (i === cur ? { ...s, content: next } : s)) }))
-            }
-          />
-        )}
 
         {/* ── 오른쪽: 내용 고치기 ── */}
         <div className="pane-right">
@@ -319,26 +347,7 @@ export function Editor({ project, style, pageTypes, categories, activeRules, onC
                 <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
               </div>
 
-              <ChatPanel
-                brain={aiSystem}
-                style={style}
-                pageTypes={pageTypes}
-                pageType={slideType}
-                slide={slide}
-                slideIndex={cur}
-                totalSlides={project.slides.length}
-                ops={plans[cur]?.ops ?? []}
-                turns={turnsOf(slide.id)}
-                onTurns={(apply) => onTurns(slide.id, apply)}
-                onActions={applyActions}
-                onStyleChange={onStyleChange}
-                onSaveRule={onSaveRule}
-                onNote={(instruction) =>
-                  onHistory({ slideIndex: cur, instruction, before: slide.content, after: slide.content })
-                }
-              />
-
-              <p className="sec">내용 직접 고치기</p>
+              <p className="sec" style={{ marginTop: 0 }}>내용 직접 고치기</p>
 
               {todos.filter((t) => t.slideIndex === cur).length > 0 && (
                 <div className="warn">

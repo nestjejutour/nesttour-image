@@ -1,0 +1,337 @@
+import { useEffect, useRef, useState } from "react";
+import type { Content, DrawOp, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
+import { ask, askCopy, diagnose, type Diagnosis, type Turn } from "../ai/client";
+import { chatSystem, needsOk, type Action, type Reply } from "../ai/chat";
+import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
+import { renderToBlob } from "../render/canvas";
+import type { ChatTurn } from "../store/db";
+
+/**
+ * 대화 선반 — 화면 오른쪽에 늘 떠 있다.
+ *
+ * 편집기 안에 숨겨 두면 두세 번 눌러야 나온다.
+ * 대화는 작업 내내 켜져 있어야 한다.
+ *
+ *   Claude  — 화면을 보고 레이아웃·구성·규격
+ *   ChatGPT — 글만. 카피·톤·길이
+ */
+
+interface Props {
+  brain: string;
+  style: StylePreset;
+  pageTypes: PageType[];
+  rules: Rule[];
+  /** 지금 열어 둔 제안서 (없으면 보관함을 보고 있는 중) */
+  project: Project | null;
+  /** 지금 보고 있는 페이지 */
+  slide: Slide | null;
+  pageType: PageType | null;
+  slideIndex: number;
+  ops: DrawOp[];
+  turns: ChatTurn[];
+  onTurns: (apply: (t: ChatTurn[]) => ChatTurn[]) => void;
+  onActions: (as: Action[]) => void;
+  onStyleChange: (path: string, value: number | string, scope: "제안서" | "스타일") => void;
+  onSaveRule: (text: string, scope: "공통" | "스타일" | "분류" | "제안서") => void;
+  onNote: (instruction: string) => void;
+  onContent: (next: Content) => void;
+  open: boolean;
+  onToggle: () => void;
+}
+
+export function ChatDock(p: Props) {
+  const [tab, setTab] = useState<"Claude" | "ChatGPT">("Claude");
+
+  if (!p.open) {
+    return (
+      <button className="dock-closed" onClick={p.onToggle} title="대화 열기">
+        <span>대</span><span>화</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="dock">
+      <div className="dock-head">
+        {(["Claude", "ChatGPT"] as const).map((t) => (
+          <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
+            {t}
+            <small>{t === "Claude" ? "디자인" : "글"}</small>
+          </button>
+        ))}
+        <div className="spacer" />
+        <button className="btn sm" onClick={p.onToggle}>닫기</button>
+      </div>
+
+      {tab === "Claude" ? <ClaudeTab {...p} /> : <CopyTab {...p} />}
+    </div>
+  );
+}
+
+/* ═══════════ Claude — 화면을 보고 고친다 ═══════════ */
+
+function ClaudeTab(p: Props) {
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [pending, setPending] = useState<{ at: number; action: Action }[]>([]);
+  const [diag, setDiag] = useState<Diagnosis | null>(null);
+  const [checking, setChecking] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setPending([]); setErr(""); }, [p.slide?.id]);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [p.turns.length, busy]);
+
+  const ready = !!(p.slide && p.pageType);
+
+  const send = async () => {
+    const text = draft.trim();
+    if (!text || busy || !ready) return;
+
+    const history: Turn[] = [
+      ...p.turns.map((t) => ({ role: t.role, content: t.text })),
+      { role: "user" as const, content: text },
+    ];
+    p.onTurns((t) => [...t, { role: "user", text }]);
+    setDraft(""); setBusy(true); setErr("");
+
+    let image: Blob | null = null;
+    try { image = await renderToBlob(p.ops, p.style); } catch { /* 그림 없이 */ }
+
+    const r = await ask<Reply>({
+      system: chatSystem({
+        brain: p.brain, style: p.style, pageTypes: p.pageTypes,
+        pageType: p.pageType!, slide: p.slide!,
+        slideIndex: p.slideIndex, totalSlides: p.project?.slides.length ?? 1,
+      }),
+      messages: history,
+      images: image ? [image] : undefined,
+    });
+    setBusy(false);
+
+    if (!r.ok || !r.data) { setErr(r.error ?? "답을 받지 못했습니다."); return; }
+
+    const all = r.data.actions ?? [];
+    const now = all.filter((a) => !needsOk(a));
+    const later = all.filter(needsOk);
+    if (now.length) { p.onActions(now); p.onNote(text); }
+
+    const say = r.data.say || "고쳤습니다.";
+    p.onTurns((t) => {
+      const next = [...t, { role: "assistant" as const, text: say }];
+      if (later.length) setPending((q) => [...q, ...later.map((a) => ({ at: next.length - 1, action: a }))]);
+      return next;
+    });
+  };
+
+  const resolve = (pd: { at: number; action: Action }, scope: string | null) => {
+    if (scope) {
+      if (pd.action.do === "스타일제안") p.onStyleChange(pd.action.path, pd.action.value, scope as any);
+      if (pd.action.do === "규칙제안") p.onSaveRule(pd.action.text, scope as any);
+    }
+    setPending((q) => q.filter((x) => x !== pd));
+  };
+
+  return (
+    <>
+      <div className="dock-where">
+        {ready
+          ? <>지금 보는 <b>{p.slideIndex + 1}번째 페이지</b> · {p.pageType!.name}<span className="eye">화면을 보고 답합니다</span></>
+          : <>제안서를 열면 그 페이지를 보고 함께 고칩니다.</>}
+      </div>
+
+      <div className="dock-log">
+        {p.turns.length === 0 && !busy && (
+          <p className="chat-hint">
+            {ready ? (
+              <>
+                <i>“제목이 길어 보여. 두 줄로 나눠줘”</i><br />
+                <i>“숫자 세 개 중 가운데를 강조해줘”</i><br />
+                <i>“이 페이지 답답해 보이는데 어떻게 할까?”</i>
+                <br /><br />
+                AI 가 <b>이 페이지 그림을 직접 보고</b> 답합니다. 오간 말은 저장됩니다.
+              </>
+            ) : (
+              <>보관함에서 제안서를 열면 여기서 함께 고칠 수 있습니다.</>
+            )}
+          </p>
+        )}
+
+        {p.turns.map((m, i) => (
+          <div key={i} className={`bubble ${m.role}`}>
+            <p>{m.text}</p>
+            {pending.filter((q) => q.at === i).map((q, k) => (
+              <div className="confirm" key={k}>
+                <b>{q.action.do === "스타일제안" ? "규격을 바꿀까요?" : "앞으로도 이렇게 할까요?"}</b>
+                <p>
+                  {q.action.do === "스타일제안"
+                    ? `${q.action.path} → ${q.action.value}   (${q.action.why})`
+                    : q.action.do === "규칙제안" ? q.action.text : ""}
+                </p>
+                <small className="scopeask">어디까지 적용할까요?</small>
+                <div className="scopebtns">
+                  {(q.action.do === "스타일제안"
+                    ? [["제안서", "이 제안서만"], ["스타일", "이 브랜드 전체"]]
+                    : [["제안서", "이 제안서만"], ["분류", "이 문서 종류"], ["스타일", "이 브랜드"], ["공통", "어떤 문서든"]]
+                  ).map(([v, label]) => (
+                    <button key={v} className="btn sm accent" onClick={() => resolve(q, v)}>{label}</button>
+                  ))}
+                  <button className="btn sm" onClick={() => resolve(q, null)}>안 함</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        {busy && <div className="bubble assistant"><p className="thinking">화면을 보는 중…</p></div>}
+        {err && (
+          <div className="warn">
+            <b>{err}</b>
+            <button className="btn sm" style={{ marginTop: 7 }} disabled={checking}
+              onClick={async () => { setChecking(true); setDiag(await diagnose()); setChecking(false); }}>
+              {checking ? "점검하는 중…" : "왜 안 되는지 점검하기"}
+            </button>
+          </div>
+        )}
+        {diag && (
+          <div className={diag.ok ? "diagbox ok" : "diagbox"}>
+            <b>{diag.ok ? "정상입니다" : "여기서 막혔습니다"}</b>
+            {diag.lines.map((l, i) => <p key={i}>{l}</p>)}
+            <button className="btn sm" onClick={() => setDiag(null)}>닫기</button>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      <div className="dock-box">
+        <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
+          placeholder={ready ? "이 페이지를 어떻게 고칠까요?" : "제안서를 열어 주세요"}
+          disabled={!ready}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+        <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !ready}>보내기</button>
+      </div>
+    </>
+  );
+}
+
+/* ═══════════ ChatGPT — 글만 다듬는다 ═══════════ */
+
+interface Revised extends CopyField { before: string; keep: boolean; }
+
+function CopyTab(p: Props) {
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [shown, setShown] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [revised, setRevised] = useState<Revised[] | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [shown.length, busy, revised]);
+
+  const ready = !!(p.slide && p.pageType);
+
+  const send = async () => {
+    const text = draft.trim();
+    if (!text || busy || !ready) return;
+    const base = pullCopy(p.pageType!, p.slide!.content);
+
+    setShown((s) => [...s, { role: "user", text }]);
+    setDraft(""); setBusy(true); setErr(""); setRevised(null);
+
+    const payload = JSON.stringify({ fields: base }, null, 1);
+    const history: Turn[] = [...turns, { role: "user", content: `[지금 페이지 문구]\n${payload}\n\n[요청]\n${text}` }];
+
+    const r = await askCopy<{ fields: { path: string; text: string }[]; say?: string }>({
+      system: copySystem({ style: p.style, rules: p.rules, pageType: p.pageType! }),
+      messages: history,
+    });
+    setBusy(false);
+
+    if (!r.ok || !r.data?.fields) { setErr(r.error ?? "답을 받지 못했습니다."); return; }
+
+    setTurns([...history, { role: "assistant", content: r.text ?? "" }]);
+    setShown((s) => [...s, { role: "assistant", text: r.data!.say || "다듬었습니다." }]);
+
+    const byPath = new Map(base.map((f) => [f.path, f]));
+    setRevised(
+      r.data.fields
+        .filter((f) => byPath.has(f.path) && f.text !== byPath.get(f.path)!.text)
+        .map((f) => ({
+          path: f.path, label: byPath.get(f.path)!.label,
+          before: byPath.get(f.path)!.text, text: f.text, keep: true,
+        })),
+    );
+  };
+
+  const apply = () => {
+    const picked = (revised ?? []).filter((r) => r.keep);
+    if (!picked.length || !p.slide) return;
+    p.onContent(pushCopy(p.slide.content, picked));
+    setRevised(null);
+  };
+
+  return (
+    <>
+      <div className="dock-where">
+        글만 다룹니다. 레이아웃은 Claude 탭에서.
+        <span className="eye gpt">규칙 {p.rules.length}개를 함께 읽습니다</span>
+      </div>
+
+      <div className="dock-log">
+        {shown.length === 0 && !busy && (
+          <p className="chat-hint">
+            {ready ? (
+              <>
+                <i>“제목을 더 힘 있게”</i><br />
+                <i>“설명이 길다. 한 줄로”</i><br />
+                <i>“공공기관 제안서 톤으로”</i>
+                <br /><br />
+                지금 페이지의 글만 가져가서 다듬고, <b>바꾸기</b>를 누르면 바로 반영됩니다.
+              </>
+            ) : (
+              <>제안서를 열면 그 페이지의 글을 다듬을 수 있습니다.</>
+            )}
+          </p>
+        )}
+
+        {shown.map((m, i) => (
+          <div key={i} className={`bubble ${m.role}`}><p>{m.text}</p></div>
+        ))}
+
+        {busy && <div className="bubble assistant"><p className="thinking">다듬는 중…</p></div>}
+        {err && <div className="warn">{err}</div>}
+
+        {revised && revised.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            {revised.map((r, i) => (
+              <label className="diff" key={r.path}>
+                <input type="checkbox" checked={r.keep}
+                  onChange={(e) => setRevised((q) => (q ?? []).map((x, k) => (k === i ? { ...x, keep: e.target.checked } : x)))} />
+                <div className="grow">
+                  <small>{r.label}</small>
+                  <p className="was">{r.before}</p>
+                  <p className="now">{r.text}</p>
+                </div>
+              </label>
+            ))}
+            <button className="btn primary" style={{ width: "100%", marginTop: 6 }} onClick={apply}
+              disabled={!revised.some((r) => r.keep)}>
+              체크한 {revised.filter((r) => r.keep).length}개로 바꾸기
+            </button>
+          </div>
+        )}
+        {revised && revised.length === 0 && <p className="chat-hint">고칠 것이 없다고 합니다.</p>}
+        <div ref={endRef} />
+      </div>
+
+      <div className="dock-box">
+        <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
+          placeholder={ready ? "문구를 어떻게 다듬을까요?" : "제안서를 열어 주세요"}
+          disabled={!ready}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+        <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !ready}>보내기</button>
+      </div>
+    </>
+  );
+}

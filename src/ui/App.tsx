@@ -11,6 +11,9 @@ import { NewProject } from "./NewProject";
 import { Dashboard } from "./Dashboard";
 import { Browse } from "./Browse";
 import { Tray, type TrayItem } from "./Tray";
+import { ChatDock } from "./ChatDock";
+import type { Action } from "../ai/chat";
+import { interpret } from "../core/interpret";
 import { Log } from "./Log";
 import { Store } from "./Store";
 
@@ -115,6 +118,11 @@ function Studio({
   const [browseId, setBrowseId] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [tray, setTray] = useState<TrayItem[]>([]);
+  /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
+  const [lastEdited, setLastEdited] = useState<string | null>(null);
+  /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
+  const [cur, setCur] = useState(0);
+  const [dockOpen, setDockOpen] = useState(true);
 
   /** db 가 비어 있을 때 들어오는 갱신은 무시한다 */
   const update = (apply: (d: DB) => DB) => setDb((d) => (d ? apply(d) : d));
@@ -150,7 +158,7 @@ function Studio({
 
   const addProject = (p: Project) => {
     update((d) => ({ ...d, projects: [p, ...d.projects] }));
-    setCreating(null); setBrowseId(null); setOpenId(p.id);
+    setCreating(null); setBrowseId(null); setOpenId(p.id); setLastEdited(p.id); setCur(0);
   };
 
   const saveRule = (text: string, scope: RuleScope = "스타일") => {
@@ -262,6 +270,29 @@ function Studio({
     addProject(p);
   };
 
+  /** 담은 장을 작업하던 제안서 뒤에 이어 붙인다 */
+  const appendTray = () => {
+    if (!tray.length || !lastEdited) return;
+    const assets: Record<string, string> = {};
+    for (const it of tray) Object.assign(assets, it.fromAssets);
+    update((d) => ({
+      ...d,
+      projects: d.projects.map((p) =>
+        p.id === lastEdited
+          ? {
+              ...p,
+              slides: [...p.slides, ...tray.map((it) => ({ ...it.slide, id: uid() }))],
+              assets: { ...assets, ...p.assets },
+              updatedAt: new Date().toISOString(),
+            }
+          : p,
+      ),
+    }));
+    setTray([]);
+    setBrowseId(null);
+    setOpenId(lastEdited);   // 바로 열어서 결과가 보이게
+  };
+
   /** 지난 제안서를 뼈대로 새로 시작 */
   const useAsBase = (src: Project, keepText: boolean) => {
     const p: Project = {
@@ -274,11 +305,104 @@ function Studio({
     addProject(p);
   };
 
+  /* ── 지금 보고 있는 페이지 (대화 선반이 함께 본다) ── */
+  const activeSlide = project?.slides[cur] ?? null;
+  const activePageType = activeSlide
+    ? db.pageTypes.find((t) => t.id === activeSlide.pageTypeId) ?? null
+    : null;
+  const activeStyle = styleOf(project);
+  const activeOps = useMemo(
+    () =>
+      activePageType && activeSlide && project
+        ? interpret(activePageType, activeSlide.content, {
+            style: activeStyle, assets: project.assets, pageNumber: cur + 1,
+          })
+        : [],
+    [activePageType, activeSlide, project, activeStyle, cur],
+  );
+  const activeRules = rulesFor(db.rules, {
+    styleId: baseStyle.id,
+    categoryId: project?.category ?? "proposal",
+    projectId: openId,
+  });
+
+  /** AI 가 돌려준 할 일 목록을 실제로 반영한다 */
+  const applyActions = (as: Action[]) =>
+    putProject((p) => {
+      const slides = [...p.slides];
+      for (const a of as) {
+        switch (a.do) {
+          case "내용수정":
+            if (slides[cur]) slides[cur] = { ...slides[cur], content: a.content };
+            break;
+          case "타입바꾸기":
+            if (slides[cur] && db.pageTypes.some((t) => t.id === a.pageTypeId))
+              slides[cur] = { ...slides[cur], pageTypeId: a.pageTypeId, content: a.content };
+            break;
+          case "페이지추가": {
+            if (!db.pageTypes.some((t) => t.id === a.pageTypeId)) break;
+            const at = Math.max(0, Math.min(slides.length, a.at ?? slides.length));
+            slides.splice(at, 0, { id: uid(), pageTypeId: a.pageTypeId, content: a.content ?? {} });
+            break;
+          }
+          case "페이지삭제":
+            if (slides.length > 1 && slides[a.at]) slides.splice(a.at, 1);
+            break;
+          case "페이지이동": {
+            if (slides[a.from] && a.to >= 0 && a.to < slides.length) {
+              const [m] = slides.splice(a.from, 1);
+              slides.splice(a.to, 0, m);
+            }
+            break;
+          }
+        }
+      }
+      return { ...p, slides, updatedAt: new Date().toISOString() };
+    });
+
+  const setSlideContent = (next: Content) =>
+    putProject((p) => ({
+      ...p,
+      slides: p.slides.map((s2, i) => (i === cur ? { ...s2, content: next } : s2)),
+      updatedAt: new Date().toISOString(),
+    }));
+
+  const dock = (
+    <ChatDock
+      brain={brain.system}
+      style={activeStyle}
+      pageTypes={db.pageTypes}
+      rules={activeRules}
+      project={project}
+      slide={activeSlide}
+      pageType={activePageType}
+      slideIndex={cur}
+      ops={activeOps}
+      turns={activeSlide ? turnsOf(activeSlide.id) : []}
+      onTurns={(apply) => activeSlide && onTurns(activeSlide.id, apply)}
+      onActions={applyActions}
+      onStyleChange={changeStyle}
+      onSaveRule={saveRule}
+      onNote={(instruction) =>
+        activeSlide && addHistory({ slideIndex: cur, instruction, before: activeSlide.content, after: activeSlide.content })
+      }
+      onContent={setSlideContent}
+      open={dockOpen}
+      onToggle={() => setDockOpen(!dockOpen)}
+    />
+  );
+
+  /** 이어 붙일 대상 */
+  const appendTarget = (() => {
+    const p = db.projects.find((x) => x.id === lastEdited);
+    return p ? { id: p.id, title: p.title } : null;
+  })();
+
   /* ── 화면 고르기 ── */
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -295,15 +419,13 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
-          activeRules={rulesFor(db.rules, {
-            styleId: baseStyle.id,
-            categoryId: project.category,
-            projectId: openId,
-          })}
+          allProjects={db.projects}
+          cur={Math.min(cur, Math.max(0, project.slides.length - 1))}
+          onCur={setCur}
           onChange={putProject} onBack={() => setOpenId(null)}
           aiSystem={brain.system} onSaveRule={saveRule} onHistory={addHistory}
           onStyleChange={changeStyle}
@@ -315,7 +437,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} dock={dock}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -323,30 +445,32 @@ function Studio({
             onUseAsBase={useAsBase}
             onTakePage={(s) => takePage(s, browsing)}
             takenCount={tray.length}
-            onOpen={(id) => { setBrowseId(null); setOpenId(id); }}
+            onOpen={(id) => { setBrowseId(null); setOpenId(id); setLastEdited(id); setCur(0); }}
             categoryName={db.categories.find((c) => c.id === browsing.category)?.name ?? "미분류"}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
-            onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray} />
+            onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray}
+            appendTo={appendTarget} onAppend={appendTray} />
         </div>
       </Shell>
     );
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} dock={dock}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
             projects={db.projects} categories={db.categories}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
-            onBrowse={setBrowseId} onOpen={setOpenId} onNew={(cat) => setCreating(cat)}
+            onBrowse={setBrowseId} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
-            onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray} />
+            onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray}
+            appendTo={appendTarget} onAppend={appendTray} />
         </div>
       )}
       {view === "기록" && <Log db={db} setDb={update} />}
@@ -356,10 +480,10 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, children,
+  view, setView, onNew, bare, who, dock, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
-  bare?: boolean; who?: string | null; children: React.ReactNode;
+  bare?: boolean; who?: string | null; dock?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
     <div className="app">
@@ -377,7 +501,10 @@ function Shell({
         {who && <button className="btn sm" onClick={() => void logout()}>로그아웃</button>}
         {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}
       </div>
-      {children}
+      <div className="workspace">
+        <div className="workmain">{children}</div>
+        {dock}
+      </div>
     </div>
   );
 }
