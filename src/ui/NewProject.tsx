@@ -1,41 +1,73 @@
-import { useState } from "react";
-import type { PageType, Project, Rule, StylePreset } from "../core/types";
+import { useRef, useState } from "react";
+import type { Category, PageType, Project, Rule, StylePreset } from "../core/types";
 import { buildBrain, draftRequest } from "../ai/brain";
-import { askAi } from "../ai/client";
+import { ask } from "../ai/client";
 import { newProject, uid } from "../store/db";
+import { intakeToText, prettySize, readFile, type IntakeFile } from "../core/intake";
 
 interface Props {
   style: StylePreset;
   rules: Rule[];
   pageTypes: PageType[];
+  categories: Category[];
   pastProjects: Project[];
+  defaultCategory: string;
   onDone: (p: Project) => void;
   onCancel: () => void;
 }
 
 type Draft = { slides: { pageTypeId: string; content: Record<string, unknown> }[] };
 
-export function NewProject({ style, rules, pageTypes, pastProjects, onDone, onCancel }: Props) {
+export function NewProject(p: Props) {
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
-  const [source, setSource] = useState("");
+  const [category, setCategory] = useState(p.defaultCategory);
+  const [note, setNote] = useState("");
   const [hint, setHint] = useState("");
+  const [files, setFiles] = useState<IntakeFile[]>([]);
+  const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const pick = useRef<HTMLInputElement>(null);
 
-  const brain = buildBrain({ style, rules, pageTypes, pastProjects });
+  const brain = buildBrain({ style: p.style, rules: p.rules, pageTypes: p.pageTypes, pastProjects: p.pastProjects });
 
-  const startEmpty = () => onDone(newProject(title, client));
+  const take = async (list: FileList | File[]) => {
+    const arr = [...list];
+    if (!arr.length) return;
+    const stubs: IntakeFile[] = arr.map((f) => ({
+      id: uid(), name: f.name, size: f.size, mime: f.type,
+      kind: "글", busy: true,
+    }));
+    setFiles((s) => [...s, ...stubs]);
+    for (let i = 0; i < arr.length; i++) {
+      const done = await readFile(arr[i], stubs[i].id);
+      setFiles((s) => s.map((x) => (x.id === done.id ? done : x)));
+    }
+  };
+
+  const startEmpty = () => p.onDone({ ...newProject(title, client, category) });
 
   const startWithAi = async () => {
-    if (!source.trim()) {
-      setErr("넣을 내용을 적어 주세요. 기존 제안서 글, 메모, 사업 설명 무엇이든 괜찮습니다.");
+    const material = [note.trim(), intakeToText(files)].filter(Boolean).join("\n\n");
+    const pics = files.filter((f) => f.dataUrl);
+
+    if (!material && !pics.length) {
+      setErr("자료를 넣거나 내용을 한두 줄 적어 주세요. 파일을 끌어다 놓으셔도 됩니다.");
       return;
     }
-    setBusy(true);
-    setErr("");
+    setBusy(true); setErr("");
 
-    const r = await askAi<Draft>(brain.system, draftRequest(source, hint));
+    // 올린 사진은 AI 가 직접 보게 넘긴다
+    const images = await Promise.all(
+      pics.slice(0, 4).map((f) => fetch(f.dataUrl!).then((r) => r.blob())),
+    );
+
+    const r = await ask<Draft>({
+      system: brain.system,
+      messages: [{ role: "user", content: draftRequest(material || "(올린 사진을 보고 판단하라)", hint) }],
+      images,
+    });
     setBusy(false);
 
     if (!r.ok || !r.data?.slides?.length) {
@@ -43,7 +75,7 @@ export function NewProject({ style, rules, pageTypes, pastProjects, onDone, onCa
       return;
     }
 
-    const known = new Set(pageTypes.map((t) => t.id));
+    const known = new Set(p.pageTypes.map((t) => t.id));
     const slides = r.data.slides
       .filter((s) => known.has(s.pageTypeId))
       .map((s) => ({ id: uid(), pageTypeId: s.pageTypeId, content: s.content ?? {} }));
@@ -52,37 +84,87 @@ export function NewProject({ style, rules, pageTypes, pastProjects, onDone, onCa
       setErr("AI 가 쓸 수 없는 페이지 타입을 골랐습니다. 다시 시도해 주세요.");
       return;
     }
-    onDone({ ...newProject(title, client), slides });
+
+    // 올린 사진은 프로젝트 자산으로 같이 넣어 둔다 (페이지에 끼워 쓸 수 있게)
+    const assets: Record<string, string> = {};
+    pics.forEach((f, i) => { assets[`올린사진-${i + 1}`] = f.dataUrl!; });
+
+    p.onDone({ ...newProject(title, client, category), slides, assets });
   };
 
+  const readable = files.filter((f) => f.text || f.dataUrl).length;
+
   return (
-    <div className="page" style={{ maxWidth: 720 }}>
+    <div className="page" style={{ maxWidth: 740 }}>
       <h1>새 제안서</h1>
       <p className="lede">
-        내용을 넣으면 AI 가 페이지 구성을 짭니다. 이때 켜둔 규칙 {brain.used.rules}개와
-        지난 제안서 {brain.used.examples}건을 전부 읽고 만듭니다.
+        자료를 넣으면 AI 가 페이지 구성을 짭니다. 이때 켜둔 규칙 {brain.used.rules}개,
+        지난 제안서 {brain.used.examples}건, 지난 지시 {brain.used.instructions}건을 전부 읽고 만듭니다.
       </p>
 
-      <div className="field">
-        <label>제안서 이름</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 인천시티투어 제안서" />
+      <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+        <div className="field grow" style={{ minWidth: 200 }}>
+          <label>제안서 이름</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 인천시티투어 제안서" />
+        </div>
+        <div className="field grow" style={{ minWidth: 160 }}>
+          <label>고객사 <span className="hint">— 몰라도 됩니다</span></label>
+          <input value={client} onChange={(e) => setClient(e.target.value)} placeholder="예: 인천관광공사" />
+        </div>
+        <div className="field" style={{ minWidth: 140 }}>
+          <label>분류</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}
+            style={{ width: "100%", border: "1px solid var(--line)", borderRadius: 6, padding: "7px 9px" }}>
+            {p.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
       </div>
+
+      {/* ── 자료 넣는 공간 ── */}
       <div className="field">
-        <label>고객사 <span className="hint">— 몰라도 괜찮습니다</span></label>
-        <input value={client} onChange={(e) => setClient(e.target.value)} placeholder="예: 인천관광공사" />
+        <label>자료 넣기 <span className="hint">— 끌어다 놓거나 눌러서 고르세요. 여러 개 괜찮습니다</span></label>
+        <div
+          className={`dropzone ${over ? "over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => { e.preventDefault(); setOver(false); take(e.dataTransfer.files); }}
+          onClick={() => pick.current?.click()}
+        >
+          <b>여기에 파일을 끌어다 놓으세요</b>
+          <small>PDF · 사진 · 텍스트 — 눌러서 고르셔도 됩니다</small>
+          <small className="cant">PPT · 한글 · 워드는 PDF 로 저장해 올려 주세요</small>
+          <input ref={pick} type="file" multiple style={{ display: "none" }}
+            onChange={(e) => { take(e.target.files ?? []); e.target.value = ""; }} />
+        </div>
+
+        {files.map((f) => (
+          <div className={`filerow ${f.kind === "못읽음" ? "bad" : ""}`} key={f.id}>
+            {f.dataUrl && <img src={f.dataUrl} alt="" />}
+            <div className="grow" style={{ minWidth: 0 }}>
+              <b>{f.name}</b>
+              <small>
+                {prettySize(f.size)}
+                {f.busy ? " · 읽는 중…"
+                  : f.text ? ` · 글 ${f.text.length.toLocaleString()}자 읽음`
+                  : f.dataUrl ? " · 사진 — AI 가 직접 봅니다"
+                  : ` · ${f.note ?? "못 읽음"}`}
+              </small>
+            </div>
+            <button className="btn sm" onClick={() => setFiles((s) => s.filter((x) => x.id !== f.id))}>×</button>
+          </div>
+        ))}
       </div>
+
       <div className="field">
-        <label>넣을 내용 <span className="hint">— 기존 제안서 글, 메모, 사업 설명 무엇이든</span></label>
-        <textarea
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          style={{ minHeight: 190 }}
-          placeholder={"예)\n인천시티투어 상품을 핫플트립 판매채널에 등록해 온라인 판매처를 추가하는 제안.\n공사는 상품 정보만 제공하고 추가 비용 0원.\n핫플트립은 2021년 설립, 네이버 리뷰 9,000건 이상, 판매채널 14개."}
-        />
+        <label>넣을 내용 <span className="hint">— 간단해도 됩니다. 자세한 건 위 파일이 들고 있으면 됩니다</span></label>
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} style={{ minHeight: 110 }}
+          placeholder={"예) 인천관광공사 입찰 건. 작년 회사소개서 톤으로, 12장 안쪽.\n예) 공사는 상품 정보만 제공하고 추가 비용 0원."} />
       </div>
+
       <div className="field">
         <label>따로 요청할 것 <span className="hint">— 없으면 비워 두세요</span></label>
-        <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="예: 10장 안으로, 숫자 임팩트 장을 꼭 넣어 주세요" />
+        <input value={hint} onChange={(e) => setHint(e.target.value)}
+          placeholder="예: 10장 안으로, 숫자 임팩트 장을 꼭 넣어 주세요" />
       </div>
 
       {err && <div className="warn"><b>{err}</b></div>}
@@ -93,7 +175,8 @@ export function NewProject({ style, rules, pageTypes, pastProjects, onDone, onCa
         </button>
         <button className="btn" onClick={startEmpty} disabled={busy}>빈 제안서로 시작</button>
         <div className="spacer" />
-        <button className="btn" onClick={onCancel} disabled={busy}>취소</button>
+        {readable > 0 && <small style={{ color: "var(--muted)" }}>자료 {readable}개 읽음</small>}
+        <button className="btn" onClick={p.onCancel} disabled={busy}>취소</button>
       </div>
     </div>
   );

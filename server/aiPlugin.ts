@@ -40,24 +40,24 @@ export function aiPlugin(): Plugin {
 
         try {
           const body = await readJson(req);
-          const { system, messages, imageBase64 } = body as {
+          const { system, messages, imagesBase64 } = body as {
             system: string;
             messages: { role: "user" | "assistant"; content: string }[];
-            imageBase64?: string;
+            imagesBase64?: string[];
           };
 
           // 마지막 사용자 말에 지금 보고 있는 페이지 그림을 붙인다.
           // 그래야 AI 가 "화면을 보고" 판단한다.
           const built: Anthropic.MessageParam[] = messages.map((m, i) => {
             const last = i === messages.length - 1;
-            if (last && m.role === "user" && imageBase64) {
+            if (last && m.role === "user" && imagesBase64?.length) {
               return {
                 role: "user" as const,
                 content: [
-                  {
+                  ...imagesBase64.map((data) => ({
                     type: "image" as const,
-                    source: { type: "base64" as const, media_type: "image/png" as const, data: imageBase64 },
-                  },
+                    source: { type: "base64" as const, media_type: "image/png" as const, data },
+                  })),
                   { type: "text" as const, text: m.content },
                 ],
               };

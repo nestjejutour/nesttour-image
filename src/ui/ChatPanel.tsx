@@ -72,7 +72,7 @@ export function ChatPanel(p: Props) {
       slideIndex: p.slideIndex, totalSlides: p.totalSlides,
     });
 
-    const r = await ask<Reply>({ system, messages: history, image });
+    const r = await ask<Reply>({ system, messages: history, images: image ? [image] : undefined });
     setBusy(false);
 
     if (!r.ok || !r.data) {

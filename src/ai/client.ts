@@ -26,8 +26,8 @@ export interface AiResult<T> {
 export interface AskOptions {
   system: string;
   messages: Turn[];
-  /** 지금 보고 있는 페이지 그림 */
-  image?: Blob | null;
+  /** 같이 보낼 그림들 (보고 있는 페이지, 올린 사진 자료) */
+  images?: Blob[];
 }
 
 type Sample = ((
@@ -67,10 +67,10 @@ async function viaClaude(
   );
 
   let images: Blob[] | undefined;
-  if (o.image) {
+  if (o.images?.length) {
     try {
       const lim = await sample.limits?.();
-      if (lim?.images !== false) images = [o.image];
+      if (lim?.images !== false) images = o.images.slice(0, 5);
     } catch { /* 그림 없이 간다 */ }
   }
 
@@ -87,13 +87,15 @@ async function viaClaude(
 /* ───────────── 내 PC ───────────── */
 
 async function viaLocalServer(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string }> {
-  const imageBase64 = o.image ? await blobToBase64(o.image) : undefined;
+  const imagesBase64 = o.images?.length
+    ? await Promise.all(o.images.slice(0, 5).map(blobToBase64))
+    : undefined;
   let r: Response;
   try {
     r = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system: o.system, messages: o.messages, imageBase64 }),
+      body: JSON.stringify({ system: o.system, messages: o.messages, imagesBase64 }),
     });
   } catch {
     return {
@@ -189,4 +191,36 @@ export async function diagnose(): Promise<Diagnosis> {
   lines.push(`④ 시험 호출 실패 — ${t.error ?? "알 수 없음"}`);
   if (t.text) lines.push(`   AI 가 보낸 말: ${t.text.slice(0, 160)}`);
   return { ok: false, lines };
+}
+
+
+/* ───────────── 카피 작업실 (ChatGPT) ───────────── */
+
+/**
+ * 글만 다루는 창구. 내 PC 에서만 돈다.
+ * 옆 패널에서는 외부 호출이 막혀 있어 쓸 수 없다.
+ */
+export async function askCopy<T>(o: { system: string; messages: Turn[] }): Promise<AiResult<T>> {
+  if (hasClaude()) {
+    return {
+      ok: false,
+      error: "카피 작업실은 대표님 PC 에서 프로그램을 켰을 때만 됩니다. (옆 패널에서는 외부 연결이 막혀 있습니다)",
+    };
+  }
+  let r: Response;
+  try {
+    r = await fetch("/api/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(o),
+    });
+  } catch {
+    return { ok: false, error: "ChatGPT 창구에 닿지 못했습니다. 프로그램을 다시 켜 보세요." };
+  }
+  const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
+  if (!r.ok || p.error) return { ok: false, error: p.error ?? "ChatGPT 호출 실패" };
+
+  const data = extractJson<T>(p.text);
+  if (!data) return { ok: false, error: "ChatGPT 가 보낸 답을 알아볼 수 없습니다.", text: p.text };
+  return { ok: true, data, text: p.text };
 }

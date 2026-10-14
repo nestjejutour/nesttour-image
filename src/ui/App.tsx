@@ -8,11 +8,10 @@ import { NewProject } from "./NewProject";
 import { Dashboard } from "./Dashboard";
 import { Browse } from "./Browse";
 import { Tray, type TrayItem } from "./Tray";
-import { Rules } from "./Rules";
 import { Log } from "./Log";
-import { StyleView } from "./StyleView";
+import { Store } from "./Store";
 
-type View = "보관함" | "규칙" | "스타일" | "기록";
+type View = "보관함" | "기록" | "창고";
 
 export function App() {
   const [db, setDb] = useState<DB>(() => load());
@@ -185,10 +184,14 @@ export function App() {
     return (
       <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare>
         <NewProject
-          style={style} rules={db.rules} pageTypes={db.pageTypes}
+          style={baseStyle}
+          rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
+          pageTypes={db.pageTypes}
+          categories={db.categories}
+          defaultCategory={creating}
           pastProjects={db.projects}
           onCancel={() => setCreating(null)}
-          onDone={(p) => addProject({ ...p, category: creating })}
+          onDone={(p) => addProject(p)}
         />
       </Shell>
     );
@@ -200,6 +203,11 @@ export function App() {
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
+          activeRules={rulesFor(db.rules, {
+            styleId: baseStyle.id,
+            categoryId: project.category,
+            projectId: openId,
+          })}
           onChange={putProject} onBack={() => setOpenId(null)}
           aiSystem={brain.system} onSaveRule={saveRule} onHistory={addHistory}
           onStyleChange={changeStyle}
@@ -245,9 +253,8 @@ export function App() {
             onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray} />
         </div>
       )}
-      {view === "규칙" && <Rules db={db} setDb={setDb} />}
-      {view === "스타일" && <StyleView db={db} setDb={setDb} />}
       {view === "기록" && <Log db={db} setDb={setDb} />}
+      {view === "창고" && <Store db={db} setDb={setDb} />}
     </Shell>
   );
 }
@@ -264,7 +271,7 @@ function Shell({
         <div className="brand">MTMB <span>디자인 스튜디오</span></div>
         {!bare && (
           <div className="tabs">
-            {(["보관함", "규칙", "스타일", "기록"] as View[]).map((v) => (
+            {(["보관함", "기록", "창고"] as View[]).map((v) => (
               <button key={v} className={`tab ${view === v ? "on" : ""}`} onClick={() => setView(v)}>{v}</button>
             ))}
           </div>

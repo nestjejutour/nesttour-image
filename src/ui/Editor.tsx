@@ -8,6 +8,8 @@ import { uid } from "../store/db";
 import { ChatPanel } from "./ChatPanel";
 import type { Action } from "../ai/chat";
 import type { ChatTurn } from "../store/db";
+import { CopyDesk } from "./CopyDesk";
+import type { Rule } from "../core/types";
 import { hasClaude } from "../platform";
 
 interface Props {
@@ -19,6 +21,8 @@ interface Props {
   onBack: () => void;
   /** 분류 목록 (편집기에서 분류를 바꿀 수 있게) */
   categories: Category[];
+  /** 이 건에 걸린 규칙 — 카피 작업실도 같은 규칙을 읽는다 */
+  activeRules: Rule[];
   /** 쌓인 걸 전부 녹여 넣은 AI 지시문 */
   aiSystem: string;
   /** 지시가 원칙이 될 때 */
@@ -32,13 +36,14 @@ interface Props {
   onTurns: (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) => void;
 }
 
-export function Editor({ project, style, pageTypes, categories, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns }: Props) {
+export function Editor({ project, style, pageTypes, categories, activeRules, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns }: Props) {
   const [cur, setCur] = useState(0);
   const [zoom, setZoom] = useState(0.78);
   const [adding, setAdding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [msg, setMsg] = useState("");
   const [editTitle, setEditTitle] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
 
@@ -205,6 +210,9 @@ export function Editor({ project, style, pageTypes, categories, onChange, onBack
           </small>
         )}
         {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
+        <button className={`btn sm ${copyOpen ? "accent" : ""}`} onClick={() => setCopyOpen(!copyOpen)}>
+          카피 작업실
+        </button>
         {/* 옆 패널에서는 인쇄 창을 열 수 없다 */}
         {!hasClaude() && (
           <button className="btn sm" onClick={printPdf} disabled={!project.slides.length}>
@@ -279,6 +287,20 @@ export function Editor({ project, style, pageTypes, categories, onChange, onBack
             </div>
           )}
         </div>
+
+        {/* ── 카피 작업실 (글만. ChatGPT) ── */}
+        {copyOpen && slide && slideType && (
+          <CopyDesk
+            style={style}
+            rules={activeRules}
+            pageType={slideType}
+            content={slide.content}
+            onClose={() => setCopyOpen(false)}
+            onApply={(next) =>
+              patch((p) => ({ slides: p.slides.map((s, i) => (i === cur ? { ...s, content: next } : s)) }))
+            }
+          />
+        )}
 
         {/* ── 오른쪽: 내용 고치기 ── */}
         <div className="pane-right">
