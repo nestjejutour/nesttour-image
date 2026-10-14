@@ -22,6 +22,7 @@ export const SEED_PROJECTS: Project[] = [
     notes: "대표 확정본 v10. 좌표·색·글자 크기의 기준이 되는 제안서다.",
     createdAt: "2026-10-01T00:00:00.000Z",
     updatedAt: "2026-10-14T00:00:00.000Z",
+    completedAt: "2026-10-14T00:00:00.000Z",
     slides: [
       {
         id: "s1",

@@ -297,6 +297,19 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         <button className={`btn sm ${srcOpen ? "accent" : ""}`} onClick={() => setSrcOpen(!srcOpen)}>
           지난 자료
         </button>
+        <button
+          className={`btn sm ${project.status === "완료" ? "accent" : ""}`}
+          title={project.status === "완료" ? "다시 진행 중으로" : "완료로 표시합니다"}
+          onClick={() =>
+            patch((p) =>
+              p.status === "완료"
+                ? { status: "진행 중", completedAt: undefined }
+                : { status: "완료", completedAt: new Date().toISOString() },
+            )
+          }
+        >
+          {project.status === "완료" ? "완료됨" : "완료로 표시"}
+        </button>
         <div className="spacer" />
         {todos.length > 0 && (
           <small style={{ color: "var(--todo)", fontWeight: 600 }}>

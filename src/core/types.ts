@@ -273,6 +273,8 @@ export interface Project {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  /** 완료로 표시한 때 */
+  completedAt?: string;
 }
 
 // ---------- 그리기 명령 ----------

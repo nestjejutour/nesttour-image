@@ -35,6 +35,9 @@ export function Dashboard(p: Props) {
   const [sel, setSel] = useState<string>("all");
   const [mood, setMood] = useState<Mood | null>(null);
   const [q, setQ] = useState("");
+  const [sortBy, setSortBy] = useState<"고침" | "만듦" | "완료" | "이름">("고침");
+  const [period, setPeriod] = useState<"전체" | "오늘" | "이번 주" | "이번 달">("전체");
+  const [onlyDone, setOnlyDone] = useState<"전체" | "진행 중" | "완료">("전체");
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKind, setNewKind] = useState<Category["kind"]>("우리 결과물");
@@ -52,14 +55,41 @@ export function Dashboard(p: Props) {
     return [...s];
   }, [moodsFor]);
 
+  /** 이 제안서의 기준 날짜 — 완료된 건 완료일, 아니면 마지막으로 고친 날 */
+  const stamp = (pr: Project) => (pr.status === "완료" ? (pr.completedAt ?? pr.updatedAt) : pr.updatedAt);
+
+  const inPeriod = (pr: Project) => {
+    if (period === "전체") return true;
+    const d = new Date(stamp(pr));
+    if (Number.isNaN(d.getTime())) return false;
+    const now = new Date();
+    if (period === "오늘") return d.toDateString() === now.toDateString();
+    const days = (now.getTime() - d.getTime()) / 86400000;
+    return period === "이번 주" ? days <= 7 : days <= 31;
+  };
+
   const match = (pr: Project) => {
     if (mood && !(moodsFor.get(pr.id) ?? []).includes(mood)) return false;
+    if (onlyDone !== "전체" && pr.status !== onlyDone) return false;
+    if (!inPeriod(pr)) return false;
     if (!q.trim()) return true;
     const hay = `${pr.title} ${pr.client} ${pr.tags.join(" ")} ${pr.summary}`.toLowerCase();
     return hay.includes(q.trim().toLowerCase());
   };
 
-  const inCat = (id: string) => projects.filter((x) => x.category === id && match(x));
+  const sorted = (list: Project[]) =>
+    list.slice().sort((a, b) => {
+      if (sortBy === "이름") return a.title.localeCompare(b.title, "ko");
+      const key = (x: Project) =>
+        sortBy === "만듦"
+          ? x.createdAt
+          : sortBy === "완료"
+            ? (x.status === "완료" ? (x.completedAt ?? x.updatedAt) : "")
+            : x.updatedAt;
+      return key(b) > key(a) ? 1 : key(b) < key(a) ? -1 : 0;
+    });
+
+  const inCat = (id: string) => sorted(projects.filter((x) => x.category === id && match(x)));
   const filtered = projects.filter(match);
   // 최근에 손댄 것부터. 너무 많으면 고르기가 더 어렵다.
   const inProgress = projects
@@ -183,6 +213,29 @@ export function Dashboard(p: Props) {
           />
         </div>
 
+        <div className="filters">
+          <span className="flabel">정렬</span>
+          {(["고침", "만듦", "완료", "이름"] as const).map((v) => (
+            <button key={v} className={`btnchip chip ${sortBy === v ? "on" : ""}`} onClick={() => setSortBy(v)}>
+              {v === "고침" ? "최근 고친 순" : v === "만듦" ? "만든 순" : v === "완료" ? "완료한 순" : "이름순"}
+            </button>
+          ))}
+          <span className="fdiv" />
+          <span className="flabel">기간</span>
+          {(["전체", "오늘", "이번 주", "이번 달"] as const).map((v) => (
+            <button key={v} className={`btnchip chip ${period === v ? "on" : ""}`} onClick={() => setPeriod(v)}>
+              {v}
+            </button>
+          ))}
+          <span className="fdiv" />
+          <span className="flabel">상태</span>
+          {(["전체", "진행 중", "완료"] as const).map((v) => (
+            <button key={v} className={`btnchip chip ${onlyDone === v ? "on" : ""}`} onClick={() => setOnlyDone(v)}>
+              {v}
+            </button>
+          ))}
+        </div>
+
         <div className="status">
           <span><b>{projects.length}</b> 사례</span>
           <span><b>{p.ruleCount}</b> 규칙</span>
@@ -299,9 +352,16 @@ function Card({
           {pr.client || "고객사 없음"}
           {kind !== "미분류" && ` · ${kind}`} · {pr.slides.length}장
         </small>
-        <small className="whenline">{when(pr.updatedAt)}에 고침</small>
         <div className="chips">
           {moods.slice(0, 3).map((m) => <span className="chip" key={m}>{m}</span>)}
+        </div>
+        {/* 날짜는 카드마다 같은 자리(바닥)에 둔다. 그래야 눈으로 훑어진다. */}
+        <div className="whenrow">
+          {pr.status === "완료" ? (
+            <><b className="done">완료</b> {when(pr.completedAt ?? pr.updatedAt)}</>
+          ) : (
+            <><b className="doing">진행 중</b> {when(pr.updatedAt)} 고침</>
+          )}
         </div>
       </div>
     </div>
