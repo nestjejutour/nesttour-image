@@ -368,7 +368,7 @@ function Studio({
     setOpenId(lastEdited);   // 바로 열어서 결과가 보이게
   };
 
-  /** 지난 제안서를 뼈대로 새로 시작 */
+  /** 지난 제안서를 복제해 새로 시작 */
   const useAsBase = (src: Project, keepText: boolean) => {
     const p: Project = {
       ...newProject(`${src.title} (복사본)`, src.client, src.category),
@@ -610,11 +610,14 @@ function Shell({
         )}
         <div className="spacer" />
         {undo && (
-          <div className="undoset">
-            <button className="btn sm" disabled={!undo.canUndo} onClick={undo.undo}
-              title="되돌리기 (Ctrl+Z, 맥은 ⌘+Z)">↩ 되돌리기</button>
-            <button className="btn sm" disabled={!undo.canRedo} onClick={undo.redo}
-              title="다시 하기 (Ctrl+Shift+Z)">↪ 다시 하기</button>
+          /* 한 번 누를 때마다 한 단계씩. 왼쪽은 뒤로, 오른쪽은 앞으로. */
+          <div className="undoset" title="작업 단계 이동 — 왼쪽은 되돌리기, 오른쪽은 다시 하기">
+            <button className="undobtn" disabled={!undo.canUndo} onClick={undo.undo}
+              aria-label="한 단계 되돌리기"
+              title="한 단계 되돌리기 (Ctrl+Z, 맥은 ⌘+Z)">{"<"}</button>
+            <button className="undobtn" disabled={!undo.canRedo} onClick={undo.redo}
+              aria-label="한 단계 다시 하기"
+              title="한 단계 다시 하기 (Ctrl+Shift+Z)">{">"}</button>
           </div>
         )}
         {/* 저장 버튼이 없다. 알아서 저장되니, 저장됐다는 걸 보여줘야 한다. */}

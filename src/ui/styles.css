@@ -813,3 +813,12 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 .ptcard { display: flex; flex-direction: column; }
 .ptcard .meta small { display: block; min-height: 32px; }
+
+/* 한 번에 한 단계씩 — 왼쪽 되돌리기, 오른쪽 다시 하기 */
+.undobtn {
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--line); background: #fff; border-radius: 7px;
+  font-size: 16px; font-weight: 700; color: var(--ink); line-height: 1;
+}
+.undobtn:hover:not(:disabled) { background: var(--panel); }
+.undobtn:disabled { opacity: 0.3; cursor: not-allowed; }

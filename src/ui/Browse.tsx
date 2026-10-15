@@ -10,7 +10,7 @@ import { moodsOf } from "../core/mood";
  *
  * 실무에서 제안서를 쓸 때 출발점은 빈 종이가 아니라 "지난 완성본"이다.
  * 그래서 훑다가 두 가지를 할 수 있어야 한다.
- *   ① 이 제안서 전체를 뼈대로 새로 시작
+ *   ① 이 제안서 전체를 복제해 새로 시작
  *   ② 이 페이지 한 장만 뽑아 쓰기   ← 실무에서 더 자주 쓴다
  */
 
@@ -19,7 +19,7 @@ interface Props {
   style: StylePreset;
   pageTypes: PageType[];
   onClose: () => void;
-  /** 이 제안서를 뼈대로 새로 시작 */
+  /** 이 제안서를 복제해 새로 시작 */
   onUseAsBase: (p: Project, keepText: boolean) => void;
   /** 이 페이지 한 장 담기 */
   onTakePage: (s: Slide) => void;
@@ -102,14 +102,15 @@ export function Browse({
             ))}
           </div>
         </div>
-        <button className="btn sm accent" onClick={() => onOpen(project.id)}>AI 와 고치기</button>
+        <button className="btn sm accent" onClick={() => onOpen(project.id)}
+          title="이 제안서를 열어 편집합니다">편집하기</button>
         <button className="btn sm" onClick={() => onUseAsBase(project, false)}
-          title="페이지 구성만 가져오고 글은 비운 새 제안서를 만듭니다">
-          구성만 베껴 새로 만들기
+          title="페이지 구성만 가져오고 내용은 비운 새 제안서를 만듭니다">
+          구성만 복제
         </button>
         <button className="btn sm primary" onClick={() => onUseAsBase(project, true)}
-          title="글까지 그대로 복사한 새 제안서를 만듭니다">
-          통째로 베껴 새로 만들기
+          title="내용까지 그대로 복사한 새 제안서를 만듭니다">
+          전체 복제
         </button>
       </div>
 

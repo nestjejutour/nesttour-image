@@ -166,7 +166,7 @@ export function Dashboard(p: Props) {
               }}
             />
             <select value={newKind} onChange={(e) => setNewKind(e.target.value as Category["kind"])}>
-              <option value="우리 결과물">우리 결과물 — 뼈대로 쓸 수 있음</option>
+              <option value="우리 결과물">우리 결과물 — 복제해 사용</option>
               <option value="참고 자료">참고 자료 — 받은 것 중 좋은 것</option>
             </select>
             <div className="row" style={{ marginTop: 6 }}>

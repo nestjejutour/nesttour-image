@@ -80,7 +80,7 @@ export function PageTypes({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => 
           </div>
 
           <div className="field" style={{ marginBottom: 10 }}>
-            <label>뼈대</label>
+            <label>기본형</label>
             <div className="row" style={{ flexWrap: "wrap", gap: 6, marginTop: 4 }}>
               {SHAPES.map((s) => (
                 <button key={s.id} className={`btnchip ${shape === s.id ? "on" : ""}`}
