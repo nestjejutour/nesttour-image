@@ -570,6 +570,7 @@ function Studio({
             onUseAsBase={useAsBase}
             onTakePage={(s) => takePage(s, browsing)}
             takenCount={tray.length}
+            onOpenTray={() => setTrayOpen(true)}
             onOpen={(id) => { setBrowseId(null); setOpenId(id); setLastEdited(id); setCur(0); }}
             categoryName={db.categories.find((c) => c.id === browsing.category)?.name ?? "미분류"}
             allProjects={db.projects}
@@ -595,6 +596,7 @@ function Studio({
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={setBrowseId} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
             onBlank={startBlank}
+            onOpenTray={() => setTrayOpen(true)} trayCount={tray.length}
             onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
           />

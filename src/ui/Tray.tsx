@@ -12,7 +12,8 @@ import { SlideView } from "../render/html";
  * 출처가 제각각이어도 규격이 한 벌로 맞는다.
  * 페이지가 그림이 아니라 데이터여서, 현재 스타일로 다시 그려지기 때문이다.
  *
- * 평소에는 접어 두고, 필요할 때만 펼친다. 화면을 넓게 쓰기 위함이다.
+ * 평소에는 접어 두고, 버튼 줄의 [선택하여 만들기] 로 펼친다.
+ * 화면을 넓게 쓰기 위함이다.
  */
 
 export interface TrayItem {
@@ -42,15 +43,9 @@ interface Props {
 export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMake, appendTo, onAppend, open, onToggle }: Props) {
   const panel = usePanel("tray", 296, 180, 560);
 
-  // 접혀 있을 때는 세로 띠 하나만 남긴다
-  if (!open) {
-    return (
-      <button className="traystrip" onClick={onToggle}
-        title="선택한 페이지로 새 제안서를 구성합니다">
-        <span>선택하여 만들기{items.length ? ` ${items.length}` : ""}</span>
-      </button>
-    );
-  }
+  // 접혀 있으면 아무것도 그리지 않는다.
+  // 여는 버튼은 각 화면의 버튼 줄에 있다 (보관함 · 열람 화면).
+  if (!open) return null;
 
   return (
     <>

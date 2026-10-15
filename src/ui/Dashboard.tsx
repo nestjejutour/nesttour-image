@@ -24,6 +24,9 @@ interface Props {
   onNew: (categoryId: string) => void;
   /** 자료도 AI 도 없이, 백지 한 장으로 바로 시작 */
   onBlank: (categoryId: string) => void;
+  /** 선택 페이지 칸 열기 */
+  onOpenTray: () => void;
+  trayCount: number;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string) => void;
   onAddCategory: (name: string, kind: Category["kind"]) => void;
@@ -217,6 +220,10 @@ export function Dashboard(p: Props) {
             <button className="btn primary" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}
               title="자료를 등록하면 AI 가 페이지 구성을 작성합니다">
               자료 기반 작성
+            </button>
+            <button className={`btn ${p.trayCount ? "accent" : ""}`} onClick={p.onOpenTray}
+              title="여러 제안서에서 골라 둔 페이지로 새 제안서를 구성합니다">
+              선택하여 만들기{p.trayCount ? ` ${p.trayCount}` : ""}
             </button>
           </div>
           <input

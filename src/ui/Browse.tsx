@@ -23,6 +23,8 @@ interface Props {
   onUseAsBase: (p: Project, keepText: boolean) => void;
   /** 이 페이지 한 장 선택 */
   onTakePage: (s: Slide) => void;
+  /** 선택 페이지 칸 열기 */
+  onOpenTray: () => void;
   /** 선택한 장수 (버튼 문구에 쓴다) */
   takenCount: number;
   /** 편집기로 열기 */
@@ -36,7 +38,7 @@ interface Props {
 }
 
 export function Browse({
-  project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpen, categoryName, allProjects, categories, onPick,
+  project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpenTray, onOpen, categoryName, allProjects, categories, onPick,
 }: Props) {
   const [cur, setCur] = useState(0);
   const [navOpen, setNavOpen] = useState(false);
@@ -102,6 +104,10 @@ export function Browse({
             ))}
           </div>
         </div>
+        <button className={`btn sm ${takenCount ? "accent" : ""}`} onClick={onOpenTray}
+          title="골라 둔 페이지로 새 제안서를 구성합니다">
+          선택하여 만들기{takenCount ? ` ${takenCount}` : ""}
+        </button>
         <button className="btn sm accent" onClick={() => onOpen(project.id)}
           title="이 제안서를 열어 편집합니다">편집하기</button>
         <button className="btn sm" onClick={() => onUseAsBase(project, false)}
