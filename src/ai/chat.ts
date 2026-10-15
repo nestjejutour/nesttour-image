@@ -31,6 +31,17 @@ export interface Reply {
 /** 확인을 받아야 하는 일인가 (전체에 영향을 주는 것) */
 export const needsOk = (a: Action) => a.do === "스타일제안" || a.do === "규칙제안";
 
+/** 인터넷 검색을 쥐여 줬을 때 덧붙이는 말 */
+export const WEB_NOTE = `
+────────────────────────────────
+인터넷 검색
+
+"인터넷검색" 과 "웹페이지읽기" 연장을 쓸 수 있다.
+지금의 사실이 필요할 때만 쓴다 — 시세, 최근 소식, 경쟁사 현황, 통계, 공고 내용.
+글을 다듬거나 구성을 짜는 일에는 쓰지 마라. 그건 찾아보지 않아도 된다.
+찾은 뒤에는 출처와 기준 날짜를 say 에 밝혀라.
+찾아도 확실하지 않으면 지어내지 말고 모른다고 말하라.`;
+
 export function chatSystem(opts: {
   brain: string;
   style: StylePreset;
@@ -41,6 +52,8 @@ export function chatSystem(opts: {
   totalSlides: number;
   /** 같은 제안서의 다른 장들 — 흐름을 보고 판단하라고 준다 */
   deck?: { pageTypeId: string; pageTypeName: string; content: Content }[];
+  /** 인터넷 검색을 쓸 수 있는가 */
+  web?: boolean;
 }): string {
   const { brain, style, pageType, pageTypes, slide, slideIndex, totalSlides, deck = [] } = opts;
 
@@ -141,7 +154,7 @@ ${deckBlock}
 - 고칠 게 없거나 질문이면 actions 를 빈 배열로 두고 say 에만 답하라.
 - 추측해서 숫자를 지어내지 마라. 모르면 그 칸은 "" 로 두고 say 에서 물어라.
 - 위에 적힌 "반드시 지킬 원칙"을 어기는 요청이면, 그대로 하지 말고 왜 그런지 한 문장으로 말하고 대안을 제시하라.
-- JSON 만 출력하라. 설명·코드펜스 금지.`;
+- JSON 만 출력하라. 설명·코드펜스 금지.${opts.web ? WEB_NOTE : ""}`;
 }
 
 
@@ -153,6 +166,8 @@ ${deckBlock}
  */
 export function librarySystem(opts: {
   brain: string;
+  /** 인터넷 검색을 쓸 수 있는가 */
+  web?: boolean;
   categories: { id: string; name: string }[];
   projects: {
     id: string; title: string; client: string;
@@ -213,5 +228,5 @@ ${shelf}
 - 묻는 말이면 actions 를 비우고 say 로만 답하라.
 - 제안서를 만들라고 하면 바로 만들어라. 다시 묻지 마라.
   다만 고객사·주제처럼 꼭 필요한 게 없으면 그것만 짧게 물어라.
-- JSON 만 출력하라.`;
+- JSON 만 출력하라.${opts.web ? WEB_NOTE : ""}`;
 }

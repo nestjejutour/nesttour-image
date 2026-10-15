@@ -7,6 +7,8 @@ import { renderToBlob } from "../render/canvas";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { readShrunk } from "../core/image";
+import { readyWeb, whyNot, type WebState } from "../ai/web";
+import { useMic } from "./mic";
 import { docsToText, takeIn } from "../core/docs";
 import { uid } from "../store/db";
 import type { ChatTurn } from "../store/db";
@@ -159,6 +161,10 @@ function ClaudeTab(p: Props) {
   /** 실제로 답한 모델 */
   const [model, setModel] = useState("");
   const stopper = useRef<AbortController | null>(null);
+  /** 인터넷 검색 — 꺼져 있다가, 켜면 그때 커넥터를 챙긴다 */
+  const [web, setWeb] = useState<WebState | null>(null);
+  const [webBusy, setWebBusy] = useState(false);
+  const mic = useMic((add) => setDraft((d) => (d ? `${d} ${add}` : add).trim()));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [pending, setPending] = useState<{ at: number; action: Action }[]>([]);
@@ -254,6 +260,7 @@ function ClaudeTab(p: Props) {
     const system = onPage
       ? chatSystem({
           brain: p.brain, style: p.style, pageTypes: p.pageTypes,
+          web: !!web?.on,
           pageType: p.pageType!, slide: p.slide!,
           slideIndex: p.slideIndex, totalSlides: p.project?.slides.length ?? 1,
           // 같은 제안서의 다른 장들. 앞뒤 흐름을 보고 판단하게 한다.
@@ -265,6 +272,7 @@ function ClaudeTab(p: Props) {
         })
       : librarySystem({
           brain: p.brain,
+          web: !!web?.on,
           categories: p.categories.map((c) => ({ id: c.id, name: c.name })),
           projects: p.allProjects.map((x) => ({ id: x.id, title: x.title, client: x.client, slides: x.slides })),
         });
@@ -278,6 +286,7 @@ function ClaudeTab(p: Props) {
       images: images.length ? images : undefined,
       onText: (whole) => setLive(sayOf(whole)),
       signal: ctl.signal,
+      ...(web?.on ? { tools: web.tools } : {}),
     });
     stopper.current = null;
     setBusy(false); setLive("");
@@ -403,7 +412,9 @@ function ClaudeTab(p: Props) {
           <div className="bubble assistant">
             {live
               ? <p>{live}<span className="caret" /></p>
-              : <p className="thinking">{onPage ? "화면을 보는 중…" : "읽는 중…"}</p>}
+              : <p className="thinking">
+                  {web?.on ? "찾아보는 중…" : onPage ? "화면을 보는 중…" : "읽는 중…"}
+                </p>}
             <button className="btn sm" style={{ marginTop: 7 }}
               onClick={() => stopper.current?.abort()}>멈추기</button>
           </div>
@@ -456,6 +467,8 @@ function ClaudeTab(p: Props) {
           </div>
         )}
         {reading && <small className="picerr" style={{ color: "var(--muted)" }}>{reading}</small>}
+        {mic.오류 && <small className="picerr">{mic.오류}</small>}
+        {web && !web.on && <small className="picerr">{whyNot(web)}</small>}
         {picErr && <small className="picerr">{picErr}</small>}
 
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
@@ -468,7 +481,24 @@ function ClaudeTab(p: Props) {
           }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
 
-        <div className="row" style={{ gap: 6 }}>
+        {/* 연장은 한 줄, 보내기는 그 아래 한 줄 — 좁아져도 짓눌리지 않는다 */}
+        <div className="toolrow">
+          {mic.can && (
+            <button className={`btn sm ${mic.듣는중 ? "accent" : ""}`} onClick={mic.toggle}
+              title={mic.듣는중 ? "말이 끝나면 눌러 주세요" : "말로 적습니다"}>
+              {mic.듣는중 ? "● 듣는 중" : "🎤 말하기"}
+            </button>
+          )}
+          <button className={`btn sm ${web?.on ? "accent" : ""}`} disabled={webBusy}
+            title="지금의 사실(시세 · 최근 소식 · 경쟁사)이 필요할 때 켜 주세요"
+            onClick={async () => {
+              if (web?.on) { setWeb(null); return; }
+              setWebBusy(true);
+              setWeb(await readyWeb());
+              setWebBusy(false);
+            }}>
+            {webBusy ? "여는 중…" : web?.on ? "🌐 검색 켬" : "🌐 인터넷"}
+          </button>
           <label className="btn sm" style={{ cursor: "pointer" }}
             title="사진과 자료(한글 · 워드 · 파워포인트 · 엑셀 · PDF)를 올립니다">
             + 파일
@@ -479,9 +509,9 @@ function ClaudeTab(p: Props) {
                 if (got.length) void take(got);
               }} />
           </label>
-          <button className="btn primary grow" onClick={send}
-            disabled={busy || !!reading || (!draft.trim() && !pics.length && !docs.length)}>보내기</button>
         </div>
+        <button className="btn primary" style={{ width: "100%" }} onClick={send}
+          disabled={busy || !!reading || (!draft.trim() && !pics.length && !docs.length)}>보내기</button>
       </div>
     </>
   );

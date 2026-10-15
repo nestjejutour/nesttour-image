@@ -897,3 +897,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   border: 1px solid var(--line); background: #fff;
   font-size: 11px; color: var(--muted); font-weight: 600;
 }
+
+/* 입력칸 아래 연장 줄 */
+.toolrow { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.toolrow .btn { white-space: nowrap; flex: 0 0 auto; }

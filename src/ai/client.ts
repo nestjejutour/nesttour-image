@@ -43,6 +43,11 @@ export interface AskOptions {
   onText?: (text: string) => void;
   /** 멈추기 */
   signal?: AbortSignal;
+  /** AI 가 쓸 수 있는 연장 (인터넷 검색 등) */
+  tools?: {
+    name: string; description: string; inputSchema?: unknown;
+    execute: (input: Record<string, unknown>, ctx: { signal: AbortSignal }) => unknown;
+  }[];
 }
 
 type Sample = ((
@@ -55,6 +60,7 @@ type Sample = ((
     cache?: boolean;
     onText?: (u: { text: string; delta: string }) => void;
     signal?: AbortSignal;
+    tools?: unknown[];
   },
 ) => Promise<{ text: string; modelApplied?: string; modelTierApplied?: string }>) & {
   limits?: () => Promise<{ images?: unknown }>;
@@ -112,6 +118,7 @@ async function viaClaude(
       ...(images ? { images } : {}),
       ...(o.onText ? { onText: (u: { text: string }) => o.onText!(u.text) } : {}),
       ...(o.signal ? { signal: o.signal } : {}),
+      ...(o.tools?.length ? { tools: o.tools } : {}),
     });
     return { ok: true, text: out.text, model: out.modelApplied ?? out.modelTierApplied };
   } catch (e: any) {
