@@ -11,6 +11,7 @@ import type {
   TypeToken,
 } from "./types";
 import { resolveColor } from "./style";
+import { fitToPaper } from "./paper";
 
 /**
  * ============================================================
@@ -117,7 +118,28 @@ export function interpret(pageType: PageType, content: Content, ctx: InterpretCt
       valign: "middle",
     });
   }
-  return ops;
+  // 판 크기가 기준판(16:9)과 다르면, 그려 놓은 것을 통째로 줄여 가운데 놓는다.
+  // 이 한 곳에서만 처리하므로 미리보기·PPT·PDF 가 똑같이 따라온다.
+  return reframe(ops, ctx.style.slide.widthIn, ctx.style.slide.heightIn);
+}
+
+/** 그린 것 전체를 새 판에 맞춰 옮기고 키운다 */
+function reframe(ops: DrawOp[], widthIn: number, heightIn: number): DrawOp[] {
+  const f = fitToPaper(widthIn, heightIn);
+  if (f.plain) return ops;
+  return ops.map((o) => {
+    const moved: any = {
+      ...o,
+      x: o.x * f.scale + f.dx,
+      y: o.y * f.scale + f.dy,
+      w: o.w * f.scale,
+      h: o.h * f.scale,
+    };
+    // 글자와 선 두께도 같은 비율로 (안 그러면 작은 판에서 글자가 넘친다)
+    if (moved.sizePt) moved.sizePt = moved.sizePt * f.scale;
+    if (moved.strokeWeightPt) moved.strokeWeightPt = moved.strokeWeightPt * f.scale;
+    return moved as DrawOp;
+  });
 }
 
 function walk(

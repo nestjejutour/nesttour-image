@@ -1,4 +1,5 @@
 import type { PageType } from "./types";
+import { MORE_PAGE_TYPES } from "./pageTypes.more";
 
 /**
  * 창고 2 — 페이지 타입
@@ -12,7 +13,7 @@ import type { PageType } from "./types";
 
 const now = "2026-10-14";
 
-export const BUILT_IN_PAGE_TYPES: PageType[] = [
+const CORE_PAGE_TYPES: PageType[] = [
   // ──────────────────────────────────────────── 표지
   {
     id: "cover-photo",
@@ -336,3 +337,6 @@ export const BUILT_IN_PAGE_TYPES: PageType[] = [
     },
   },
 ];
+
+/** 기본으로 들어 있는 페이지 모양 전부 */
+export const BUILT_IN_PAGE_TYPES: PageType[] = [...CORE_PAGE_TYPES, ...MORE_PAGE_TYPES];

@@ -7,9 +7,11 @@ import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
 import { downloadPdf } from "../render/pdf";
+import { PRINT_SIZES, SLIDE_SIZES, slideSizeOf } from "../core/paper";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
 import { SourceDrawer } from "./SourceDrawer";
+import { Files } from "./Files";
 import type { Action } from "../ai/chat";
 import type { ChatTurn } from "../store/db";
 
@@ -40,19 +42,27 @@ interface Props {
   /** 이 페이지에서 오간 대화 (창고에서 온다) */
   turnsOf: (slideId: string) => ChatTurn[];
   onTurns: (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) => void;
+  /** 회사 서버에 연결되어 있으면 큰 원본 파일도 보관된다 */
+  toServer: boolean;
+  /** 이 건의 판 크기 바꾸기 (16:9 / 4:3 / A4 …) */
+  onSlideSize: (widthIn: number, heightIn: number) => void;
 }
 
-export function Editor({ project, style, pageTypes, categories, allProjects, cur, onCur, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns }: Props) {
+export function Editor({ project, style, pageTypes, categories, allProjects, cur, onCur, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns, toServer, onSlideSize }: Props) {
   const [zoom, setZoom] = useState(0.78);
   /** 폭에 맞춰 자동으로 줄인다. +/- 를 누르면 손맛을 지킨다. */
   const [autoFit, setAutoFit] = useState(true);
   const stageRef = useRef<HTMLDivElement>(null);
   const [adding, setAdding] = useState(false);
+  /** 페이지 모양이 많아졌다. 이름으로 걸러 찾는다. */
+  const [findType, setFindType] = useState("");
   const [printing, setPrinting] = useState(false);
   const [busyOut, setBusyOut] = useState("");
   const [msg, setMsg] = useState("");
   const [editTitle, setEditTitle] = useState(false);
   const [srcOpen, setSrcOpen] = useState(false);
+  /** 이 건의 파일함 */
+  const [filesOpen, setFilesOpen] = useState(false);
   /** 화면에서 집어 둔 것 */
   const [picked, setPicked] = useState<string | null>(null);
   const addPhoto = useRef<HTMLInputElement>(null);
@@ -293,12 +303,28 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         >
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        {/* 판 크기 — 16:9 가 기본이다. 바꿔도 디자인은 통째로 줄여 맞춘다. */}
+        <select
+          className="scopesel"
+          value={slideSizeOf(style.slide.widthIn, style.slide.heightIn).id}
+          onChange={(e) => {
+            const s2 = SLIDE_SIZES.find((x) => x.id === e.target.value);
+            if (s2) onSlideSize(s2.widthIn, s2.heightIn);
+          }}
+          title="판 크기 — 요즘은 와이드 16:9 를 가장 많이 씁니다"
+        >
+          {SLIDE_SIZES.map((s2) => <option key={s2.id} value={s2.id}>{s2.name}</option>)}
+        </select>
         <small style={{ color: "var(--muted)" }}>
           {project.client || "고객사 미입력"} · {project.slides.length}장 · {style.name}
           {project.styleOverride && <span className="chip">이 건만 규격 바꿈</span>}
         </small>
-        <button className={`btn sm ${srcOpen ? "accent" : ""}`} onClick={() => setSrcOpen(!srcOpen)}>
+        <button className={`btn sm ${srcOpen ? "accent" : ""}`} onClick={() => { setSrcOpen(!srcOpen); setFilesOpen(false); }}>
           지난 자료
+        </button>
+        <button className={`btn sm ${filesOpen ? "accent" : ""}`} onClick={() => { setFilesOpen(!filesOpen); setSrcOpen(false); }}
+          title="이 건의 원본 파일과 제작 자료를 보관하는 곳">
+          파일함{project.docs?.length ? ` ${project.docs.length}` : ""}
         </button>
         <button className="btn sm" onClick={() => addPhoto.current?.click()}>
           + 사진 추가
@@ -331,13 +357,22 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         )}
         {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
         {busyOut && <small style={{ color: "var(--muted)" }}>{busyOut}</small>}
+        {/* 인쇄 규격 — PDF 로 낼 때 어떤 종이에 앉힐지 */}
+        <select
+          className="scopesel"
+          value={project.printPaper ?? "screen"}
+          onChange={(e) => patch(() => ({ printPaper: e.target.value }))}
+          title={PRINT_SIZES.find((x) => x.id === (project.printPaper ?? "screen"))?.note}
+        >
+          {PRINT_SIZES.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
         <button
           className="btn sm"
           disabled={!project.slides.length || !!busyOut}
           onClick={async () => {
             setMsg(""); setBusyOut("PDF 만드는 중…");
             const r = await downloadPdf(plans, style, project.title,
-              (d, t) => setBusyOut(`PDF 만드는 중… ${d}/${t}장`));
+              (d, t) => setBusyOut(`PDF 만드는 중… ${d}/${t}장`), project.printPaper);
             setBusyOut("");
             if (!r.ok) setMsg(r.error ?? "PDF 저장 실패");
           }}
@@ -358,6 +393,12 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
       </div>
 
       <div className="editor">
+        {/* ── 파일함 — 이 건에 딸린 원본·자료를 건별로 모아 둔다 ── */}
+        {filesOpen && (
+          <Files project={project} onChange={onChange} toServer={toServer}
+            onClose={() => setFilesOpen(false)} />
+        )}
+
         {/* ── 지난 자료 서랍 — 편집기를 나가지 않고 낱장을 꺼내 쓴다 ── */}
         {srcOpen && (
           <SourceDrawer
@@ -394,21 +435,36 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           <button className="btn sm" style={{ width: "100%" }} onClick={() => setAdding(!adding)}>
             + 페이지 추가
           </button>
-          {adding && (
-            <div style={{ marginTop: 8 }}>
-              {["표지", "본문", "마무리"].map((g) => (
-                <div key={g}>
-                  <p className="sec">{g}</p>
-                  {pageTypes.filter((t) => t.group === g).map((t) => (
-                    <button key={t.id} className="pagechip" onClick={() => addPage(t)}>
-                      {t.name}
-                      <small>{t.description}</small>
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
+          {adding && (() => {
+            const q = findType.trim().toLowerCase();
+            const hit = (t: PageType) =>
+              !q || `${t.name} ${t.description} ${t.group}`.toLowerCase().includes(q);
+            const groups = [...new Set(pageTypes.map((t) => t.group))];
+            const found = pageTypes.filter(hit).length;
+            return (
+              <div style={{ marginTop: 8 }}>
+                <input className="search" style={{ width: "100%", marginBottom: 8 }}
+                  autoFocus placeholder={`페이지 모양 찾기 (${pageTypes.length}종)`}
+                  value={findType} onChange={(e) => setFindType(e.target.value)} />
+                {found === 0 && <p className="chat-hint">찾는 모양이 없습니다. 창고 → 페이지 모양에서 직접 만드실 수 있습니다.</p>}
+                {groups.map((g) => {
+                  const list = pageTypes.filter((t) => t.group === g && hit(t));
+                  if (!list.length) return null;
+                  return (
+                    <div key={g}>
+                      <p className="sec">{g}</p>
+                      {list.map((t) => (
+                        <button key={t.id} className="pagechip" onClick={() => addPage(t)}>
+                          {t.name}
+                          <small>{t.description}</small>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── 가운데: 미리보기 (회색 바탕 위에) ── */}

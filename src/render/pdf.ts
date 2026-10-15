@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import type { DrawOp, StylePreset } from "../core/types";
 import { renderToBlob } from "./canvas";
 import { capability } from "../platform";
+import { printSize } from "../core/paper";
 
 /**
  * PDF 내보내기
@@ -18,19 +19,36 @@ export async function downloadPdf(
   style: StylePreset,
   fileName: string,
   onProgress?: (done: number, total: number) => void,
+  /** 인쇄 규격 id. 없거나 "screen" 이면 지금 판 크기 그대로 */
+  paperId?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!plans.length) return { ok: false, error: "페이지가 없습니다." };
 
-  const w = style.slide.widthIn;
-  const h = style.slide.heightIn;
-  const doc = new jsPDF({ orientation: "landscape", unit: "in", format: [w, h] });
+  // 그림 한 장의 크기 (= 지금 판 크기)
+  const sw = style.slide.widthIn;
+  const sh = style.slide.heightIn;
+
+  // 종이 크기. "화면 그대로" 면 판 크기를 그대로 종이로 쓴다.
+  const paper = printSize(paperId);
+  const w = paper.widthIn || sw;
+  const h = paper.heightIn || sh;
+  const dir = w >= h ? "landscape" : "portrait";
+
+  // 판을 종이 안에 가장 크게, 가운데 앉힌다
+  const k = Math.min(w / sw, h / sh);
+  const iw = sw * k;
+  const ih = sh * k;
+  const ix = (w - iw) / 2;
+  const iy = (h - ih) / 2;
+
+  const doc = new jsPDF({ orientation: dir, unit: "in", format: [w, h] });
 
   for (let i = 0; i < plans.length; i++) {
     const blob = await renderToBlob(plans[i].ops, style, { type: "image/jpeg", quality: 0.92 });
     if (!blob) continue;
     const dataUrl = await toDataUrl(blob);
-    if (i > 0) doc.addPage([w, h], "landscape");
-    doc.addImage(dataUrl, "JPEG", 0, 0, w, h);
+    if (i > 0) doc.addPage([w, h], dir);
+    doc.addImage(dataUrl, "JPEG", ix, iy, iw, ih);
     onProgress?.(i + 1, plans.length);
   }
 

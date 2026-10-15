@@ -254,6 +254,30 @@ export interface Category {
   builtIn?: boolean;
 }
 
+/** 파일함의 칸. 건별로 원본과 만들 때 쓴 자료를 갈라 둔다. */
+export type Folder = "원본" | "제작 자료";
+
+/**
+ * 건별 파일함에 넣어 둔 파일 하나.
+ *
+ * 파일 자체(url)와, 거기서 뽑아낸 글(text)을 함께 들고 있다.
+ * 글을 들고 있으면 나중에 AI 가 그 자료를 보고 일할 수 있다.
+ */
+export interface Doc {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
+  folder: Folder;
+  /** 파일 본체. data URL 이거나, 회사 서버에 올라간 주소 */
+  url?: string;
+  /** 뽑아낸 글 (AI 가 읽을 재료) */
+  text?: string;
+  /** 파일 본체를 못 들고 있는 이유 등 */
+  note?: string;
+  addedAt: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -275,6 +299,10 @@ export interface Project {
   updatedAt: string;
   /** 완료로 표시한 때 */
   completedAt?: string;
+  /** 이 건의 파일함 — 원본 파일과 제작 자료 */
+  docs?: Doc[];
+  /** PDF 로 낼 때 쓸 인쇄 규격 (기본: 화면 그대로) */
+  printPaper?: string;
 }
 
 // ---------- 그리기 명령 ----------

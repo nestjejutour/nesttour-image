@@ -4,6 +4,8 @@ import { buildBrain, draftRequest } from "../ai/brain";
 import { ask } from "../ai/client";
 import { newProject, uid } from "../store/db";
 import { intakeToText, prettySize, readFile, type IntakeFile } from "../core/intake";
+import { takeIn } from "../core/docs";
+import type { Doc } from "../core/types";
 
 interface Props {
   style: StylePreset;
@@ -12,6 +14,8 @@ interface Props {
   categories: Category[];
   pastProjects: Project[];
   defaultCategory: string;
+  /** 회사 서버에 연결되어 있으면 큰 원본 파일도 보관된다 */
+  toServer: boolean;
   onDone: (p: Project) => void;
   onCancel: () => void;
 }
@@ -29,6 +33,8 @@ export function NewProject(p: Props) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const pick = useRef<HTMLInputElement>(null);
+  /** 올린 파일 본체. 제안서를 만들 때 이 건의 파일함(제작 자료)으로 같이 넣는다. */
+  const raw = useRef<Record<string, File>>({});
 
   const brain = buildBrain({ style: p.style, rules: p.rules, pageTypes: p.pageTypes, pastProjects: p.pastProjects });
 
@@ -40,13 +46,26 @@ export function NewProject(p: Props) {
       kind: "글", busy: true,
     }));
     setFiles((s) => [...s, ...stubs]);
+    arr.forEach((f, i) => { raw.current[stubs[i].id] = f; });
     for (let i = 0; i < arr.length; i++) {
       const done = await readFile(arr[i], stubs[i].id);
       setFiles((s) => s.map((x) => (x.id === done.id ? done : x)));
     }
   };
 
-  const startEmpty = () => p.onDone({ ...newProject(title, client, category) });
+  /** 올린 파일을 이 건의 파일함(제작 자료)에 넣을 모양으로 바꾼다 */
+  const keepFiles = async (): Promise<Doc[]> => {
+    const out: Doc[] = [];
+    for (const f of files) {
+      const file = raw.current[f.id];
+      if (!file) continue;
+      out.push(await takeIn(file, "제작 자료", f.id, p.toServer));
+    }
+    return out;
+  };
+
+  const startEmpty = async () =>
+    p.onDone({ ...newProject(title, client, category), docs: await keepFiles() });
 
   const startWithAi = async () => {
     const material = [note.trim(), intakeToText(files)].filter(Boolean).join("\n\n");
@@ -89,7 +108,8 @@ export function NewProject(p: Props) {
     const assets: Record<string, string> = {};
     pics.forEach((f, i) => { assets[`올린사진-${i + 1}`] = f.dataUrl!; });
 
-    p.onDone({ ...newProject(title, client, category), slides, assets });
+    // 올린 파일은 이 건의 파일함에 그대로 남긴다. 다음에 또 쓸 수 있다.
+    p.onDone({ ...newProject(title, client, category), slides, assets, docs: await keepFiles() });
   };
 
   const readable = files.filter((f) => f.text || f.dataUrl).length;

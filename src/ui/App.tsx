@@ -14,8 +14,10 @@ import { Tray, type TrayItem } from "./Tray";
 import { ChatDock } from "./ChatDock";
 import type { Action } from "../ai/chat";
 import { interpret } from "../core/interpret";
+import { docsToText } from "../core/docs";
 import { Log } from "./Log";
 import { Store } from "./Store";
+import { useUndo, type Undo } from "./undo";
 
 type View = "보관함" | "기록" | "창고";
 
@@ -23,7 +25,7 @@ type View = "보관함" | "기록" | "창고";
 const backend: Backend = firebaseReady ? firebaseBackend() : localBackend();
 
 /**
- * 사진을 파일 저장소로 올리고, 자료에는 주소만 남긴다.
+ * 사진과 파일함의 원본을 파일 저장소로 올리고, 자료에는 주소만 남긴다.
  * 올릴 게 없으면 null 을 돌려준다.
  */
 async function liftAssets(d: DB): Promise<DB | null> {
@@ -32,19 +34,40 @@ async function liftAssets(d: DB): Promise<DB | null> {
 
   const projects = await Promise.all(
     d.projects.map(async (p) => {
+      let next = p;
+
+      // ① 사진
       const pairs = Object.entries(p.assets);
-      if (!pairs.some(([, v]) => v.startsWith("data:"))) return p;
-      const next: Record<string, string> = {};
-      for (const [k, v] of pairs) {
-        if (!v.startsWith("data:")) { next[k] = v; continue; }
-        try {
-          next[k] = await backend.putFile!(`${p.id}/${k}`, v);
-          any = true;
-        } catch {
-          next[k] = v; // 올리기 실패하면 그대로 둔다
+      if (pairs.some(([, v]) => v.startsWith("data:"))) {
+        const assets: Record<string, string> = {};
+        for (const [k, v] of pairs) {
+          if (!v.startsWith("data:")) { assets[k] = v; continue; }
+          try {
+            assets[k] = await backend.putFile!(`${p.id}/${k}`, v);
+            any = true;
+          } catch {
+            assets[k] = v; // 올리기 실패하면 그대로 둔다
+          }
         }
+        next = { ...next, assets };
       }
-      return { ...p, assets: next };
+
+      // ② 파일함에 넣어 둔 원본 — 문서 한 칸에 담기엔 너무 크다
+      if (next.docs?.some((x) => x.url?.startsWith("data:"))) {
+        const docs = [];
+        for (const doc of next.docs) {
+          if (!doc.url?.startsWith("data:")) { docs.push(doc); continue; }
+          try {
+            docs.push({ ...doc, url: await backend.putFile!(`${p.id}/문서/${doc.id}-${doc.name}`, doc.url) });
+            any = true;
+          } catch {
+            docs.push(doc);
+          }
+        }
+        next = { ...next, docs };
+      }
+
+      return next;
     }),
   );
 
@@ -142,6 +165,9 @@ function Studio({
   /** db 가 비어 있을 때 들어오는 갱신은 무시한다 */
   const update = (apply: (d: DB) => DB) => setDb((d) => (d ? apply(d) : d));
 
+  /** 되돌리기 (Ctrl+Z / 맥은 ⌘+Z, 다시 하기는 Shift 를 같이) */
+  const undo = useUndo(db, setDb);
+
   const baseStyle = db.styles[0];
   /** 이 제안서에 실제로 적용되는 규격 (기본 + 이 건만 바꾼 값) */
   const styleOf = (p: Project | null) => styleFor(baseStyle, p?.styleOverride);
@@ -163,6 +189,8 @@ function Studio({
       pastProjects: db.projects.filter((p) => p.id !== openId),
       history: db.history,
       currentProjectId: openId,
+      // 이 건의 파일함에 넣어 둔 자료도 같이 읽힌다
+      docsText: docsToText(project?.docs),
     }),
     [baseStyle, project, db.rules, db.pageTypes, db.projects, db.history, openId],
   );
@@ -254,11 +282,17 @@ function Studio({
   };
 
   /* ── 대화 창고 ── */
-  const chatKey = (slideId: string) => `${openId}:${slideId}`;
-  const turnsOf = (slideId: string): ChatTurn[] => db.chats[chatKey(slideId)] ?? [];
-  const onTurns = (slideId: string, apply: (t: ChatTurn[]) => ChatTurn[]) =>
+  /**
+   * 대화가 쌓이는 자리.
+   * 제안서를 안 열고 보관함에서 말을 걸 때도 쌓일 곳이 있어야 한다.
+   * (없으면 올린 글이 그대로 버려져 화면에 아무것도 안 나온다)
+   */
+  const chatKey = (slideId: string | null) =>
+    slideId ? `${openId ?? "없음"}:${slideId}` : "보관함:전체";
+  const turnsOf = (slideId: string | null): ChatTurn[] => db.chats[chatKey(slideId)] ?? [];
+  const onTurns = (slideId: string | null, apply: (t: ChatTurn[]) => ChatTurn[]) =>
     update((d) => {
-      const k = `${openId}:${slideId}`;
+      const k = chatKey(slideId);
       return { ...d, chats: { ...d.chats, [k]: apply(d.chats[k] ?? []) } };
     });
 
@@ -439,8 +473,8 @@ function Studio({
       pageType={activePageType}
       slideIndex={cur}
       ops={activeOps}
-      turns={activeSlide ? turnsOf(activeSlide.id) : []}
-      onTurns={(apply) => activeSlide && onTurns(activeSlide.id, apply)}
+      turns={turnsOf(activeSlide?.id ?? null)}
+      onTurns={(apply) => onTurns(activeSlide?.id ?? null, apply)}
       onActions={applyActions}
       onStyleChange={changeStyle}
       onSaveRule={saveRule}
@@ -463,13 +497,14 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
           pageTypes={db.pageTypes}
           categories={db.categories}
           defaultCategory={creating}
+          toServer={!!backend.putFile}
           pastProjects={db.projects}
           onCancel={() => setCreating(null)}
           onDone={(p) => addProject(p)}
@@ -480,7 +515,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -491,6 +526,16 @@ function Studio({
           aiSystem={brain.system} onSaveRule={saveRule} onHistory={addHistory}
           onStyleChange={changeStyle}
           turnsOf={turnsOf} onTurns={onTurns}
+          toServer={!!backend.putFile}
+          onSlideSize={(w, h) =>
+            putProject((p) => ({
+              ...p,
+              styleOverride: overrideWith(
+                overrideWith(p.styleOverride, "slide.widthIn", w),
+                "slide.heightIn", h,
+              ),
+            }))
+          }
         />
       </Shell>
     );
@@ -498,7 +543,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -522,7 +567,7 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
@@ -545,12 +590,12 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, savedAt, saveErr, dock, dockOpen, onDock, children,
+  view, setView, onNew, bare, who, savedAt, saveErr, dock, dockOpen, onDock, undo, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
   bare?: boolean; who?: string | null; savedAt?: Date | null; saveErr?: string;
   dock?: React.ReactNode;
-  dockOpen?: boolean; onDock?: () => void; children: React.ReactNode;
+  dockOpen?: boolean; onDock?: () => void; undo?: Undo; children: React.ReactNode;
 }) {
   return (
     <div className="app">
@@ -564,6 +609,14 @@ function Shell({
           </div>
         )}
         <div className="spacer" />
+        {undo && (
+          <div className="undoset">
+            <button className="btn sm" disabled={!undo.canUndo} onClick={undo.undo}
+              title="되돌리기 (Ctrl+Z, 맥은 ⌘+Z)">↩ 되돌리기</button>
+            <button className="btn sm" disabled={!undo.canRedo} onClick={undo.redo}
+              title="다시 하기 (Ctrl+Shift+Z)">↪ 다시 하기</button>
+          </div>
+        )}
         {/* 저장 버튼이 없다. 알아서 저장되니, 저장됐다는 걸 보여줘야 한다. */}
         <small className={`savedtag ${saveErr ? "bad" : ""}`}
           title={saveErr || "따로 저장하실 필요가 없습니다"}>

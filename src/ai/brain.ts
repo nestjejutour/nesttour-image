@@ -27,8 +27,10 @@ export function buildBrain(opts: {
   history?: HistoryEntry[];
   /** 지금 작업 중인 제안서 id — 이 건의 지시를 따로 앞세운다 */
   currentProjectId?: string | null;
+  /** 이 건의 파일함에서 읽어 둔 자료 (원본·제작 자료) */
+  docsText?: string;
 }): Brain {
-  const { style, rules, pageTypes, pastProjects, history = [], currentProjectId } = opts;
+  const { style, rules, pageTypes, pastProjects, history = [], currentProjectId, docsText = "" } = opts;
   const on = rules.filter((r) => r.enabled);
 
   // ── 1. 스타일 규격 ──
@@ -100,7 +102,10 @@ ${typesBlock}
 ${examplesBlock}
 
 ${historyBlock}
-
+${docsText ? `
+[이 건의 파일함에 보관된 자료 — 사실관계는 여기서 가져와라. 없는 내용은 지어내지 마라]
+${docsText.slice(0, 24000)}
+` : ""}
 [글쓰기]
 - 한국어. 간결하고 단정하게. 과장·형용사 남발 금지.
 - 숫자는 천 단위 쉼표를 넣는다.
