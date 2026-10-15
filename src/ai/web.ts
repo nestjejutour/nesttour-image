@@ -11,6 +11,7 @@
  */
 
 import { capability } from "../platform";
+import { firebaseReady, functionsBase, idToken } from "../store/firebase";
 
 /** 우리가 쓰는 커넥터 이름 (claude.ai 설정에 보이는 그대로) */
 export const SEARCH_SERVER = "Parallel Search";
@@ -68,9 +69,59 @@ export function whyNot(s: Extract<WebState, { on: false }>): string {
  * 커넥터가 스스로 알려 주는 "입력 모양"을 그대로 받아 AI 에게 넘긴다.
  * 우리가 짐작해서 지어내지 않는다 — 짐작하면 호출이 틀어진다.
  */
+/**
+ * 네이버 검색 연장.
+ *
+ * 바깥 검색은 네이버 블로그·카페·지역을 한 건도 못 찾는다.
+ * 네이버가 바깥 크롤러를 막기 때문이다 — 확인한 사실이다.
+ * 그래서 네이버가 공식으로 여는 창구를 우리 서버가 대신 두드린다.
+ * (열쇠를 브라우저에 둘 수 없으니 서버를 거친다)
+ */
+function naverTool(): WebTool | null {
+  if (!firebaseReady) return null;
+  return {
+    name: "네이버검색",
+    description:
+      "네이버를 찾아본다. 블로그 · 카페글 · 뉴스 · 웹문서 · 지역(업체) · 쇼핑 · 지식iN 을 찾는다. " +
+      "한국 소비자가 실제로 뭐라고 쓰는지, 동네 업체·가격·후기가 필요할 때 여기를 쓴다. " +
+      "바깥 검색으로는 네이버가 안 잡히므로, 국내 이야기는 반드시 이쪽을 써라. " +
+      "kinds 를 비워 두면 블로그 · 카페 · 뉴스 · 웹문서를 한꺼번에 찾는다.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "찾을 말. 한국어로." },
+        kinds: {
+          type: "array",
+          description: "찾을 곳. 비우면 널리 찾는다.",
+          items: { type: "string", enum: ["blog", "cafearticle", "news", "webkr", "local", "shop", "kin", "doc"] },
+        },
+        display: { type: "number", description: "한 곳당 몇 건까지 (기본 8, 최대 20)" },
+        sort: { type: "string", description: "sim=정확도순(기본), date=최신순" },
+      },
+      required: ["query"],
+    },
+    execute: async (input, ctx) => {
+      const token = await idToken();
+      if (!token) throw new Error("로그인이 필요합니다.");
+      const r = await fetch(`${functionsBase}/naver`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(input),
+        signal: ctx.signal,
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data.error) throw new Error(data.error ?? `네이버 검색 실패 (${r.status})`);
+      return data;
+    },
+  };
+}
+
 export async function readyWeb(): Promise<WebState> {
+  const naver = naverTool();
+
   const mcp = await capability<Mcp>("mcp");
-  if (!mcp) return { on: false, why: "없음" };
+  // 바깥 검색이 없어도 네이버만으로 열어 준다
+  if (!mcp) return naver ? { on: true, tools: [naver] } : { on: false, why: "없음" };
 
   // 처음 켤 때 한 번 허락을 받는다. 받아야 입력 모양을 물어볼 수 있다.
   try {
@@ -83,10 +134,15 @@ export async function readyWeb(): Promise<WebState> {
     const list = await mcp.listTools(SEARCH_SERVER);
     found = list.servers?.find((s) => s.server === SEARCH_SERVER);
   } catch (e: any) {
-    return fromError(e);
+    const bad = fromError(e);
+    return naver ? { on: true, tools: [naver] } : bad;
   }
-  if (!found || !found.tools?.length) return { on: false, why: "안붙임" };
-  if (found.authStatus === "needs_reauth") return { on: false, why: "다시연결" };
+  if (!found || !found.tools?.length) {
+    return naver ? { on: true, tools: [naver] } : { on: false, why: "안붙임" };
+  }
+  if (found.authStatus === "needs_reauth") {
+    return naver ? { on: true, tools: [naver] } : { on: false, why: "다시연결" };
+  }
 
   const 한글이름: Record<string, string> = {
     web_search: "인터넷검색",
@@ -125,6 +181,7 @@ export async function readyWeb(): Promise<WebState> {
     });
   }
 
+  if (naver) tools.push(naver);
   if (!tools.length) return { on: false, why: "오류", message: "검색 연장을 준비하지 못했습니다." };
   return { on: true, tools };
 }
