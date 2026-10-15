@@ -10,6 +10,7 @@ import type { Content, PageType, Slide, StylePreset } from "../core/types";
 /** AI 가 할 수 있는 일 */
 export type Action =
   | { do: "내용수정"; content: Content }
+  | { do: "다른장수정"; at: number; content: Content }
   | { do: "타입바꾸기"; pageTypeId: string; content: Content }
   | { do: "페이지추가"; pageTypeId: string; content: Content; at?: number }
   | { do: "페이지삭제"; at: number }
@@ -38,8 +39,21 @@ export function chatSystem(opts: {
   slide: Slide;
   slideIndex: number;
   totalSlides: number;
+  /** 같은 제안서의 다른 장들 — 흐름을 보고 판단하라고 준다 */
+  deck?: { pageTypeId: string; pageTypeName: string; content: Content }[];
 }): string {
-  const { brain, style, pageType, pageTypes, slide, slideIndex, totalSlides } = opts;
+  const { brain, style, pageType, pageTypes, slide, slideIndex, totalSlides, deck = [] } = opts;
+
+  // 이 제안서 전체의 뼈대. 한 장만 보고 고치면 앞뒤 흐름이 어긋난다.
+  const deckBlock = deck.length
+    ? deck
+        .map((d, i) => {
+          const mark = i === slideIndex ? " ← 지금 보는 장" : "";
+          const body = JSON.stringify(d.content);
+          return `${i + 1}. ${d.pageTypeId}(${d.pageTypeName})${mark}\n   ${body.length > 420 ? body.slice(0, 420) + "…" : body}`;
+        })
+        .join("\n")
+    : "(한 장뿐이다)";
 
   const slotHelp = pageType.slots
     .map((s) => {
@@ -71,6 +85,14 @@ ${slotHelp}
 지금 들어 있는 내용:
 ${JSON.stringify(slide.content, null, 1)}
 
+────────────────────────────────
+이 제안서 전체 (${totalSlides}장)
+
+${deckBlock}
+
+앞뒤 흐름·말투·숫자가 서로 맞는지 여기를 보고 판단하라.
+다른 장의 숫자와 어긋나면 그 사실을 먼저 알려라.
+
 함께 보낸 그림 중 첫 장이 바로 이 페이지의 현재 모습이다. 그림을 보고 판단하라.
 그림이 없으면 데이터만 보고 판단하되, 보이지 않는 것을 단정하지 마라.
 
@@ -89,7 +111,11 @@ ${JSON.stringify(slide.content, null, 1)}
 네가 할 수 있는 일
 
 {"do":"내용수정","content":{...}}
-   — 이 페이지의 글·숫자를 바꾼다. 가장 많이 쓴다. 칸 이름은 그대로 두어라.
+   — 지금 보는 페이지의 글·숫자를 바꾼다. 가장 많이 쓴다. 칸 이름은 그대로 두어라.
+{"do":"다른장수정","at":숫자,"content":{...}}
+   — 다른 장을 고친다. at 은 장 번호(0부터). 여러 장을 한 번에 고칠 수 있다.
+     대표가 "전체", "다 바꿔줘", "앞 장들도" 라고 할 때 쓴다.
+     그 장의 칸 구조에 맞춰야 한다. 위의 전체 목록에서 타입을 확인하라.
 {"do":"타입바꾸기","pageTypeId":"...","content":{...}}
    — 페이지 틀 자체가 안 맞을 때. 쓸 수 있는 틀: ${typeList}
 {"do":"페이지추가","pageTypeId":"...","content":{...},"at":숫자}
@@ -128,11 +154,30 @@ ${JSON.stringify(slide.content, null, 1)}
 export function librarySystem(opts: {
   brain: string;
   categories: { id: string; name: string }[];
-  projects: { title: string; client: string; slides: unknown[] }[];
+  projects: {
+    id: string; title: string; client: string;
+    slides: { pageTypeId: string; content: Content }[];
+  }[];
 }): string {
   const cats = opts.categories.map((c) => `${c.id}(${c.name})`).join(", ");
+
+  // 최근 것부터 몇 건은 "안에 뭐가 쓰여 있는지"까지 보여 준다.
+  // 제목만 보고 "원본 글을 볼 수 없다" 고 답하면 쓸모가 없다.
+  const DEEP = 4;
   const shelf = opts.projects.length
-    ? opts.projects.map((p) => `· ${p.title} — ${p.client || "고객사 없음"} · ${p.slides.length}장`).join("\n")
+    ? opts.projects
+        .map((p, i) => {
+          const head = `· [${p.id}] "${p.title}" — ${p.client || "고객사 없음"} · ${p.slides.length}장`;
+          if (i >= DEEP) return `${head}  (구성: ${p.slides.map((s2) => s2.pageTypeId).join(" → ")})`;
+          const body = p.slides
+            .map((s2, k) => {
+              const t = JSON.stringify(s2.content);
+              return `    ${k + 1}. ${s2.pageTypeId}  ${t.length > 360 ? t.slice(0, 360) + "…" : t}`;
+            })
+            .join("\n");
+          return `${head}\n${body}`;
+        })
+        .join("\n")
     : "(아직 없음)";
 
   return `${opts.brain}
@@ -140,8 +185,11 @@ export function librarySystem(opts: {
 ────────────────────────────────
 지금 대표는 보관함(첫 화면)을 보고 있다. 아직 연 제안서가 없다.
 
-[보관함에 있는 것]
+[보관함에 있는 것 — 앞의 몇 건은 안에 쓰인 글까지 그대로다]
 ${shelf}
+
+지난 제안서를 다시 꾸미라고 하면, 위에 적힌 그 글을 그대로 옮겨 담아라.
+"원본 글을 볼 수 없다" 고 답하지 마라. 여기 다 적혀 있다.
 
 [분류] ${cats}
 
@@ -150,7 +198,9 @@ ${shelf}
 
 {"do":"새제안서","title":"...","client":"...","category":"proposal",
  "slides":[{"pageTypeId":"...","content":{...}}]}
-   — 제안서를 통째로 만든다. 만들면 바로 열려서 대표가 보게 된다.
+   — 제안서를 통째로 만든다. 만든 것은 대화창에 그림으로 바로 보인다.
+     안을 두세 가지 보여 줄 때는 "새제안서" 를 그만큼 넣어라. 다 만들어진다.
+     제목 끝에 "(안 1)", "(안 2)" 처럼 붙여 구분해 주어라.
      자료가 부족하면 지어내지 말고, 먼저 무엇이 필요한지 물어라.
      대표의 말 끝에 "사진 칸에 넣을 이름: 올린사진-1, …" 이 붙어 오면,
      그 사진들은 새로 만들 제안서에 함께 들어간다. 사진 칸에 그 이름을 그대로 적어라.

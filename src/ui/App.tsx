@@ -437,30 +437,50 @@ function Studio({
     projectId: openId,
   });
 
-  /** AI 가 돌려준 할 일 목록을 실제로 반영한다 */
-  const applyActions = (as: Action[]) => {
-    // 보관함에서 "제안서 만들어줘" 한 경우 — 만들고 바로 연다
-    const made = as.find((a) => a.do === "새제안서");
-    if (made && made.do === "새제안서") {
-      const known = new Set(db.pageTypes.map((t) => t.id));
-      const slides = (made.slides ?? [])
-        .filter((x) => known.has(x.pageTypeId))
-        .map((x) => ({ id: uid(), pageTypeId: x.pageTypeId, content: x.content ?? {} }));
-      if (slides.length) {
-        addProject({
-          ...newProject(made.title || "새 제안서", made.client ?? "", made.category || "proposal"),
+  /**
+   * AI 가 돌려준 할 일 목록을 실제로 반영한다.
+   * 새로 만든 제안서의 번호를 돌려준다 — 대화창이 그것을 그림으로 보여 준다.
+   */
+  const applyActions = (as: Action[]): string[] => {
+    const known = new Set(db.pageTypes.map((t) => t.id));
+
+    // 보관함에서 "제안서 만들어줘" — 안을 여러 개 내놓으면 전부 만든다
+    const made = as.filter((a) => a.do === "새제안서") as Extract<Action, { do: "새제안서" }>[];
+    if (made.length) {
+      const fresh: Project[] = [];
+      for (const m of made) {
+        const slides = (m.slides ?? [])
+          .filter((x) => known.has(x.pageTypeId))
+          .map((x) => ({ id: uid(), pageTypeId: x.pageTypeId, content: x.content ?? {} }));
+        if (!slides.length) continue;
+        fresh.push({
+          ...newProject(m.title || "새 제안서", m.client ?? "", m.category || "proposal"),
           slides,
+          // 보관함에서 올려 둔 사진·자료를 같이 넣어 준다
+          assets: { ...loose.current },
+          docs: [...looseDocs.current],
         });
-        return;
+      }
+      if (fresh.length) {
+        loose.current = {}; looseDocs.current = [];
+        update((d) => ({ ...d, projects: [...fresh, ...d.projects] }));
+        setCreating(null); setBrowseId(null);
+        // 한 건이면 바로 연다. 여럿이면 보여 주기만 하고 대표가 고르게 둔다.
+        if (fresh.length === 1) { setOpenId(fresh[0].id); setLastEdited(fresh[0].id); setCur(0); }
+        return fresh.map((x) => x.id);
       }
     }
-    if (!openId) return;
+
+    if (!openId) return [];
     putProject((p) => {
       const slides = [...p.slides];
       for (const a of as) {
         switch (a.do) {
           case "내용수정":
             if (slides[cur]) slides[cur] = { ...slides[cur], content: a.content };
+            break;
+          case "다른장수정":
+            if (slides[a.at]) slides[a.at] = { ...slides[a.at], content: a.content };
             break;
           case "타입바꾸기":
             if (slides[cur] && db.pageTypes.some((t) => t.id === a.pageTypeId))
@@ -486,6 +506,7 @@ function Studio({
       }
       return { ...p, slides, updatedAt: new Date().toISOString() };
     });
+    return [];
   };
 
   /**
@@ -526,6 +547,7 @@ function Studio({
       turns={turnsOf(activeSlide?.id ?? null)}
       onTurns={(apply) => onTurns(activeSlide?.id ?? null, apply)}
       onActions={applyActions}
+      onOpenProject={(id) => { setBrowseId(null); setCreating(null); setOpenId(id); setLastEdited(id); setCur(0); }}
       onStyleChange={changeStyle}
       onSaveRule={saveRule}
       onNote={(instruction) =>

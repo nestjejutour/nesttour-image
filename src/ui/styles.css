@@ -871,3 +871,16 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   border: 0; background: transparent; color: var(--muted); font-size: 14px; line-height: 1;
 }
 .docchip button:hover { color: var(--todo); }
+
+/* 대화창 안에서 바로 보는 결과 */
+.madecard {
+  margin-top: 9px; padding: 9px; border-radius: 9px;
+  border: 1px solid var(--line); background: #fff;
+}
+.bubble.assistant .madecard b { font-size: 14px; }
+.madecard small { color: var(--muted); font-size: 12px; }
+.madeshots { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.madeshot {
+  border: 1px solid var(--line); line-height: 0; overflow: hidden; border-radius: 3px;
+}
+.madeshots .more { font-size: 12px; color: var(--muted); padding-left: 2px; }

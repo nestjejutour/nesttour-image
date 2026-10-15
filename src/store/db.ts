@@ -18,6 +18,8 @@ const KEY = "mtmb-studio-v1";
 export interface ChatTurn {
   role: "user" | "assistant";
   text: string;
+  /** 이 답에서 새로 만들어진 제안서 번호들 — 대화창에 그림으로 보여 준다 */
+  made?: string[];
 }
 
 export interface DB {

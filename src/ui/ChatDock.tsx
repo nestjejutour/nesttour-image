@@ -4,6 +4,8 @@ import { ask, askCopy, diagnose, type Diagnosis, type Turn } from "../ai/client"
 import { chatSystem, librarySystem, needsOk, type Action, type Reply } from "../ai/chat";
 import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
 import { renderToBlob } from "../render/canvas";
+import { interpret } from "../core/interpret";
+import { SlideView } from "../render/html";
 import { readShrunk } from "../core/image";
 import { docsToText, takeIn } from "../core/docs";
 import { uid } from "../store/db";
@@ -37,7 +39,10 @@ interface Props {
   ops: DrawOp[];
   turns: ChatTurn[];
   onTurns: (apply: (t: ChatTurn[]) => ChatTurn[]) => void;
-  onActions: (as: Action[]) => void;
+  /** 할 일을 반영하고, 새로 만들어진 제안서 번호를 돌려준다 */
+  onActions: (as: Action[]) => string[];
+  /** 대화창에서 제안서를 연다 */
+  onOpenProject: (id: string) => void;
   onStyleChange: (path: string, value: number | string, scope: "제안서" | "스타일") => void;
   onSaveRule: (text: string, scope: "공통" | "스타일" | "분류" | "제안서") => void;
   onNote: (instruction: string) => void;
@@ -246,11 +251,17 @@ function ClaudeTab(p: Props) {
           brain: p.brain, style: p.style, pageTypes: p.pageTypes,
           pageType: p.pageType!, slide: p.slide!,
           slideIndex: p.slideIndex, totalSlides: p.project?.slides.length ?? 1,
+          // 같은 제안서의 다른 장들. 앞뒤 흐름을 보고 판단하게 한다.
+          deck: (p.project?.slides ?? []).map((s2) => ({
+            pageTypeId: s2.pageTypeId,
+            pageTypeName: p.pageTypes.find((t) => t.id === s2.pageTypeId)?.name ?? s2.pageTypeId,
+            content: s2.content,
+          })),
         })
       : librarySystem({
           brain: p.brain,
           categories: p.categories.map((c) => ({ id: c.id, name: c.name })),
-          projects: p.allProjects.map((x) => ({ title: x.title, client: x.client, slides: x.slides })),
+          projects: p.allProjects.map((x) => ({ id: x.id, title: x.title, client: x.client, slides: x.slides })),
         });
 
     const r = await ask<Reply>({ system, messages: history, images: images.length ? images : undefined });
@@ -261,11 +272,12 @@ function ClaudeTab(p: Props) {
     const all = r.data.actions ?? [];
     const now = all.filter((a) => !needsOk(a));
     const later = all.filter(needsOk);
-    if (now.length) { p.onActions(now); p.onNote(text); }
+    let made: string[] = [];
+    if (now.length) { made = p.onActions(now); p.onNote(text); }
 
     const say = r.data.say || "고쳤습니다.";
     p.onTurns((t) => {
-      const next = [...t, { role: "assistant" as const, text: say }];
+      const next = [...t, { role: "assistant" as const, text: say, ...(made.length ? { made } : {}) }];
       if (later.length) setPending((q) => [...q, ...later.map((a) => ({ at: next.length - 1, action: a }))]);
       return next;
     });
@@ -314,6 +326,39 @@ function ClaudeTab(p: Props) {
         {p.turns.map((m, i) => (
           <div key={i} className={`bubble ${m.role}`}>
             <p>{m.text}</p>
+
+            {/* 만든 결과를 바로 보여 준다. 열어 보지 않고도 고를 수 있어야 한다. */}
+            {m.made?.map((id) => {
+              const made = p.allProjects.find((x) => x.id === id);
+              if (!made) return null;
+              return (
+                <div className="madecard" key={id}>
+                  <div className="row" style={{ marginBottom: 6 }}>
+                    <b className="grow">{made.title}</b>
+                    <small>{made.slides.length}장</small>
+                  </div>
+                  <div className="madeshots">
+                    {made.slides.slice(0, 8).map((s2) => {
+                      const t = p.pageTypes.find((x) => x.id === s2.pageTypeId);
+                      const ops = t
+                        ? interpret(t, s2.content, {
+                            style: p.style, assets: made.assets,
+                            adjust: s2.adjust, extras: s2.extras,
+                          })
+                        : [];
+                      return (
+                        <div className="madeshot" key={s2.id}>
+                          <SlideView ops={ops} style={p.style} zoom={0.072} />
+                        </div>
+                      );
+                    })}
+                    {made.slides.length > 8 && <span className="more">+{made.slides.length - 8}</span>}
+                  </div>
+                  <button className="btn sm accent" style={{ width: "100%", marginTop: 7 }}
+                    onClick={() => p.onOpenProject(id)}>이 안으로 작업하기</button>
+                </div>
+              );
+            })}
             {pending.filter((q) => q.at === i).map((q, k) => (
               <div className="confirm" key={k}>
                 <b>{q.action.do === "스타일제안" ? "규격을 바꿀까요?" : "앞으로도 이렇게 할까요?"}</b>
