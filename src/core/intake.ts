@@ -25,11 +25,14 @@ export interface IntakeFile {
 
 const TEXTY = /\.(txt|md|markdown|csv|tsv|json|html?|rtf)$/i;
 const IMAGEY = /\.(png|jpe?g|webp|gif|bmp)$/i;
+/** 속이 압축 묶음이거나 옛 한 덩어리 파일인 사무용 문서 */
+const OFFICEY = /\.(docx?|pptx?|xlsx?|hwpx?)$/i;
 
 export function kindOf(file: File): IntakeKind {
   if (IMAGEY.test(file.name) || file.type.startsWith("image/")) return "그림";
   if (TEXTY.test(file.name) || file.type.startsWith("text/")) return "글";
   if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") return "글";
+  if (OFFICEY.test(file.name)) return "글";
   return "못읽음";
 }
 
@@ -53,20 +56,19 @@ export async function readFile(file: File, id: string): Promise<IntakeFile> {
         : { ...base, kind: "못읽음", note: "글자가 없는 PDF 입니다 (사진을 찍어 만든 PDF 일 수 있습니다)" };
     }
 
+    // 워드 · 파워포인트 · 엑셀 · 한글 — 속을 열어 글만 꺼낸다
+    if (OFFICEY.test(file.name)) {
+      const { readOffice } = await import("./office");
+      const got = await readOffice(await file.arrayBuffer(), file.name);
+      return got.text.trim()
+        ? { ...base, text: got.text }
+        : { ...base, kind: "못읽음", note: got.note ?? "글을 꺼내지 못했습니다" };
+    }
+
     if (base.kind === "글") {
       return { ...base, text: await file.text() };
     }
 
-    // 못 읽는 것들 — 솔직히 말한다
-    if (/\.pptx?$/i.test(file.name)) {
-      return { ...base, note: "PPT 는 아직 못 읽습니다. 파워포인트에서 PDF 로 저장해 올려 주세요" };
-    }
-    if (/\.hwpx?$/i.test(file.name)) {
-      return { ...base, note: "한글 파일은 못 읽습니다. 한글에서 PDF 로 저장해 올려 주세요" };
-    }
-    if (/\.docx?$/i.test(file.name)) {
-      return { ...base, note: "워드는 아직 못 읽습니다. PDF 로 저장해 올려 주세요" };
-    }
     return { ...base, note: "읽을 수 없는 형식입니다" };
   } catch (e: any) {
     return { ...base, kind: "못읽음", note: e?.message ?? "파일을 읽지 못했습니다" };

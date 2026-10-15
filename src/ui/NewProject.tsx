@@ -161,7 +161,7 @@ export function NewProject(p: Props) {
         >
           <b>여기에 파일을 끌어다 놓으세요</b>
           <small>PDF · 사진 · 텍스트 — 눌러서 고르셔도 됩니다</small>
-          <small className="cant">PPT · 한글 · 워드는 PDF 로 저장해 올려 주세요</small>
+          <small className="cant">한글 · 워드 · 파워포인트 · 엑셀 · PDF 를 그대로 읽습니다</small>
           <input ref={pick} type="file" multiple style={{ display: "none" }}
             onChange={(e) => { take(e.target.files ?? []); e.target.value = ""; }} />
         </div>

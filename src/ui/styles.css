@@ -855,3 +855,19 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .pic button:hover { background: var(--todo); color: #fff; border-color: var(--todo); }
 .picerr { display: block; color: var(--todo); font-size: 12.5px; margin-bottom: 6px; }
 .dock-box .row .grow { flex: 1; }
+
+/* 대화창에 붙여 둔 자료 */
+.docrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; }
+.docchip {
+  display: inline-flex; align-items: center; gap: 7px;
+  max-width: 100%; padding: 5px 8px;
+  border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 13px;
+}
+.docchip small { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.docchip.bad { border-color: var(--todo); }
+.docchip.bad small { color: var(--todo); }
+.docchip button {
+  width: 17px; height: 17px; padding: 0; flex-shrink: 0;
+  border: 0; background: transparent; color: var(--muted); font-size: 14px; line-height: 1;
+}
+.docchip button:hover { color: var(--todo); }

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import type { Category, Content, DrawOp, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
+import type { Category, Content, Doc, DrawOp, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
 import { ask, askCopy, diagnose, type Diagnosis, type Turn } from "../ai/client";
 import { chatSystem, librarySystem, needsOk, type Action, type Reply } from "../ai/chat";
 import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
 import { renderToBlob } from "../render/canvas";
 import { readShrunk } from "../core/image";
+import { docsToText, takeIn } from "../core/docs";
+import { uid } from "../store/db";
 import type { ChatTurn } from "../store/db";
 import { Grip, usePanel } from "./panels";
 
@@ -42,6 +44,10 @@ interface Props {
   onContent: (next: Content) => void;
   /** 대화창에 올린 사진을 제안서 자산으로 등록한다 */
   onAsset: (key: string, dataUrl: string) => void;
+  /** 대화창에 올린 문서를 이 건의 파일함에 넣어 둔다 */
+  onDoc: (d: Doc) => void;
+  /** 회사 서버에 연결되어 있으면 큰 원본도 보관된다 */
+  toServer: boolean;
   open: boolean;
   onToggle: () => void;
 }
@@ -139,7 +145,10 @@ function ClaudeTab(p: Props) {
   const [draft, setDraft] = useState("");
   /** 보내기 전에 붙여 둔 사진들 */
   const [pics, setPics] = useState<Pic[]>([]);
+  /** 보내기 전에 붙여 둔 자료들 (제안요청서 · 회사소개서 …) */
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [picErr, setPicErr] = useState("");
+  const [reading, setReading] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [pending, setPending] = useState<{ at: number; action: Action }[]>([]);
@@ -150,21 +159,35 @@ function ClaudeTab(p: Props) {
   useEffect(() => { setPending([]); setErr(""); }, [p.slide?.id, p.project?.id]);
 
   /**
-   * 사진 받기 — 붙여넣기(Ctrl+V) · 끌어다 놓기 · 버튼, 셋 다 같은 길로 들어온다.
-   * 넣을 때 길이를 줄여 둔다. 원본 그대로면 저장칸이 금방 찬다.
+   * 파일 받기 — 붙여넣기(Ctrl+V) · 끌어다 놓기 · 버튼, 셋 다 같은 길로 들어온다.
+   *
+   * 사진은 줄여서 붙여 두고, 문서는 그 자리에서 글을 꺼내 둔다.
+   * 꺼낸 글은 AI 에게 넘기고, 파일은 이 건의 파일함에 남는다.
    */
-  const takePics = async (files: File[]) => {
-    const imgs = files.filter((f) => f.type.startsWith("image/"));
-    if (!imgs.length) { setPicErr("사진 파일만 올릴 수 있습니다."); return; }
+  const take = async (files: File[]) => {
+    if (!files.length) return;
     setPicErr("");
+
+    const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name));
+    const rest = files.filter((f) => !imgs.includes(f));
+
     const used = Object.keys(p.project?.assets ?? {}).filter((k) => k.startsWith("올린사진-")).length;
-    const next: Pic[] = [];
+    const shots: Pic[] = [];
     for (let i = 0; i < imgs.length; i++) {
       try {
-        next.push({ key: `올린사진-${used + pics.length + i + 1}`, dataUrl: await readShrunk(imgs[i]) });
+        shots.push({ key: `올린사진-${used + pics.length + i + 1}`, dataUrl: await readShrunk(imgs[i]) });
       } catch { setPicErr("사진을 읽지 못했습니다."); }
     }
-    setPics((s2) => [...s2, ...next]);
+    if (shots.length) setPics((s2) => [...s2, ...shots]);
+
+    for (const f of rest) {
+      setReading(`${f.name} 읽는 중…`);
+      try {
+        const d = await takeIn(f, "제작 자료", uid(), p.toServer);
+        setDocs((s2) => [...s2, d]);
+      } catch { setPicErr(`${f.name} 을 읽지 못했습니다.`); }
+    }
+    setReading("");
   };
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [p.turns.length, busy]);
 
@@ -172,25 +195,40 @@ function ClaudeTab(p: Props) {
   const onPage = !!(p.slide && p.pageType);
 
   const send = async () => {
-    const text = draft.trim() || (pics.length ? "이 사진을 넣어 주세요." : "");
+    const hasFile = pics.length > 0 || docs.length > 0;
+    const text = draft.trim()
+      || (pics.length && !docs.length ? "이 사진을 넣어 주세요." : "")
+      || (docs.length ? "이 자료를 읽고 무엇을 할 수 있는지 알려 주세요." : "");
     if (!text || busy) return;
 
     // 올린 사진은 제안서 자산으로 먼저 등록한다. 그래야 AI 가 칸에 넣을 수 있다.
     const shots = pics;
     for (const x of shots) p.onAsset(x.key, x.dataUrl);
+    // 올린 자료는 이 건의 파일함에 남긴다. 다음에 또 올리지 않아도 된다.
+    const papers = docs;
+    for (const d of papers) p.onDoc(d);
 
     // 사람에게 보이는 글과, AI 에게 보내는 글을 따로 둔다.
-    const shown = shots.length ? `${text}\n[사진 ${shots.length}장 올림]` : text;
-    const forAi = shots.length
-      ? `${text}\n\n(대표가 사진 ${shots.length}장을 올렸다. 사진 칸에 넣을 이름: ${shots.map((x) => x.key).join(", ")})`
-      : text;
+    const tag = [
+      shots.length ? `사진 ${shots.length}장` : "",
+      papers.length ? `자료 ${papers.length}개` : "",
+    ].filter(Boolean).join(" · ");
+    const shown = hasFile ? `${text}\n[${tag} 올림]` : text;
+
+    const picLine = shots.length
+      ? `\n\n(대표가 사진 ${shots.length}장을 올렸다. 사진 칸에 넣을 이름: ${shots.map((x) => x.key).join(", ")})`
+      : "";
+    const docLine = papers.length
+      ? `\n\n(대표가 올린 자료다. 여기 적힌 사실만 쓰고, 없는 것은 지어내지 마라)\n${docsToText(papers)}`
+      : "";
+    const forAi = `${text}${picLine}${docLine}`;
 
     const history: Turn[] = [
       ...p.turns.map((t) => ({ role: t.role, content: t.text })),
       { role: "user" as const, content: forAi },
     ];
     p.onTurns((t) => [...t, { role: "user", text: shown }]);
-    setDraft(""); setPics([]); setPicErr(""); setBusy(true); setErr("");
+    setDraft(""); setPics([]); setDocs([]); setPicErr(""); setBusy(true); setErr("");
 
     const images: Blob[] = [];
     if (onPage) {
@@ -321,7 +359,7 @@ function ClaudeTab(p: Props) {
 
       <div className="dock-box"
         onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); void takePics(Array.from(e.dataTransfer.files)); }}>
+        onDrop={(e) => { e.preventDefault(); void take(Array.from(e.dataTransfer.files)); }}>
 
         {/* 붙여 둔 사진 */}
         {pics.length > 0 && (
@@ -335,30 +373,44 @@ function ClaudeTab(p: Props) {
             ))}
           </div>
         )}
+        {docs.length > 0 && (
+          <div className="docrow">
+            {docs.map((d) => (
+              <span className={`docchip ${d.text ? "" : "bad"}`} key={d.id} title={d.note ?? ""}>
+                {d.name}
+                <small>{d.text ? `글 ${d.text.length.toLocaleString()}자` : (d.note ?? "못 읽음")}</small>
+                <button onClick={() => setDocs((s2) => s2.filter((y) => y.id !== d.id))}
+                  title="이 자료 빼기">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {reading && <small className="picerr" style={{ color: "var(--muted)" }}>{reading}</small>}
         {picErr && <small className="picerr">{picErr}</small>}
 
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
           placeholder={onPage
-            ? "이 페이지를 어떻게 고칠까요? (사진은 붙여넣거나 끌어다 놓으세요)"
-            : "무엇을 만들까요? 무엇이든 물어보세요"}
+            ? "이 페이지를 어떻게 고칠까요? (사진·자료는 끌어다 놓으세요)"
+            : "무엇을 만들까요? 제안요청서를 끌어다 놓으셔도 됩니다"}
           onPaste={(e) => {
             const files = Array.from(e.clipboardData.files);
-            if (files.length) { e.preventDefault(); void takePics(files); }
+            if (files.length) { e.preventDefault(); void take(files); }
           }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
 
         <div className="row" style={{ gap: 6 }}>
-          <label className="btn sm" style={{ cursor: "pointer" }} title="사진을 골라 올립니다">
-            + 사진
-            <input type="file" accept="image/*" multiple style={{ display: "none" }}
+          <label className="btn sm" style={{ cursor: "pointer" }}
+            title="사진과 자료(한글 · 워드 · 파워포인트 · 엑셀 · PDF)를 올립니다">
+            + 파일
+            <input type="file" multiple style={{ display: "none" }}
               onChange={(e) => {
                 const got = Array.from(e.target.files ?? []);
                 e.target.value = "";
-                if (got.length) void takePics(got);
+                if (got.length) void take(got);
               }} />
           </label>
           <button className="btn primary grow" onClick={send}
-            disabled={busy || (!draft.trim() && !pics.length)}>보내기</button>
+            disabled={busy || !!reading || (!draft.trim() && !pics.length && !docs.length)}>보내기</button>
         </div>
       </div>
     </>

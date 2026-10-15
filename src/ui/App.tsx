@@ -3,7 +3,7 @@ import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "..
 import type { Backend } from "../store/backend";
 import { firebaseBackend, firebaseReady, logout, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
-import type { Category, Content, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
+import type { Category, Content, Doc, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
 import { overrideWith, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
 import { Editor } from "./Editor";
@@ -161,6 +161,8 @@ function Studio({
   const [trayOpen, setTrayOpen] = useState(false);
   /** 아직 들어갈 제안서가 없는 사진들 (보관함에서 올린 것) */
   const loose = useRef<Record<string, string>>({});
+  /** 아직 들어갈 제안서가 없는 자료들 */
+  const looseDocs = useRef<Doc[]>([]);
   /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
@@ -226,6 +228,10 @@ function Studio({
     if (Object.keys(loose.current).length) {
       p = { ...p, assets: { ...loose.current, ...p.assets } };
       loose.current = {};
+    }
+    if (looseDocs.current.length) {
+      p = { ...p, docs: [...looseDocs.current, ...(p.docs ?? [])] };
+      looseDocs.current = [];
     }
     update((d) => ({ ...d, projects: [p, ...d.projects] }));
     setCreating(null); setBrowseId(null); setOpenId(p.id); setLastEdited(p.id); setCur(0);
@@ -491,6 +497,12 @@ function Studio({
     loose.current = { ...loose.current, [key]: dataUrl };
   };
 
+  /** 대화창에 올린 자료를 이 건의 파일함에 넣어 둔다 */
+  const putDoc = (d: Doc) => {
+    if (!openId) { looseDocs.current = [...looseDocs.current, d]; return; }
+    putProject((x) => ({ ...x, docs: [...(x.docs ?? []), d], updatedAt: new Date().toISOString() }));
+  };
+
   const setSlideContent = (next: Content) =>
     putProject((p) => ({
       ...p,
@@ -521,6 +533,8 @@ function Studio({
       }
       onContent={setSlideContent}
       onAsset={putAsset}
+      onDoc={putDoc}
+      toServer={!!backend.putFile}
       open={dockOpen}
       onToggle={() => setDockOpen(!dockOpen)}
     />

@@ -50,8 +50,8 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
       </div>
 
       <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>
-        이 건에 딸린 파일을 여기에 보관합니다. 넣을 때 글을 뽑아 두므로,
-        다음에 AI 와 일할 때 다시 올리지 않아도 됩니다.
+        이 건에 딸린 파일을 여기에 보관합니다. 한글 · 워드 · 파워포인트 · 엑셀 · PDF 는
+        넣을 때 글을 꺼내 두므로, 다음에 AI 와 일할 때 다시 올리지 않아도 됩니다.
       </p>
 
       <div className="row" style={{ marginBottom: 10 }}>

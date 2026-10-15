@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "cfb": "^1.2.2",
+    "fflate": "^0.8.3",
     "firebase": "^11.10.0",
     "jspdf": "^2.5.2",
     "pdfjs-dist": "^4.10.38",
