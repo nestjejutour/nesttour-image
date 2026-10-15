@@ -30,6 +30,10 @@ export async function renderToBlob(
 
   const family = [style.font.family, ...style.font.fallback].map((f) => `"${f}"`).join(", ");
 
+  // 글꼴이 다 내려오기 전에 그리면 다른 글꼴로 그려진다.
+  // PDF 를 처음 저장할 때 화면과 달라지는 일이 여기서 생긴다.
+  await readyFont(style.font.family);
+
   // 사진을 먼저 다 읽어 둔다
   const images = new Map<string, HTMLImageElement>();
   await Promise.all(
@@ -148,4 +152,22 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
     img.onerror = () => res(null);
     img.src = src;
   });
+}
+
+/**
+ * 글꼴이 쓸 준비가 될 때까지 기다린다.
+ * 못 기다리는 환경이면 그냥 넘어간다 — 기다리다 멈추는 것보다 낫다.
+ */
+async function readyFont(family: string): Promise<void> {
+  const fonts = (document as any).fonts;
+  if (!fonts?.load) return;
+  try {
+    await Promise.race([
+      Promise.all([
+        fonts.load(`400 16px "${family}"`),
+        fonts.load(`700 16px "${family}"`),
+      ]).then(() => fonts.ready),
+      new Promise((r) => setTimeout(r, 4000)),
+    ]);
+  } catch { /* 글꼴 없이 그린다 */ }
 }
