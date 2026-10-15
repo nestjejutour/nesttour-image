@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category, Content, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
 import { setAt } from "../core/content";
+import { readShrunk } from "../core/image";
 import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
@@ -303,13 +304,11 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           + 사진 추가
         </button>
         <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
-          onChange={(e) => {
+          onChange={async (e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
             if (!f) return;
-            const r = new FileReader();
-            r.onload = () => addExtraPhoto(String(r.result));
-            r.readAsDataURL(f);
+            addExtraPhoto(await readShrunk(f));
           }} />
         <button
           className={`btn sm ${project.status === "완료" ? "accent" : ""}`}

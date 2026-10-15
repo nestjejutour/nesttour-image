@@ -202,7 +202,7 @@ export function Dashboard(p: Props) {
           <div>
             <h1>보관함</h1>
             <p className="lede" style={{ margin: 0 }}>
-              지난 완성본에서 출발하는 게 가장 빠릅니다. 훑다가 마음에 드는 장을 오른쪽에 담으세요.
+              완성본을 분류·기간별로 조회하고, 필요한 장을 선택해 새 제안서로 구성합니다.
             </p>
           </div>
           <div className="spacer" />

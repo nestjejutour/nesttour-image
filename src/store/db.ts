@@ -128,7 +128,11 @@ export function save(db: DB): void {
       }),
     );
   } catch (e) {
-    console.warn("저장 실패 (브라우저 저장 공간이 찼을 수 있습니다)", e);
+    // 조용히 넘어가면 안 된다. 새로고침하는 순간 작업한 게 사라진다.
+    throw new Error(
+      "브라우저 저장 공간이 꽉 찼습니다. 사진이 많은 제안서를 지우거나, " +
+      "회사 서버(Firebase)로 옮기면 해결됩니다.",
+    );
   }
 }
 
@@ -176,7 +180,7 @@ export function localBackend(): Backend {
       }
     },
     async save(db) {
-      save(db);
+      save(db);   // 실패하면 던진다. 위에서 받아 화면에 띄운다.
     },
   };
 }

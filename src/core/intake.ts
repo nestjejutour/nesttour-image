@@ -42,7 +42,8 @@ export async function readFile(file: File, id: string): Promise<IntakeFile> {
 
   try {
     if (base.kind === "그림") {
-      return { ...base, dataUrl: await asDataUrl(file) };
+      const { shrink } = await import("./image");
+      return { ...base, dataUrl: await shrink(await asDataUrl(file)) };
     }
 
     if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {

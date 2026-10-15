@@ -1,5 +1,6 @@
 import type { Content, Slot } from "../core/types";
 import { uid } from "../store/db";
+import { readShrunk } from "../core/image";
 
 /**
  * 오른쪽 입력폼.
@@ -76,16 +77,14 @@ function SlotField({
               type="file"
               accept="image/*"
               style={{ display: "none" }}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const f = e.target.files?.[0];
+                e.target.value = "";
                 if (!f) return;
-                const r = new FileReader();
-                r.onload = () => {
-                  const key = `img-${uid()}`;
-                  onAsset(key, String(r.result));
-                  onChange(key);
-                };
-                r.readAsDataURL(f);
+                const data = await readShrunk(f);   // 저장소가 차지 않게 줄여서 넣는다
+                const key = `img-${uid()}`;
+                onAsset(key, data);
+                onChange(key);
               }}
             />
           </label>

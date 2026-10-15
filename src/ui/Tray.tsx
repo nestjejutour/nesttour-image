@@ -50,10 +50,11 @@ export function Tray({ items, style, pageTypes, onRemove, onMove, onClear, onMak
 
       {items.length === 0 ? (
         <p className="tray-empty">
-          넘겨보다가 마음에 드는 장을 <b>담기</b> 하면 여기 쌓입니다.
+          제안서를 열람하며 <b>담기</b> 한 장이 이곳에 모입니다.
           <br />
           <br />
-          여러 제안서에서 섞어 담아도 됩니다. 만들 때 <b>지금 스타일로 한 벌로 다시 그려집니다.</b>
+          서로 다른 제안서의 장을 함께 담을 수 있으며, 새로 구성할 때
+          <b> 현재 스타일 규격으로 일괄 재생성</b>됩니다.
         </p>
       ) : (
         <>

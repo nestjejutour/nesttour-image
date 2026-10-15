@@ -764,3 +764,11 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .statustag.done:hover, .statustag.doing:hover { color: #fff; }
 .statustag.done:hover { background: #2f9e44; }
 .statustag.doing:hover { background: var(--accent); }
+
+/* 저장이 막혔을 때 — 조용히 넘기면 작업한 게 사라진다 */
+.savebar {
+  background: #fff5f5; border-bottom: 1px solid #ffd9d9; color: #c92a2a;
+  padding: 10px 20px; font-size: 13.5px; line-height: 1.5; flex-shrink: 0;
+}
+.savebar b { margin-right: 6px; }
+.savedtag.bad { color: var(--todo); border-color: var(--todo); font-weight: 700; }

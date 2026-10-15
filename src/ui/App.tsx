@@ -58,6 +58,8 @@ export function App() {
   const lastSaved = useRef("");
   /** 마지막으로 저장된 때 — 버튼이 없으니 보여줘야 안심이 된다 */
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  /** 저장이 막혔을 때. 조용히 넘기면 작업한 게 사라진다. */
+  const [saveErr, setSaveErr] = useState("");
   // 로그인 지켜보기 (회사 서버일 때만)
   useEffect(() => {
     if (!backend.needsLogin) return;
@@ -90,8 +92,13 @@ export function App() {
       // 사진은 따로 올린다. Firestore 는 문서 하나가 1MB 한도라 사진을 못 담는다.
       const lifted = await liftAssets(db);
       if (lifted) { setDb(lifted); return; }   // 주소로 바뀐 상태로 다시 저장된다
-      await backend.save(db).catch(() => {});
-      setSavedAt(new Date());
+      try {
+        await backend.save(db);
+        setSavedAt(new Date());
+        setSaveErr("");
+      } catch (e: any) {
+        setSaveErr(e?.message ?? "저장하지 못했습니다.");
+      }
     }, 600);
     return () => clearTimeout(t);
   }, [db]);
@@ -100,7 +107,7 @@ export function App() {
   if (backend.needsLogin && !user) return <Gate />;
   if (!db) return <Gate loading />;
 
-  return <Studio db={db} setDb={setDb} who={user?.email ?? null} savedAt={savedAt} />;
+  return <Studio db={db} setDb={setDb} who={user?.email ?? null} savedAt={savedAt} saveErr={saveErr} />;
 }
 
 /**
@@ -110,12 +117,13 @@ export function App() {
  * 한 함수 안에서 화면을 중간에 갈아끼우면 React 가 상태 장치 순서를 잃는다.
  */
 function Studio({
-  db, setDb, who, savedAt,
+  db, setDb, who, savedAt, saveErr,
 }: {
   db: DB;
   setDb: React.Dispatch<React.SetStateAction<DB | null>>;
   who: string | null;
   savedAt: Date | null;
+  saveErr: string;
 }) {
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -455,7 +463,7 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -472,7 +480,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -490,7 +498,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -514,7 +522,7 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
@@ -537,10 +545,11 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, savedAt, dock, dockOpen, onDock, children,
+  view, setView, onNew, bare, who, savedAt, saveErr, dock, dockOpen, onDock, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
-  bare?: boolean; who?: string | null; savedAt?: Date | null; dock?: React.ReactNode;
+  bare?: boolean; who?: string | null; savedAt?: Date | null; saveErr?: string;
+  dock?: React.ReactNode;
   dockOpen?: boolean; onDock?: () => void; children: React.ReactNode;
 }) {
   return (
@@ -556,10 +565,13 @@ function Shell({
         )}
         <div className="spacer" />
         {/* 저장 버튼이 없다. 알아서 저장되니, 저장됐다는 걸 보여줘야 한다. */}
-        <small className="savedtag" title="따로 저장하실 필요가 없습니다">
-          {savedAt
-            ? `저장됨 ${String(savedAt.getHours()).padStart(2, "0")}:${String(savedAt.getMinutes()).padStart(2, "0")}`
-            : "자동 저장"}
+        <small className={`savedtag ${saveErr ? "bad" : ""}`}
+          title={saveErr || "따로 저장하실 필요가 없습니다"}>
+          {saveErr
+            ? "저장 안 됨"
+            : savedAt
+              ? `저장됨 ${String(savedAt.getHours()).padStart(2, "0")}:${String(savedAt.getMinutes()).padStart(2, "0")}`
+              : "자동 저장"}
         </small>
         {onDock && (
           <button className={`btn sm ${dockOpen ? "accent" : ""}`} onClick={onDock}>
@@ -570,6 +582,11 @@ function Shell({
         {who && <button className="btn sm" onClick={() => void logout()}>로그아웃</button>}
         {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}
       </div>
+      {saveErr && (
+        <div className="savebar">
+          <b>저장되지 않았습니다</b> {saveErr}
+        </div>
+      )}
       <div className="workspace">
         <div className="workmain">{children}</div>
         {dock}
