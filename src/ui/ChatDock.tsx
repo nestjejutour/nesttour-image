@@ -4,6 +4,7 @@ import { ask, askCopy, diagnose, type Diagnosis, type Turn } from "../ai/client"
 import { chatSystem, librarySystem, needsOk, type Action, type Reply } from "../ai/chat";
 import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
 import { renderToBlob } from "../render/canvas";
+import { readShrunk } from "../core/image";
 import type { ChatTurn } from "../store/db";
 import { Grip, usePanel } from "./panels";
 
@@ -39,6 +40,8 @@ interface Props {
   onSaveRule: (text: string, scope: "공통" | "스타일" | "분류" | "제안서") => void;
   onNote: (instruction: string) => void;
   onContent: (next: Content) => void;
+  /** 대화창에 올린 사진을 제안서 자산으로 등록한다 */
+  onAsset: (key: string, dataUrl: string) => void;
   open: boolean;
   onToggle: () => void;
 }
@@ -129,8 +132,14 @@ export function ChatDock(p: Props) {
 
 /* ═══════════ Claude — 화면을 보고 고친다 ═══════════ */
 
+/** 대화창에 올려 둔 사진 한 장 */
+interface Pic { key: string; dataUrl: string }
+
 function ClaudeTab(p: Props) {
   const [draft, setDraft] = useState("");
+  /** 보내기 전에 붙여 둔 사진들 */
+  const [pics, setPics] = useState<Pic[]>([]);
+  const [picErr, setPicErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [pending, setPending] = useState<{ at: number; action: Action }[]>([]);
@@ -139,25 +148,59 @@ function ClaudeTab(p: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setPending([]); setErr(""); }, [p.slide?.id, p.project?.id]);
+
+  /**
+   * 사진 받기 — 붙여넣기(Ctrl+V) · 끌어다 놓기 · 버튼, 셋 다 같은 길로 들어온다.
+   * 넣을 때 길이를 줄여 둔다. 원본 그대로면 저장칸이 금방 찬다.
+   */
+  const takePics = async (files: File[]) => {
+    const imgs = files.filter((f) => f.type.startsWith("image/"));
+    if (!imgs.length) { setPicErr("사진 파일만 올릴 수 있습니다."); return; }
+    setPicErr("");
+    const used = Object.keys(p.project?.assets ?? {}).filter((k) => k.startsWith("올린사진-")).length;
+    const next: Pic[] = [];
+    for (let i = 0; i < imgs.length; i++) {
+      try {
+        next.push({ key: `올린사진-${used + pics.length + i + 1}`, dataUrl: await readShrunk(imgs[i]) });
+      } catch { setPicErr("사진을 읽지 못했습니다."); }
+    }
+    setPics((s2) => [...s2, ...next]);
+  };
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [p.turns.length, busy]);
 
   /** 페이지를 보고 있는가 (아니면 보관함에서 하는 대화) */
   const onPage = !!(p.slide && p.pageType);
 
   const send = async () => {
-    const text = draft.trim();
+    const text = draft.trim() || (pics.length ? "이 사진을 넣어 주세요." : "");
     if (!text || busy) return;
+
+    // 올린 사진은 제안서 자산으로 먼저 등록한다. 그래야 AI 가 칸에 넣을 수 있다.
+    const shots = pics;
+    for (const x of shots) p.onAsset(x.key, x.dataUrl);
+
+    // 사람에게 보이는 글과, AI 에게 보내는 글을 따로 둔다.
+    const shown = shots.length ? `${text}\n[사진 ${shots.length}장 올림]` : text;
+    const forAi = shots.length
+      ? `${text}\n\n(대표가 사진 ${shots.length}장을 올렸다. 사진 칸에 넣을 이름: ${shots.map((x) => x.key).join(", ")})`
+      : text;
 
     const history: Turn[] = [
       ...p.turns.map((t) => ({ role: t.role, content: t.text })),
-      { role: "user" as const, content: text },
+      { role: "user" as const, content: forAi },
     ];
-    p.onTurns((t) => [...t, { role: "user", text }]);
-    setDraft(""); setBusy(true); setErr("");
+    p.onTurns((t) => [...t, { role: "user", text: shown }]);
+    setDraft(""); setPics([]); setPicErr(""); setBusy(true); setErr("");
 
-    let image: Blob | null = null;
+    const images: Blob[] = [];
     if (onPage) {
-      try { image = await renderToBlob(p.ops, p.style); } catch { /* 그림 없이 */ }
+      try {
+        const shot = await renderToBlob(p.ops, p.style);
+        if (shot) images.push(shot);
+      } catch { /* 그림 없이 */ }
+    }
+    for (const x of shots) {
+      try { images.push(await (await fetch(x.dataUrl)).blob()); } catch { /* 건너뛴다 */ }
     }
 
     const system = onPage
@@ -172,7 +215,7 @@ function ClaudeTab(p: Props) {
           projects: p.allProjects.map((x) => ({ title: x.title, client: x.client, slides: x.slides })),
         });
 
-    const r = await ask<Reply>({ system, messages: history, images: image ? [image] : undefined });
+    const r = await ask<Reply>({ system, messages: history, images: images.length ? images : undefined });
     setBusy(false);
 
     if (!r.ok || !r.data) { setErr(r.error ?? "답을 받지 못했습니다."); return; }
@@ -276,11 +319,47 @@ function ClaudeTab(p: Props) {
         <div ref={endRef} />
       </div>
 
-      <div className="dock-box">
+      <div className="dock-box"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); void takePics(Array.from(e.dataTransfer.files)); }}>
+
+        {/* 붙여 둔 사진 */}
+        {pics.length > 0 && (
+          <div className="picrow">
+            {pics.map((x) => (
+              <span className="pic" key={x.key}>
+                <img src={x.dataUrl} alt="" />
+                <button onClick={() => setPics((s2) => s2.filter((y) => y.key !== x.key))}
+                  title="이 사진 빼기">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {picErr && <small className="picerr">{picErr}</small>}
+
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
-          placeholder={onPage ? "이 페이지를 어떻게 고칠까요?" : "무엇을 만들까요? 무엇이든 물어보세요"}
+          placeholder={onPage
+            ? "이 페이지를 어떻게 고칠까요? (사진은 붙여넣거나 끌어다 놓으세요)"
+            : "무엇을 만들까요? 무엇이든 물어보세요"}
+          onPaste={(e) => {
+            const files = Array.from(e.clipboardData.files);
+            if (files.length) { e.preventDefault(); void takePics(files); }
+          }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-        <button className="btn primary" onClick={send} disabled={busy || !draft.trim()}>보내기</button>
+
+        <div className="row" style={{ gap: 6 }}>
+          <label className="btn sm" style={{ cursor: "pointer" }} title="사진을 골라 올립니다">
+            + 사진
+            <input type="file" accept="image/*" multiple style={{ display: "none" }}
+              onChange={(e) => {
+                const got = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (got.length) void takePics(got);
+              }} />
+          </label>
+          <button className="btn primary grow" onClick={send}
+            disabled={busy || (!draft.trim() && !pics.length)}>보내기</button>
+        </div>
       </div>
     </>
   );

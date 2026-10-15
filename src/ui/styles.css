@@ -839,3 +839,19 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .startrow b { display: block; font-size: 15px; }
 .startrow small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
 
+
+/* 대화창에 붙여 둔 사진 */
+.picrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; }
+.pic { position: relative; line-height: 0; }
+.pic img {
+  width: 58px; height: 42px; object-fit: cover;
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.pic button {
+  position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; padding: 0;
+  border: 1px solid var(--line); border-radius: 50%; background: #fff;
+  font-size: 12px; line-height: 1; color: var(--muted);
+}
+.pic button:hover { background: var(--todo); color: #fff; border-color: var(--todo); }
+.picerr { display: block; color: var(--todo); font-size: 12.5px; margin-bottom: 6px; }
+.dock-box .row .grow { flex: 1; }

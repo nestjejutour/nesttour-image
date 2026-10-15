@@ -159,6 +159,8 @@ function Studio({
   const [tray, setTray] = useState<TrayItem[]>([]);
   /** 선택 페이지 칸은 평소 접어 둔다. 화면을 넓게 쓰기 위함이다. */
   const [trayOpen, setTrayOpen] = useState(false);
+  /** 아직 들어갈 제안서가 없는 사진들 (보관함에서 올린 것) */
+  const loose = useRef<Record<string, string>>({});
   /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
@@ -220,6 +222,11 @@ function Studio({
   };
 
   const addProject = (p: Project) => {
+    // 보관함에서 대화하며 올려 둔 사진이 있으면 같이 넣어 준다
+    if (Object.keys(loose.current).length) {
+      p = { ...p, assets: { ...loose.current, ...p.assets } };
+      loose.current = {};
+    }
     update((d) => ({ ...d, projects: [p, ...d.projects] }));
     setCreating(null); setBrowseId(null); setOpenId(p.id); setLastEdited(p.id); setCur(0);
   };
@@ -475,6 +482,15 @@ function Studio({
     });
   };
 
+  /**
+   * 대화창에 올린 사진을 자산으로 넣어 둔다.
+   * 연 제안서가 없으면 잠시 들고 있다가, 새로 만들어지는 제안서에 같이 넣는다.
+   */
+  const putAsset = (key: string, dataUrl: string) => {
+    if (openId) { putProject((x) => ({ ...x, assets: { ...x.assets, [key]: dataUrl } })); return; }
+    loose.current = { ...loose.current, [key]: dataUrl };
+  };
+
   const setSlideContent = (next: Content) =>
     putProject((p) => ({
       ...p,
@@ -504,6 +520,7 @@ function Studio({
         activeSlide && addHistory({ slideIndex: cur, instruction, before: activeSlide.content, after: activeSlide.content })
       }
       onContent={setSlideContent}
+      onAsset={putAsset}
       open={dockOpen}
       onToggle={() => setDockOpen(!dockOpen)}
     />
