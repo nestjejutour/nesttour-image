@@ -22,6 +22,8 @@ interface Props {
   onBrowse: (id: string) => void;
   onOpen: (id: string) => void;
   onNew: (categoryId: string) => void;
+  /** 자료도 AI 도 없이, 백지 한 장으로 바로 시작 */
+  onBlank: (categoryId: string) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string) => void;
   onAddCategory: (name: string, kind: Category["kind"]) => void;
@@ -206,6 +208,15 @@ export function Dashboard(p: Props) {
             </p>
           </div>
           <div className="spacer" />
+          {/* 출발점은 세 가지다. 셋 다 같은 자리에 두어야 헤매지 않는다. */}
+          <button className="btn" onClick={() => p.onBlank(sel === "all" ? "proposal" : sel)}
+            title="페이지 한 장짜리 빈 제안서를 만들고 바로 편집 화면으로 갑니다">
+            백지에서 시작
+          </button>
+          <button className="btn primary" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}
+            title="자료를 넣으면 AI 가 페이지 구성을 짭니다">
+            자료 넣고 시작
+          </button>
           <input
             className="search"
             placeholder="이름 · 고객사 · 태그로 찾기"

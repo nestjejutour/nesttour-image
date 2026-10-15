@@ -822,3 +822,19 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 .undobtn:hover:not(:disabled) { background: var(--panel); }
 .undobtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* 판 번호 — 지금 열려 있는 게 어느 판인지 */
+.ver {
+  margin-left: 8px; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--line); background: #fff;
+  font-size: 11.5px; font-weight: 600; color: var(--muted); vertical-align: 2px;
+}
+
+/* 백지에서 시작 — 새 제안서 화면 맨 위 */
+.startrow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; margin-bottom: 18px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+}
+.startrow b { display: block; font-size: 15px; }
+.startrow small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }

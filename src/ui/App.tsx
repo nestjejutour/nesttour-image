@@ -18,6 +18,7 @@ import { docsToText } from "../core/docs";
 import { Log } from "./Log";
 import { Store } from "./Store";
 import { useUndo, type Undo } from "./undo";
+import { VERSION } from "../version";
 
 type View = "보관함" | "기록" | "창고";
 
@@ -198,6 +199,20 @@ function Studio({
   /* ── 창고에 쓰기 ── */
   const putProject = (apply: (p: Project) => Project) =>
     update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === openId ? apply(x) : x)) }));
+
+  /**
+   * 백지 한 장으로 바로 시작.
+   *
+   * 페이지를 아예 0장으로 두면 회색 빈 화면만 보여 막막하다.
+   * 그래서 표지 한 장을 "빈 채로" 깔아 둔다. 채울 칸이 바로 보인다.
+   */
+  const startBlank = (categoryId = "proposal") => {
+    const cover = db.pageTypes.find((t) => t.group === "표지") ?? db.pageTypes[0];
+    addProject({
+      ...newProject("새 제안서", "", categoryId),
+      slides: cover ? [{ id: uid(), pageTypeId: cover.id, content: {} }] : [],
+    });
+  };
 
   const addProject = (p: Project) => {
     update((d) => ({ ...d, projects: [p, ...d.projects] }));
@@ -574,6 +589,7 @@ function Studio({
             projects={db.projects} categories={db.categories}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={setBrowseId} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
+            onBlank={startBlank}
             onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
           />
@@ -600,15 +616,10 @@ function Shell({
   return (
     <div className="app">
       <div className="topbar">
-        <div className="brand">MTMB <span>디자인 스튜디오</span></div>
-        {!bare && (
-          <div className="tabs">
-            {(["보관함", "기록", "창고"] as View[]).map((v) => (
-              <button key={v} className={`tab ${view === v ? "on" : ""}`} onClick={() => setView(v)}>{v}</button>
-            ))}
-          </div>
-        )}
-        <div className="spacer" />
+        <div className="brand">
+          MTMB <span>디자인 스튜디오</span>
+          <small className="ver" title="지금 열려 있는 판. 버튼이 안 보이면 새로고침해 주세요">판 {VERSION}</small>
+        </div>
         {undo && (
           /* 한 번 누를 때마다 한 단계씩. 왼쪽은 뒤로, 오른쪽은 앞으로. */
           <div className="undoset" title="작업 단계 이동 — 왼쪽은 되돌리기, 오른쪽은 다시 하기">
@@ -620,6 +631,14 @@ function Shell({
               title="한 단계 다시 하기 (Ctrl+Shift+Z)">{">"}</button>
           </div>
         )}
+        {!bare && (
+          <div className="tabs">
+            {(["보관함", "기록", "창고"] as View[]).map((v) => (
+              <button key={v} className={`tab ${view === v ? "on" : ""}`} onClick={() => setView(v)}>{v}</button>
+            ))}
+          </div>
+        )}
+        <div className="spacer" />
         {/* 저장 버튼이 없다. 알아서 저장되니, 저장됐다는 걸 보여줘야 한다. */}
         <small className={`savedtag ${saveErr ? "bad" : ""}`}
           title={saveErr || "따로 저장하실 필요가 없습니다"}>

@@ -326,16 +326,22 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           title="이 건의 원본 파일과 제작 자료를 보관하는 곳">
           파일함{project.docs?.length ? ` ${project.docs.length}` : ""}
         </button>
-        <button className="btn sm" onClick={() => addPhoto.current?.click()}>
+        {/*
+          파일 고르는 창은 "사람이 직접 누른 것"이어야 열린다.
+          코드로 눌러서 여는 방식은 옆 패널(아티팩트) 안에서 막힌다.
+          그래서 버튼 자체를 입력칸의 이름표로 만든다.
+        */}
+        <label className="btn sm" style={{ cursor: "pointer" }}
+          title="이 페이지 위에 사진을 한 장 얹습니다. 얹은 뒤 끌어서 옮기고 크기를 바꿀 수 있습니다">
           + 사진 추가
-        </button>
-        <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (!f) return;
-            addExtraPhoto(await readShrunk(f));
-          }} />
+          <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              addExtraPhoto(await readShrunk(f));
+            }} />
+        </label>
         <button
           className={`btn sm ${project.status === "완료" ? "accent" : ""}`}
           title={project.status === "완료" ? "다시 진행 중으로" : "완료로 표시합니다"}

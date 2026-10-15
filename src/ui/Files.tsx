@@ -63,22 +63,26 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
         ))}
       </div>
 
-      <div
+      {/*
+        파일 고르는 창은 사람이 직접 누른 것이어야 열린다.
+        코드로 여는 방식은 옆 패널(아티팩트) 안에서 막히므로,
+        칸 자체를 입력칸의 이름표로 만든다.
+      */}
+      <label
         className="dropzone"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); void add(e.dataTransfer.files); }}
-        onClick={() => pick.current?.click()}
       >
         <b>+ 파일 넣기</b>
         <small>끌어다 놓거나 눌러서 고르세요 · {folder} 칸에 들어갑니다</small>
-      </div>
-      <input ref={pick} type="file" multiple style={{ display: "none" }}
-        onChange={(e) => {
-          // 목록을 먼저 복사한다. 입력칸을 비우면 목록도 같이 비어 버린다.
-          const picked = Array.from(e.target.files ?? []);
-          e.target.value = "";
-          if (picked.length) void add(picked);
-        }} />
+        <input ref={pick} type="file" multiple style={{ display: "none" }}
+          onChange={(e) => {
+            // 목록을 먼저 복사한다. 입력칸을 비우면 목록도 같이 비어 버린다.
+            const picked = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            if (picked.length) void add(picked);
+          }} />
+      </label>
 
       {busy && <p style={{ fontSize: 13, color: "var(--muted)" }}>{busy}</p>}
       {msg && <p style={{ fontSize: 13, color: "var(--todo)" }}>{msg}</p>}

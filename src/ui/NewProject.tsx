@@ -122,6 +122,15 @@ export function NewProject(p: Props) {
         지난 제안서 {brain.used.examples}건, 지난 지시 {brain.used.instructions}건을 전부 읽고 만듭니다.
       </p>
 
+      {/* 백지로 시작하는 길을 맨 위에 둔다. 아래에 묻어 두면 못 찾는다. */}
+      <div className="startrow">
+        <div className="grow">
+          <b>자료 없이 바로 시작하시겠습니까?</b>
+          <small>빈 페이지 한 장으로 시작해 직접 채워 넣습니다. 지금 이름만 적으셔도 됩니다.</small>
+        </div>
+        <button className="btn" onClick={startEmpty} disabled={busy}>백지에서 시작</button>
+      </div>
+
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
         <div className="field grow" style={{ minWidth: 200 }}>
           <label>제안서 이름</label>
@@ -193,7 +202,6 @@ export function NewProject(p: Props) {
         <button className="btn primary" onClick={startWithAi} disabled={busy}>
           {busy ? "AI 가 초안을 짜는 중…" : "AI 초안 만들기"}
         </button>
-        <button className="btn" onClick={startEmpty} disabled={busy}>빈 제안서로 시작</button>
         <div className="spacer" />
         {readable > 0 && <small style={{ color: "var(--muted)" }}>자료 {readable}개 읽음</small>}
         <button className="btn" onClick={p.onCancel} disabled={busy}>취소</button>
