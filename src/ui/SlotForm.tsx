@@ -72,7 +72,7 @@ function SlotField({
             />
           )}
           <label className="btn sm grow" style={{ textAlign: "center" }}>
-            {src ? "사진 바꾸기" : "사진 고르기"}
+            {src ? "사진 변경" : "사진 선택"}
             <input
               type="file"
               accept="image/*"
@@ -89,7 +89,7 @@ function SlotField({
             />
           </label>
           {src && (
-            <button className="btn sm" onClick={() => onChange("")} title="사진 빼기">
+            <button className="btn sm" onClick={() => onChange("")} title="사진 삭제">
               ×
             </button>
           )}

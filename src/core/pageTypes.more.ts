@@ -151,16 +151,16 @@ export const MORE_PAGE_TYPES: PageType[] = [
   {
     id: "index",
     name: "목차",
-    description: "번호 + 꼭지 이름 + 한 줄 설명. 장이 많을 때 앞에 넣는다.",
+    description: "번호 + 항목 이름 + 한 줄 설명. 장수가 많을 때 앞에 배치합니다.",
     group: "표지",
     builtIn: true,
     createdAt: now,
     slots: [
       { key: "title", label: "페이지 제목", kind: "text", required: true },
       {
-        key: "items", label: "꼭지", kind: "list", max: 5, required: true,
+        key: "items", label: "항목", kind: "list", max: 5, required: true,
         itemSlots: [
-          { key: "label", label: "꼭지 이름", kind: "text", required: true },
+          { key: "label", label: "항목 이름", kind: "text", required: true },
           { key: "desc", label: "한 줄 설명", kind: "text" },
         ],
       },

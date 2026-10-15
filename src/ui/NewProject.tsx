@@ -125,10 +125,10 @@ export function NewProject(p: Props) {
       {/* 백지로 시작하는 길을 맨 위에 둔다. 아래에 묻어 두면 못 찾는다. */}
       <div className="startrow">
         <div className="grow">
-          <b>자료 없이 바로 시작하시겠습니까?</b>
-          <small>빈 페이지 한 장으로 시작해 직접 채워 넣습니다. 지금 이름만 적으셔도 됩니다.</small>
+          <b>자료 없이 직접 작성하시겠습니까?</b>
+          <small>빈 표지 한 장으로 시작합니다. 제안서 이름만 입력하셔도 됩니다.</small>
         </div>
-        <button className="btn" onClick={startEmpty} disabled={busy}>백지에서 시작</button>
+        <button className="btn" onClick={startEmpty} disabled={busy}>신규 작성</button>
       </div>
 
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 4 }}>

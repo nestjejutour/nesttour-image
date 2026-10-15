@@ -838,3 +838,15 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 .startrow b { display: block; font-size: 15px; }
 .startrow small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* 접어 둔 선택 페이지 칸 — 세로 띠 하나 */
+.traystrip {
+  flex-shrink: 0; width: 38px; border: 0; border-left: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); cursor: pointer; padding: 0;
+}
+.traystrip:hover { background: #fff; color: var(--ink); }
+.traystrip span {
+  display: block; writing-mode: vertical-rl;
+  font-size: 13.5px; font-weight: 600; letter-spacing: 0.5px;
+  padding: 14px 0; white-space: nowrap;
+}

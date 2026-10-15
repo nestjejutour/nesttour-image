@@ -6,12 +6,12 @@ import { SlideView } from "../render/html";
 import { moodsOf } from "../core/mood";
 
 /**
- * 넘겨보기 — 지난 완성본을 한 장씩 훑는 화면.
+ * 열람 — 지난 완성본을 한 장씩 넘겨 보는 화면.
  *
  * 실무에서 제안서를 쓸 때 출발점은 빈 종이가 아니라 "지난 완성본"이다.
  * 그래서 훑다가 두 가지를 할 수 있어야 한다.
  *   ① 이 제안서 전체를 복제해 새로 시작
- *   ② 이 페이지 한 장만 뽑아 쓰기   ← 실무에서 더 자주 쓴다
+ *   ② 이 페이지 한 장만 골라 쓰기   ← 실무에서 더 자주 쓴다
  */
 
 interface Props {
@@ -21,9 +21,9 @@ interface Props {
   onClose: () => void;
   /** 이 제안서를 복제해 새로 시작 */
   onUseAsBase: (p: Project, keepText: boolean) => void;
-  /** 이 페이지 한 장 담기 */
+  /** 이 페이지 한 장 선택 */
   onTakePage: (s: Slide) => void;
-  /** 담아둔 장수 (버튼 문구에 쓴다) */
+  /** 선택한 장수 (버튼 문구에 쓴다) */
   takenCount: number;
   /** 편집기로 열기 */
   onOpen: (id: string) => void;
@@ -159,7 +159,7 @@ export function Browse({
               {cur + 1} / {project.slides.length}
             </span>
             <button className="btn sm accent" onClick={() => slide && onTakePage(slide)}>
-              이 페이지 담기{takenCount > 0 ? ` (담은 것 ${takenCount}장)` : ""}
+              이 페이지 선택{takenCount > 0 ? ` (선택 ${takenCount}장)` : ""}
             </button>
           </div>
         </div>

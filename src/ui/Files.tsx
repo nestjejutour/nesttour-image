@@ -113,9 +113,9 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
                 onClick={async () => {
                   const r = await saveOut(d);
                   if (!r.ok) setMsg(r.error ?? "내려받지 못했습니다");
-                }}>받기</button>
+                }}>내려받기</button>
             )}
-            <button className="btn sm" title="파일함에서 빼기" onClick={() => remove(d.id)}>빼기</button>
+            <button className="btn sm" title="파일함에서 삭제" onClick={() => remove(d.id)}>삭제</button>
           </div>
         ))}
       </div>

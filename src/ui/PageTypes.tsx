@@ -140,7 +140,7 @@ export function PageTypes({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => 
                             <button className="btn sm" onClick={() => setAsking(null)}>취소</button>
                           </span>
                         ) : (
-                          <button className="btn sm" onClick={() => setAsking(t.id)}>지우기</button>
+                          <button className="btn sm" onClick={() => setAsking(t.id)}>삭제</button>
                         )
                       )}
                     </div>

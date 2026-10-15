@@ -154,6 +154,8 @@ function Studio({
   const [browseId, setBrowseId] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [tray, setTray] = useState<TrayItem[]>([]);
+  /** 선택 페이지 칸은 평소 접어 둔다. 화면을 넓게 쓰기 위함이다. */
+  const [trayOpen, setTrayOpen] = useState(false);
   /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
@@ -331,10 +333,12 @@ function Studio({
     update((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }));
 
   /* ── 담은 선반 ── */
-  const takePage = (s: Slide, from: Project) =>
+  const takePage = (s: Slide, from: Project) => {
     setTray((t) => [...t, {
       key: uid(), slide: s, fromTitle: from.title, fromAssets: from.assets,
     }]);
+    setTrayOpen(true);   // 어디로 들어갔는지 보여야 안심이 된다
+  };
 
   const moveTray = (key: string, d: -1 | 1) =>
     setTray((t) => {
@@ -575,7 +579,8 @@ function Studio({
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
             onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray}
-            appendTo={appendTarget} onAppend={appendTray} />
+            appendTo={appendTarget} onAppend={appendTray}
+            open={trayOpen} onToggle={() => setTrayOpen(!trayOpen)} />
         </div>
       </Shell>
     );
@@ -596,7 +601,8 @@ function Studio({
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
             onMove={moveTray} onClear={() => setTray([])} onMake={makeFromTray}
-            appendTo={appendTarget} onAppend={appendTray} />
+            appendTo={appendTarget} onAppend={appendTray}
+            open={trayOpen} onToggle={() => setTrayOpen(!trayOpen)} />
         </div>
       )}
       {view === "기록" && <Log db={db} setDb={update} />}

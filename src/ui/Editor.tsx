@@ -290,7 +290,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
             }}
           />
         ) : (
-          <b style={{ fontSize: 16.5, cursor: "text" }} onClick={() => setEditTitle(true)} title="눌러서 이름 고치기">
+          <b style={{ fontSize: 16.5, cursor: "text" }} onClick={() => setEditTitle(true)} title="클릭하여 제목 수정">
             {project.title}
           </b>
         )}
@@ -358,7 +358,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         <div className="spacer" />
         {todos.length > 0 && (
           <small style={{ color: "var(--todo)", fontWeight: 600 }}>
-            빈칸 {todos.length}개
+            미입력 {todos.length}건
           </small>
         )}
         {msg && <small style={{ color: "var(--todo)" }}>{msg}</small>}
@@ -495,10 +495,10 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
                 <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.max(0.2, z - 0.1)); }}>−</button>
                 <span style={{ minWidth: 48, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
                 <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(1.6, z + 0.1)); }}>+</button>
-                <button className={`btn sm ${autoFit ? "accent" : ""}`} onClick={() => setAutoFit(true)}>맞춤</button>
+                <button className={`btn sm ${autoFit ? "accent" : ""}`} onClick={() => setAutoFit(true)}>화면 맞춤</button>
                 <span style={{ width: 14 }} />
-                {picked && <button className="btn sm" onClick={resetPicked}>자리 되돌리기</button>}
-                {picked?.startsWith("x:") && <button className="btn sm" onClick={removePicked}>지우기</button>}
+                {picked && <button className="btn sm" onClick={resetPicked}>위치 초기화</button>}
+                {picked?.startsWith("x:") && <button className="btn sm" onClick={removePicked}>삭제</button>}
               </div>
             </div>
           ) : (
@@ -534,7 +534,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
                 <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
               </div>
 
-              <p className="sec" style={{ marginTop: 0 }}>내용 직접 고치기</p>
+              <p className="sec" style={{ marginTop: 0 }}>내용 입력</p>
 
               {todos.filter((t) => t.slideIndex === cur).length > 0 && (
                 <div className="warn">

@@ -208,15 +208,17 @@ export function Dashboard(p: Props) {
             </p>
           </div>
           <div className="spacer" />
-          {/* 출발점은 세 가지다. 셋 다 같은 자리에 두어야 헤매지 않는다. */}
-          <button className="btn" onClick={() => p.onBlank(sel === "all" ? "proposal" : sel)}
-            title="페이지 한 장짜리 빈 제안서를 만들고 바로 편집 화면으로 갑니다">
-            백지에서 시작
-          </button>
-          <button className="btn primary" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}
-            title="자료를 넣으면 AI 가 페이지 구성을 짭니다">
-            자료 넣고 시작
-          </button>
+          {/* 작성 경로 두 가지. 나란히 붙여 두어야 고르기 쉽다. */}
+          <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+            <button className="btn" onClick={() => p.onBlank(sel === "all" ? "proposal" : sel)}
+              title="빈 표지 한 장으로 시작해 직접 작성합니다">
+              신규 작성
+            </button>
+            <button className="btn primary" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}
+              title="자료를 등록하면 AI 가 페이지 구성을 작성합니다">
+              자료 기반 작성
+            </button>
+          </div>
           <input
             className="search"
             placeholder="이름 · 고객사 · 태그로 찾기"
@@ -354,7 +356,7 @@ function Card({
             </div>
           </div>
         ) : (
-          <button className="carddel" title="지우기"
+          <button className="carddel" title="삭제"
             onClick={(e) => { e.stopPropagation(); setAsking(true); }}>×</button>
         )
       )}
