@@ -100,28 +100,63 @@ function naverTool(): WebTool | null {
       },
       required: ["query"],
     },
-    execute: async (input, ctx) => {
-      const token = await idToken();
-      if (!token) throw new Error("로그인이 필요합니다.");
-      const r = await fetch(`${functionsBase}/naver`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(input),
-        signal: ctx.signal,
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || data.error) throw new Error(data.error ?? `네이버 검색 실패 (${r.status})`);
-      return data;
-    },
+    execute: (input, ctx) => callOurServer("naver", input, ctx.signal),
   };
+}
+
+/**
+ * 구글 검색 연장.
+ *
+ * 색인이 가장 넓다. 바깥 검색이 놓친 것을 한 번 더 훑을 때,
+ * 한 사이트 안에서만 찾을 때(나라장터·발주처 홈페이지), 기간을 좁힐 때 쓴다.
+ * 하루 100건까지 무료라 기본 연장으로 두지 않고 "더 넓게" 쪽으로 둔다.
+ */
+function googleTool(): WebTool | null {
+  if (!firebaseReady) return null;
+  return {
+    name: "구글검색",
+    description:
+      "구글로 찾는다. 색인이 가장 넓다. 다른 검색으로 못 찾았을 때 한 번 더 훑거나, " +
+      "한 사이트 안에서만 찾을 때(site 에 주소를 넣는다), 최근 것만 볼 때(기간) 쓴다. " +
+      "하루 쓸 수 있는 횟수가 적으니 꼭 필요할 때만 쓰고, 한 번에 제대로 된 검색어를 넣어라.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "검색어" },
+        site: { type: "string", description: "이 사이트 안에서만. 예: incheon.go.kr" },
+        기간: { type: "string", description: "최근 것만. d7=일주일, m3=석달, y1=일년" },
+        한국어만: { type: "boolean", description: "한국어 문서만 볼 때" },
+        num: { type: "number", description: "몇 건까지 (최대 10)" },
+      },
+      required: ["query"],
+    },
+    execute: (input, ctx) => callOurServer("google", input, ctx.signal),
+  };
+}
+
+/** 우리 서버의 검색 창구를 두드린다 (열쇠는 서버에만 있다) */
+async function callOurServer(길: string, input: unknown, signal: AbortSignal) {
+  const token = await idToken();
+  if (!token) throw new Error("로그인이 필요합니다.");
+  const r = await fetch(`${functionsBase}/${길}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+    signal,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.error) throw new Error(data.error ?? `검색 실패 (${r.status})`);
+  return data;
 }
 
 export async function readyWeb(): Promise<WebState> {
   const naver = naverTool();
+  const google = googleTool();
+  const 우리것 = [naver, google].filter(Boolean) as WebTool[];
 
   const mcp = await capability<Mcp>("mcp");
   // 바깥 검색이 없어도 네이버만으로 열어 준다
-  if (!mcp) return naver ? { on: true, tools: [naver] } : { on: false, why: "없음" };
+  if (!mcp) return 우리것.length ? { on: true, tools: 우리것 } : { on: false, why: "없음" };
 
   // 처음 켤 때 한 번 허락을 받는다. 받아야 입력 모양을 물어볼 수 있다.
   try {
@@ -135,13 +170,13 @@ export async function readyWeb(): Promise<WebState> {
     found = list.servers?.find((s) => s.server === SEARCH_SERVER);
   } catch (e: any) {
     const bad = fromError(e);
-    return naver ? { on: true, tools: [naver] } : bad;
+    return 우리것.length ? { on: true, tools: 우리것 } : bad;
   }
   if (!found || !found.tools?.length) {
-    return naver ? { on: true, tools: [naver] } : { on: false, why: "안붙임" };
+    return 우리것.length ? { on: true, tools: 우리것 } : { on: false, why: "안붙임" };
   }
   if (found.authStatus === "needs_reauth") {
-    return naver ? { on: true, tools: [naver] } : { on: false, why: "다시연결" };
+    return 우리것.length ? { on: true, tools: 우리것 } : { on: false, why: "다시연결" };
   }
 
   const 한글이름: Record<string, string> = {
@@ -181,7 +216,7 @@ export async function readyWeb(): Promise<WebState> {
     });
   }
 
-  if (naver) tools.push(naver);
+  tools.push(...우리것);
   if (!tools.length) return { on: false, why: "오류", message: "검색 연장을 준비하지 못했습니다." };
   return { on: true, tools };
 }

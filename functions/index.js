@@ -19,6 +19,8 @@ const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const NAVER_CLIENT_ID = defineSecret("NAVER_CLIENT_ID");
 const NAVER_CLIENT_SECRET = defineSecret("NAVER_CLIENT_SECRET");
+const GOOGLE_API_KEY = defineSecret("GOOGLE_API_KEY");
+const GOOGLE_CSE_ID = defineSecret("GOOGLE_CSE_ID");
 
 const CLAUDE_MODEL = "claude-opus-5-5";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5";
@@ -227,6 +229,79 @@ exports.naver = onRequest(
       res.json({ 찾은말: query, 결과 });
     } catch (e) {
       res.status(500).json({ error: e?.message || "네이버 검색에 실패했습니다." });
+    }
+  },
+);
+
+/* ───────────── 구글 검색 ─────────────
+ *
+ * 구글은 공식 창구(Custom Search)를 통해서만 결과를 내준다.
+ * 색인이 가장 넓어서, 바깥 검색이 못 찾은 것을 한 번 더 훑을 때 쓴다.
+ * 특정 사이트 안에서만 찾기(site:)와 기간 좁히기가 되는 것도 여기 장점이다.
+ *
+ * 하루 100건까지 무료다. 그 뒤로는 돈이 든다 — 그래서 기본 연장으로 두지 않고,
+ * 더 넓게 봐야 할 때만 쓰도록 AI 에게 일러 둔다.
+ */
+
+exports.google = onRequest(
+  { ...common, secrets: [GOOGLE_API_KEY, GOOGLE_CSE_ID] },
+  async (req, res) => {
+    if (req.method === "OPTIONS") return res.status(204).send("");
+    if (req.method !== "POST") return res.status(405).json({ error: "POST 만 받습니다" });
+    if (!(await requireUser(req, res))) return;
+
+    const key = GOOGLE_API_KEY.value();
+    const cx = GOOGLE_CSE_ID.value();
+    if (!key || !cx) {
+      return res.status(400).json({
+        error:
+          "구글 열쇠가 아직 없습니다. 구글 클라우드에서 API 키를, " +
+          "programmablesearchengine.google.com 에서 검색엔진 ID 를 받아 " +
+          "GOOGLE_API_KEY · GOOGLE_CSE_ID 로 넣어 주세요.",
+      });
+    }
+
+    const query = String(req.body?.query || "").trim();
+    if (!query) return res.status(400).json({ error: "무엇을 찾을지 적어 주세요." });
+
+    const num = Math.max(1, Math.min(10, Number(req.body?.num) || 10));
+    const 조각 = [
+      `key=${encodeURIComponent(key)}`,
+      `cx=${encodeURIComponent(cx)}`,
+      `q=${encodeURIComponent(query)}`,
+      `num=${num}`,
+      "hl=ko",
+    ];
+    // 한 사이트 안에서만 (나라장터·발주처 홈페이지 등)
+    if (req.body?.site) 조각.push(`siteSearch=${encodeURIComponent(String(req.body.site))}`, "siteSearchFilter=i");
+    // 기간 좁히기 — d7(최근 일주일) m3(석 달) y1(일 년)
+    if (req.body?.기간) 조각.push(`dateRestrict=${encodeURIComponent(String(req.body.기간))}`);
+    if (req.body?.한국어만) 조각.push("lr=lang_ko");
+
+    try {
+      const r = await fetch(`https://www.googleapis.com/customsearch/v1?${조각.join("&")}`);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const m = data?.error?.message || `구글 검색 실패 (${r.status})`;
+        return res.status(400).json({
+          error: /quota|rateLimit/i.test(m)
+            ? "구글 검색 하루 한도(무료 100건)를 다 썼습니다. 내일 다시 되거나, 구글 클라우드에서 한도를 올리시면 됩니다."
+            : m,
+        });
+      }
+      const items = (data.items || []).map((x) => ({
+        제목: x.title || "",
+        주소: x.link || "",
+        요약: x.snippet || "",
+        출처: x.displayLink || "",
+      }));
+      res.json({
+        찾은말: query,
+        전체건수: data?.searchInformation?.totalResults ?? null,
+        items,
+      });
+    } catch (e) {
+      res.status(500).json({ error: e?.message || "구글 검색에 실패했습니다." });
     }
   },
 );
