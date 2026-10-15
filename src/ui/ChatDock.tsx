@@ -154,6 +154,11 @@ function ClaudeTab(p: Props) {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [picErr, setPicErr] = useState("");
   const [reading, setReading] = useState("");
+  /** 지금 써지고 있는 답 */
+  const [live, setLive] = useState("");
+  /** 실제로 답한 모델 */
+  const [model, setModel] = useState("");
+  const stopper = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [pending, setPending] = useState<{ at: number; action: Action }[]>([]);
@@ -264,10 +269,21 @@ function ClaudeTab(p: Props) {
           projects: p.allProjects.map((x) => ({ id: x.id, title: x.title, client: x.client, slides: x.slides })),
         });
 
-    const r = await ask<Reply>({ system, messages: history, images: images.length ? images : undefined });
-    setBusy(false);
+    // 답이 써지는 대로 보여 준다. 길게 기다리며 빈 화면을 보지 않게.
+    const ctl = new AbortController();
+    stopper.current = ctl;
+    setLive("");
+    const r = await ask<Reply>({
+      system, messages: history,
+      images: images.length ? images : undefined,
+      onText: (whole) => setLive(sayOf(whole)),
+      signal: ctl.signal,
+    });
+    stopper.current = null;
+    setBusy(false); setLive("");
+    if (r.model) setModel(r.model);
 
-    if (!r.ok || !r.data) { setErr(r.error ?? "답을 받지 못했습니다."); return; }
+    if (!r.ok || !r.data) { if (r.error) setErr(r.error); return; }
 
     const all = r.data.actions ?? [];
     const now = all.filter((a) => !needsOk(a));
@@ -297,6 +313,7 @@ function ClaudeTab(p: Props) {
         {onPage
           ? <>지금 보는 <b>{p.slideIndex + 1}번째 페이지</b> · {p.pageType!.name}<span className="eye">화면을 보고 답합니다</span></>
           : <>보관함 · 제안서 <b>{p.allProjects.length}건</b><span className="eye">무엇이든 물어보세요</span></>}
+        {model && <span className="whomodel" title="방금 답한 모델입니다">{modelName(model)}</span>}
       </div>
 
       <div className="dock-log">
@@ -382,7 +399,15 @@ function ClaudeTab(p: Props) {
           </div>
         ))}
 
-        {busy && <div className="bubble assistant"><p className="thinking">화면을 보는 중…</p></div>}
+        {busy && (
+          <div className="bubble assistant">
+            {live
+              ? <p>{live}<span className="caret" /></p>
+              : <p className="thinking">{onPage ? "화면을 보는 중…" : "읽는 중…"}</p>}
+            <button className="btn sm" style={{ marginTop: 7 }}
+              onClick={() => stopper.current?.abort()}>멈추기</button>
+          </div>
+        )}
         {err && (
           <div className="warn">
             <b>{err}</b>
@@ -583,4 +608,37 @@ function CopyTab(p: Props) {
       </div>
     </>
   );
+}
+
+/**
+ * 아직 다 써지지 않은 답에서 사람에게 할 말만 꺼낸다.
+ * AI 는 JSON 으로 답하는데, 그 날것을 보여 줄 수는 없다.
+ */
+function sayOf(partial: string): string {
+  const at = partial.indexOf('"say"');
+  if (at < 0) return "";
+  const q = partial.indexOf('"', partial.indexOf(":", at) + 1);
+  if (q < 0) return "";
+  let out = "";
+  for (let i = q + 1; i < partial.length; i++) {
+    const c = partial[i];
+    if (c === "\\") {
+      const n = partial[i + 1];
+      out += n === "n" ? "\n" : n === "t" ? "\t" : n ?? "";
+      i++;
+      continue;
+    }
+    if (c === '"') break;
+    out += c;
+  }
+  return out;
+}
+
+/** 모델 번호를 사람이 읽는 이름으로 */
+function modelName(id: string): string {
+  if (/opus/i.test(id)) return "Opus 5.5";
+  if (/sonnet/i.test(id)) return "Sonnet";
+  if (/haiku/i.test(id)) return "Haiku";
+  if (id === "complex") return "가장 센 모델";
+  return id;
 }

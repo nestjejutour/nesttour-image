@@ -91,6 +91,7 @@ export function aiPlugin(): Plugin {
           res.end(
             JSON.stringify({
               text,
+              model: MODEL,
               usage: {
                 입력: r.usage.input_tokens,
                 출력: r.usage.output_tokens,

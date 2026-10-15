@@ -87,7 +87,7 @@ exports.ai = onRequest({ ...common, secrets: [ANTHROPIC_API_KEY] }, async (req, 
     }
 
     const text = r.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-    res.json({ text, usage: { 입력: r.usage.input_tokens, 출력: r.usage.output_tokens } });
+    res.json({ text, model: CLAUDE_MODEL, usage: { 입력: r.usage.input_tokens, 출력: r.usage.output_tokens } });
   } catch (e) {
     res.status(500).json({ error: e?.message || "AI 호출에 실패했습니다." });
   }

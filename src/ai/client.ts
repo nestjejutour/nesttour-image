@@ -22,20 +22,42 @@ export interface AiResult<T> {
   /** 사람이 읽는 AI 의 말 */
   text?: string;
   error?: string;
+  /** 실제로 답한 모델 (대표님이 지목한 모델이 맞는지 보여 준다) */
+  model?: string;
 }
+
+/**
+ * 대표님이 지목하신 모델.
+ *
+ * "그냥 지금 너를 거기에 연결해" — 그래서 가장 센 Opus 로 못 박는다.
+ * 이 모델을 못 쓰는 상황이면 아래 tier 로 알아서 내려간다(오류가 아니다).
+ */
+export const WANTED_MODEL = "claude-opus-5-5";
 
 export interface AskOptions {
   system: string;
   messages: Turn[];
   /** 같이 보낼 그림들 (보고 있는 페이지, 올린 사진 자료) */
   images?: Blob[];
+  /** 답이 써지는 대로 받아 본다 (지금까지 쓴 전체 글이 온다) */
+  onText?: (text: string) => void;
+  /** 멈추기 */
+  signal?: AbortSignal;
 }
 
 type Sample = ((
   input: Turn[] | string,
-  opts?: { modelTier?: string; images?: Blob[] },
-) => Promise<{ text: string }>) & {
-  limits?: () => Promise<{ images?: boolean }>;
+  opts?: {
+    modelTier?: string;
+    model?: string;
+    effort?: "low" | "medium" | "high";
+    images?: Blob[];
+    cache?: boolean;
+    onText?: (u: { text: string; delta: string }) => void;
+    signal?: AbortSignal;
+  },
+) => Promise<{ text: string; modelApplied?: string; modelTierApplied?: string }>) & {
+  limits?: () => Promise<{ images?: unknown }>;
 };
 
 export async function ask<T>(o: AskOptions): Promise<AiResult<T>> {
@@ -50,7 +72,7 @@ export async function ask<T>(o: AskOptions): Promise<AiResult<T>> {
 
   const data = extractJson<T>(raw.text!);
   if (!data) return { ok: false, error: "AI 가 보낸 답을 알아볼 수 없습니다. 다시 말씀해 주세요.", text: raw.text };
-  return { ok: true, data, text: raw.text };
+  return { ok: true, data, text: raw.text, model: raw.model };
 }
 
 /** 한 번만 묻고 끝 (초안 만들기 등) */
@@ -63,7 +85,7 @@ export function askAi<T>(system: string, user: string): Promise<AiResult<T>> {
 async function viaClaude(
   o: AskOptions,
   sample: Sample,
-): Promise<{ ok: boolean; text?: string; error?: string }> {
+): Promise<{ ok: boolean; text?: string; error?: string; model?: string }> {
   // Claude 기능은 지난 대화를 기억하지 않는다. 지시문을 첫 말에 붙여 통째로 보낸다.
   const turns: Turn[] = o.messages.map((m, i) =>
     i === 0 && m.role === "user"
@@ -80,18 +102,31 @@ async function viaClaude(
   }
 
   try {
-    const out = await sample(turns, { modelTier: "complex", ...(images ? { images } : {}) });
-    return { ok: true, text: out.text };
+    const out = await sample(turns, {
+      // 대표님이 지목한 모델로. 못 쓰면 알아서 complex 로 내려간다.
+      model: WANTED_MODEL,
+      effort: "high",
+      modelTier: "complex",
+      // 대화에서는 캐시를 끈다. 켜 두면 "다시 해봐" 가 같은 답을 되풀이한다.
+      cache: false,
+      ...(images ? { images } : {}),
+      ...(o.onText ? { onText: (u: { text: string }) => o.onText!(u.text) } : {}),
+      ...(o.signal ? { signal: o.signal } : {}),
+    });
+    return { ok: true, text: out.text, model: out.modelApplied ?? out.modelTierApplied };
   } catch (e: any) {
+    if (e?.code === "cancelled") return { ok: false, error: "" };
     if (e?.code === "not_granted") return { ok: false, error: "AI 사용을 허용해 주셔야 작동합니다." };
     if (e?.code === "rate_limited") return { ok: false, error: "잠시 뒤에 다시 말씀해 주세요." };
+    if (e?.code === "refused") return { ok: false, error: "이 요청은 답할 수 없다고 합니다. 다르게 말씀해 주세요." };
+    if (e?.code === "prompt_too_large") return { ok: false, error: "한 번에 보낸 자료가 너무 많습니다. 나눠서 말씀해 주세요." };
     return { ok: false, error: e?.message ?? "AI 호출에 실패했습니다." };
   }
 }
 
 /* ───────────── 회사 서버 (Cloud Functions) ───────────── */
 
-async function viaFunctions(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string }> {
+async function viaFunctions(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string; model?: string }> {
   const token = await idToken();
   if (!token) return { ok: false, error: "로그인이 필요합니다." };
 
@@ -111,12 +146,12 @@ async function viaFunctions(o: AskOptions): Promise<{ ok: boolean; text?: string
   }
   const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
   if (!r.ok || p.error) return { ok: false, error: p.error ?? "AI 호출 실패" };
-  return { ok: true, text: p.text };
+  return { ok: true, text: p.text, model: p.model };
 }
 
 /* ───────────── 내 PC ───────────── */
 
-async function viaLocalServer(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string }> {
+async function viaLocalServer(o: AskOptions): Promise<{ ok: boolean; text?: string; error?: string; model?: string }> {
   const imagesBase64 = o.images?.length
     ? await Promise.all(o.images.slice(0, 5).map(blobToBase64))
     : undefined;
@@ -137,7 +172,7 @@ async function viaLocalServer(o: AskOptions): Promise<{ ok: boolean; text?: stri
   }
   const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
   if (!r.ok || p.error) return { ok: false, error: p.error ?? "AI 호출 실패" };
-  return { ok: true, text: p.text };
+  return { ok: true, text: p.text, model: p.model };
 }
 
 function blobToBase64(b: Blob): Promise<string> {
