@@ -65,7 +65,6 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
   const [filesOpen, setFilesOpen] = useState(false);
   /** 화면에서 집어 둔 것 */
   const [picked, setPicked] = useState<string | null>(null);
-  const addPhoto = useRef<HTMLInputElement>(null);
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
 
@@ -334,7 +333,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         <label className="btn sm" style={{ cursor: "pointer" }}
           title="이 페이지 위에 사진을 한 장 얹습니다. 얹은 뒤 끌어서 옮기고 크기를 바꿀 수 있습니다">
           + 사진 추가
-          <input ref={addPhoto} type="file" accept="image/*" style={{ display: "none" }}
+          <input type="file" accept="image/*" style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];
               e.target.value = "";

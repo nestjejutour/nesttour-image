@@ -84,6 +84,8 @@ export function App() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   /** 저장이 막혔을 때. 조용히 넘기면 작업한 게 사라진다. */
   const [saveErr, setSaveErr] = useState("");
+  /** 사람이 한 일이 아닌 변화 — 되돌리기 단계로 세지 않는다 */
+  const quiet = useRef(false);
   // 로그인 지켜보기 (회사 서버일 때만)
   useEffect(() => {
     if (!backend.needsLogin) return;
@@ -115,7 +117,7 @@ export function App() {
     const t = setTimeout(async () => {
       // 사진은 따로 올린다. Firestore 는 문서 하나가 1MB 한도라 사진을 못 담는다.
       const lifted = await liftAssets(db);
-      if (lifted) { setDb(lifted); return; }   // 주소로 바뀐 상태로 다시 저장된다
+      if (lifted) { quiet.current = true; setDb(lifted); return; }   // 주소로 바뀐 상태로 다시 저장된다
       try {
         await backend.save(db);
         setSavedAt(new Date());
@@ -131,7 +133,7 @@ export function App() {
   if (backend.needsLogin && !user) return <Gate />;
   if (!db) return <Gate loading />;
 
-  return <Studio db={db} setDb={setDb} who={user?.email ?? null} savedAt={savedAt} saveErr={saveErr} />;
+  return <Studio db={db} setDb={setDb} who={user?.email ?? null} savedAt={savedAt} saveErr={saveErr} quiet={quiet} />;
 }
 
 /**
@@ -141,13 +143,14 @@ export function App() {
  * 한 함수 안에서 화면을 중간에 갈아끼우면 React 가 상태 장치 순서를 잃는다.
  */
 function Studio({
-  db, setDb, who, savedAt, saveErr,
+  db, setDb, who, savedAt, saveErr, quiet,
 }: {
   db: DB;
   setDb: React.Dispatch<React.SetStateAction<DB | null>>;
   who: string | null;
   savedAt: Date | null;
   saveErr: string;
+  quiet: React.MutableRefObject<boolean>;
 }) {
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -169,7 +172,7 @@ function Studio({
   const update = (apply: (d: DB) => DB) => setDb((d) => (d ? apply(d) : d));
 
   /** 되돌리기 (Ctrl+Z / 맥은 ⌘+Z, 다시 하기는 Shift 를 같이) */
-  const undo = useUndo(db, setDb);
+  const undo = useUndo(db, setDb, quiet);
 
   const baseStyle = db.styles[0];
   /** 이 제안서에 실제로 적용되는 규격 (기본 + 이 건만 바꾼 값) */

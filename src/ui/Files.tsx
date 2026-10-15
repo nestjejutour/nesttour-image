@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Doc, Folder, Project } from "../core/types";
 import { FOLDERS, prettySize, saveOut, takeIn } from "../core/docs";
 import { uid } from "../store/db";
@@ -22,7 +22,6 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
   const [folder, setFolder] = useState<Folder>("원본");
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
-  const pick = useRef<HTMLInputElement>(null);
   const docs = project.docs ?? [];
 
   const add = async (list: FileList | File[]) => {
@@ -75,7 +74,7 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
       >
         <b>+ 파일 넣기</b>
         <small>끌어다 놓거나 눌러서 고르세요 · {folder} 칸에 들어갑니다</small>
-        <input ref={pick} type="file" multiple style={{ display: "none" }}
+        <input type="file" multiple style={{ display: "none" }}
           onChange={(e) => {
             // 목록을 먼저 복사한다. 입력칸을 비우면 목록도 같이 비어 버린다.
             const picked = Array.from(e.target.files ?? []);

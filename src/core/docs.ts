@@ -9,8 +9,11 @@
  * 그 자료를 다시 올리지 않아도 된다.
  */
 
-import { kindOf, readFile } from "./intake";
+import { prettySize, readFile } from "./intake";
 import type { Doc, Folder } from "./types";
+
+/** 크기 표기는 한 곳에서만 만든다 */
+export { prettySize };
 
 export const FOLDERS: Folder[] = ["원본", "제작 자료"];
 
@@ -18,11 +21,6 @@ export const FOLDERS: Folder[] = ["원본", "제작 자료"];
 const PC_LIMIT = 1_000_000;        // 1MB
 /** 회사 서버(Firebase)에 연결했을 때 */
 const SERVER_LIMIT = 25_000_000;   // 25MB
-
-export const prettySize = (n: number) =>
-  n < 1024 ? `${n}B`
-  : n < 1024 * 1024 ? `${Math.round(n / 1024)}KB`
-  : `${(n / 1048576).toFixed(1)}MB`;
 
 /**
  * 파일 하나를 파일함에 넣을 모양으로 바꾼다.
@@ -104,8 +102,6 @@ export function docsToText(docs: Doc[] | undefined): string {
     .map((d) => `──── [${d.folder}] ${d.name} ────\n${d.text!.slice(0, 12000)}`)
     .join("\n\n");
 }
-
-export const docKind = (d: Doc) => kindOf({ name: d.name, type: d.mime } as File);
 
 function asDataUrl(file: File): Promise<string> {
   return new Promise((res, rej) => {

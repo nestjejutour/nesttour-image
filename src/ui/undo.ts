@@ -23,6 +23,12 @@ const DEPTH = 40;
 export function useUndo(
   db: DB,
   setDb: React.Dispatch<React.SetStateAction<DB | null>>,
+  /**
+   * 사람이 한 일이 아닌 변화는 단계로 세지 않는다.
+   * (사진을 회사 서버로 올리고 주소만 남기는 일 같은 것.
+   *  이걸 세면 되돌리기가 사진을 도로 내려받는 꼴이 된다)
+   */
+  quiet?: React.MutableRefObject<boolean>,
 ): Undo {
   const [past, setPast] = useState<DB[]>([]);
   const [future, setFuture] = useState<DB[]>([]);
@@ -36,6 +42,7 @@ export function useUndo(
     const before = seen.current;
     seen.current = db;
     if (moving.current) { moving.current = false; return; }
+    if (quiet?.current) { quiet.current = false; return; }
     setPast((s) => [...s.slice(-(DEPTH - 1)), before]);
     setFuture([]);   // 새로 고쳤으면 "다시 하기" 줄은 끊긴다
   }, [db]);
