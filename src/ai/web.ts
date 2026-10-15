@@ -15,6 +15,16 @@ import { capability } from "../platform";
 /** 우리가 쓰는 커넥터 이름 (claude.ai 설정에 보이는 그대로) */
 export const SEARCH_SERVER = "Parallel Search";
 
+/**
+ * 이 브라우저에서 한 번만 만드는 대화 번호.
+ *
+ * 커넥터가 "한 대화에서는 같은 번호를 계속 쓰라" 고 한다.
+ * 무료 사용량을 그 번호로 센다. AI 가 매번 새 번호를 지어내면
+ * 한 사람이 여러 사람인 것처럼 보여 금방 막힌다.
+ */
+const 대화번호 =
+  `mtmb-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
 export interface WebTool {
   name: string;
   description: string;
@@ -84,7 +94,9 @@ export async function readyWeb(): Promise<WebState> {
   };
   const 설명: Record<string, string> = {
     web_search:
-      "인터넷을 찾아본다. 지금의 사실(시세·최근 소식·경쟁사 현황·통계)이 필요할 때 쓴다. " +
+      "인터넷을 찾아본다. 지금의 사실(시세·최근 소식·경쟁사 현황·통계·공고)이 필요할 때 쓴다. " +
+      "objective 에 무엇을 찾는지 한 문장, search_queries 에 3~6 단어짜리 검색어를 2~3개 넣어라. " +
+      "관공서·공공기관 자료는 잘 잡힌다. 네이버 블로그·카페는 잡히지 않으니 그쪽을 기대하지 마라. " +
       "찾은 내용을 그대로 옮기지 말고, 출처와 날짜를 함께 밝혀라.",
     web_fetch:
       "주소를 주면 그 웹페이지의 내용을 읽어 온다. 특정 공고나 상품 페이지를 확인할 때 쓴다.",
@@ -105,7 +117,9 @@ export async function readyWeb(): Promise<WebState> {
       description: 설명[t.name] ?? t.description,
       inputSchema,
       execute: async (input, ctx) => {
-        const r = await mcp.callTool(SEARCH_SERVER, t.name, input, { signal: ctx.signal });
+        // 번호는 우리가 붙인다. AI 가 지어내게 두지 않는다.
+        const 보낼것 = { ...input, session_id: 대화번호, model_name: "claude-opus-5-5" };
+        const r = await mcp.callTool(SEARCH_SERVER, t.name, 보낼것, { signal: ctx.signal });
         return r.payload ?? r.content ?? "";
       },
     });
