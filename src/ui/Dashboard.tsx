@@ -338,7 +338,7 @@ function Card({
           <div className="cardask" onClick={(e) => e.stopPropagation()}>
             <b>지울까요?</b>
             <div className="row">
-              <button className="btn sm accent" onClick={() => { onDelete(); setAsking(false); }}>지움</button>
+              <button className="btn sm accent" onClick={() => { onDelete(); setAsking(false); }}>삭제</button>
               <button className="btn sm" onClick={() => setAsking(false)}>취소</button>
             </div>
           </div>
@@ -348,7 +348,9 @@ function Card({
         )
       )}
       <div className="thumb">
-        {ops.length ? <SlideView ops={ops} style={style} zoom={0.26} /> : <span className="empty">표지 없음</span>}
+        {ops.length
+          ? <SlideView ops={ops} style={style} zoom={0.26} />
+          : <span className="empty">{pr.slides.length ? "표지 없음" : "아직 비어 있음"}</span>}
       </div>
       <div className="meta">
         <b>{pr.title}</b>
