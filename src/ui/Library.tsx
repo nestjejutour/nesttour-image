@@ -32,6 +32,9 @@ interface Props {
   onNote: (id: string, note: string) => void;
 }
 
+/** 전체 화면에 띄우는 최근 자료 수 */
+const 최근몇개 = 12;
+
 export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove, onMakeFolders, onNote }: Props) {
   const [끄는중, set끄는중] = useState(false);
   const [담는중, set담는중] = useState<{ 끝난: number; 전부: number; 지금: string } | null>(null);
@@ -168,6 +171,9 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       set탈난말(e?.message ?? "자료를 담지 못했습니다");
     });
 
+  /** 전체를 볼 때는 최근 것만. 분류를 고르면 전부 */
+  const 줄일까 = sel === "all" && 보일것.length > 최근몇개 && !찾기.trim();
+  const 펼친것 = 줄일까 ? 보일것.slice(0, 최근몇개) : 보일것;
   const 못뽑은수 = 보일것.filter((x) => x.noThumb).length;
   const 고른것 = 보일것.filter((x) => !뺀것.has(x.id));
   const 원본없는수 = 보일것.filter((x) => !x.hasFile).length;
@@ -337,9 +343,9 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       </label>
       {탈난말 && <p className="gateerr">{탈난말}</p>}
 
-      {보일것.length > 0 && (
+      {펼친것.length > 0 && (
         <div className="libgrid">
-          {보일것.map((x) => (
+          {펼친것.map((x) => (
             <div className={`libcard ${뺀것.has(x.id) ? "" : "골랐음"}`} key={x.id}>
               <label className="libpick" title="고르기">
                 <input type="checkbox" checked={!뺀것.has(x.id)}
@@ -392,6 +398,13 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
             </div>
           ))}
         </div>
+      )}
+
+      {줄일까 && (
+        <p className="lede" style={{ marginTop: 9, fontSize: 13.5 }}>
+          최근 {최근몇개}개만 보입니다. 왼쪽에서 분류를 고르시면 그 분류의 자료가 모두 보입니다
+          (전체 {보일것.length}개).
+        </p>
       )}
 
       {크게 && (() => {

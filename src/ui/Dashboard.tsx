@@ -57,6 +57,8 @@ interface Props {
 }
 
 const PER_ROW = 5;
+/** 전체 화면에 띄우는 최근 작업 수 */
+const 최근몇개 = 10;
 
 export function Dashboard(p: Props) {
   const { projects, categories, style, pageTypes } = p;
@@ -485,11 +487,34 @@ export function Dashboard(p: Props) {
           </div>
         )}
 
-        {shown.map((c) => {
+        {/* 전체는 분류 화면을 되풀이할 자리가 아니다. 최근 손댄 것만 보여 준다 */}
+        {sel === "all" && filtered.length > 0 && (
+          <section>
+            <div className="rowhead">
+              <p className="sec" style={{ margin: 0 }}>최근 작업</p>
+              <span className="cnt">전체 {filtered.length}건</span>
+            </div>
+            <div className="cards">
+              {sorted(filtered).slice(0, 최근몇개).map((pr) => (
+                <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
+                  moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)}
+                  onDelete={() => p.onDelete(pr.id)}
+                  categories={categories}
+                  어디={categories.find((c) => c.id === pr.category)?.name}
+                  onMove={(cid) => p.onMoveProject(pr.id, cid)}
+                  onToggleStatus={() => p.onToggleStatus(pr.id)} />
+              ))}
+            </div>
+            {filtered.length > 최근몇개 && (
+              <p className="lede" style={{ marginTop: 9, fontSize: 13.5 }}>
+                {filtered.length - 최근몇개}건이 더 있습니다. 왼쪽에서 분류를 고르시면 그 분류의 것이 모두 보입니다.
+              </p>
+            )}
+          </section>
+        )}
+
+        {sel !== "all" && shown.map((c) => {
           const list = inCat(c.id);
-          // "전체" 를 볼 때는 빈 분류를 접어 두지만,
-          // 한 분류를 골라 들어왔으면 비어 있어도 자리를 보여 준다.
-          if (!list.length && sel === "all") return null;
           const visible = expanded ? list : list.slice(0, PER_ROW);
           return (
             <section key={c.id}>
@@ -562,11 +587,13 @@ function when(iso: string): string {
 }
 
 function Card({
-  pr, style, pageTypes, moods, onClick, onDelete, onToggleStatus, categories, onMove,
+  pr, style, pageTypes, moods, onClick, onDelete, onToggleStatus, categories, onMove, 어디,
 }: {
   pr: Project; style: StylePreset; pageTypes: PageType[];
   moods: Mood[]; onClick: () => void; onDelete?: () => void;
   onToggleStatus?: () => void;
+  /** 어느 분류에 든 것인가 (여럿이 섞여 보일 때만 적는다) */
+  어디?: string;
   /** 다른 분류로 옮기기 */
   categories?: Category[];
   onMove?: (categoryId: string) => void;
@@ -622,6 +649,7 @@ function Card({
       <div className="meta">
         <b>{pr.title}</b>
         <small>
+          {어디 && <b className="어디">{어디}</b>}
           {pr.client || "고객사 없음"}
           {kind !== "미분류" && ` · ${kind}`} · {pr.slides.length}장
         </small>

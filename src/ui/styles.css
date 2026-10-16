@@ -1397,3 +1397,7 @@ ol.saylist li::before {
   width: 100%; margin-top: 6px; padding: 6px 8px; font-size: 13.5px;
   border: 1px solid var(--line); border-radius: 6px;
 }
+/* 전체 화면에서 카드가 어느 분류 것인지 */
+.card .meta small b.어디 {
+  color: var(--accent); font-weight: 600; margin-right: 6px;
+}
