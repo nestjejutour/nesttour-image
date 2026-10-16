@@ -142,6 +142,14 @@ export interface RepeatEl {
 export type Element = TextEl | LineEl | RectEl | ImageEl | ScrimEl | RepeatEl;
 
 export interface PageType {
+  /**
+   * 판을 꽉 채우는 틀인가.
+   *
+   * 제안서는 어느 종이에 깔든 16:9 모양을 지켜야 하므로
+   * 한 비율로만 늘리고 남는 자리는 비워 둔다(reframe 기본).
+   * 현수막처럼 "이 판이 곧 디자인" 인 것은 가로·세로를 따로 늘려 꽉 채운다.
+   */
+  자유판?: boolean;
   id: string;
   name: string;
   description: string;

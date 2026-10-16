@@ -124,6 +124,7 @@ export const MORE_PAGE_TYPES: PageType[] = [
      */
     id: "print-full",
     name: "인쇄물 (전면)",
+    자유판: true,
     description: "판 전체를 그림 하나로 덮는다. 현수막·배너처럼 다 만들어진 한 장을 담을 때.",
     group: "표지",
     showPageNo: false,

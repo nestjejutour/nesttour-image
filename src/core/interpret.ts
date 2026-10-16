@@ -11,7 +11,7 @@ import type {
   TypeToken,
 } from "./types";
 import { resolveColor } from "./style";
-import { fitToPaper } from "./paper";
+import { DESIGN, fitToPaper } from "./paper";
 
 /**
  * ============================================================
@@ -120,11 +120,25 @@ export function interpret(pageType: PageType, content: Content, ctx: InterpretCt
   }
   // 판 크기가 기준판(16:9)과 다르면, 그려 놓은 것을 통째로 줄여 가운데 놓는다.
   // 이 한 곳에서만 처리하므로 미리보기·PPT·PDF 가 똑같이 따라온다.
-  return reframe(ops, ctx.style.slide.widthIn, ctx.style.slide.heightIn);
+  return reframe(ops, ctx.style.slide.widthIn, ctx.style.slide.heightIn, !!pageType.자유판);
 }
 
 /** 그린 것 전체를 새 판에 맞춰 옮기고 키운다 */
-function reframe(ops: DrawOp[], widthIn: number, heightIn: number): DrawOp[] {
+function reframe(ops: DrawOp[], widthIn: number, heightIn: number, 자유판 = false): DrawOp[] {
+  if (자유판) {
+    // 판이 곧 디자인이다. 모양을 지킬 것이 없으니 가로·세로를 따로 늘려 꽉 채운다.
+    const sx = widthIn / DESIGN.widthIn;
+    const sy = heightIn / DESIGN.heightIn;
+    if (Math.abs(sx - 1) < 0.001 && Math.abs(sy - 1) < 0.001) return ops;
+    // 글자는 작은 쪽을 따른다. 큰 쪽을 따르면 판 밖으로 넘친다.
+    const st = Math.min(sx, sy);
+    return ops.map((o) => {
+      const moved: any = { ...o, x: o.x * sx, y: o.y * sy, w: o.w * sx, h: o.h * sy };
+      if (moved.sizePt) moved.sizePt = moved.sizePt * st;
+      if (moved.strokeWeightPt) moved.strokeWeightPt = moved.strokeWeightPt * st;
+      return moved as DrawOp;
+    });
+  }
   const f = fitToPaper(widthIn, heightIn);
   if (f.plain) return ops;
   return ops.map((o) => {
