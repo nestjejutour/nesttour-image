@@ -14,6 +14,7 @@ import { docsToText, takeIn } from "../core/docs";
 import { uid } from "../store/db";
 import type { ChatTurn } from "../store/db";
 import { Grip, usePanel } from "./panels";
+import { 미리보기뽑기 } from "../core/thumb";
 
 /**
  * 대화 선반 — 화면 오른쪽에 늘 떠 있다.
@@ -199,6 +200,15 @@ function ClaudeTab(p: Props) {
     setPicErr("");
 
     const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name));
+
+    /*
+      일러스트(.ai)·PDF 도 AI 에게 "보여 줘야" 한다.
+
+      직원이 지난 현수막을 끌어다 놓고 "이 느낌으로" 라고 한다. 가장 흔한 주문이다.
+      그런데 .ai 를 글로만 읽으면 AI 는 아무것도 못 본다 — 그 안에 글자가 없으니까.
+      어차피 자료함 미리보기를 뽑을 때 그림으로 한 번 그린다. 그걸 같이 보내 준다.
+    */
+    const 그림같은것 = files.filter((f) => !imgs.includes(f) && /\.(ai|pdf)$/i.test(f.name));
     const rest = files.filter((f) => !imgs.includes(f));
 
     const used = Object.keys(p.project?.assets ?? {}).filter((k) => k.startsWith("올린사진-")).length;
@@ -207,6 +217,13 @@ function ClaudeTab(p: Props) {
       try {
         shots.push({ key: `올린사진-${used + pics.length + i + 1}`, dataUrl: await readShrunk(imgs[i]) });
       } catch { setPicErr("사진을 읽지 못했습니다."); }
+    }
+    // .ai·PDF 는 첫 장을 그림으로 떠서 같이 보낸다. 파일 자체는 아래에서 자료로도 남는다.
+    for (const f of 그림같은것) {
+      try {
+        const { thumb } = await 미리보기뽑기(f, 1400);
+        if (thumb) shots.push({ key: `올린사진-${used + pics.length + shots.length + 1}`, dataUrl: thumb });
+      } catch { /* 못 뜨면 글로만 간다 */ }
     }
     if (shots.length) setPics((s2) => [...s2, ...shots]);
 

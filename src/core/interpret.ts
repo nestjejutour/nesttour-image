@@ -60,6 +60,21 @@ function visible(el: { showIf?: string; hideIf?: string }, scope: Content): bool
   return true;
 }
 
+/**
+ * 글이 어느 쪽으로 붙는가 — 내용 칸에서 읽는다.
+ *
+ * 현수막에서 "글씨를 왼쪽으로 몰아줘" 는 가장 흔한 주문이다.
+ * 글 상자는 판 전체를 쓰고 있으니, 붙는 쪽만 바꾸면 그대로 된다.
+ */
+function 글자자리(el: any, scope: any): "left" | "center" | "right" | null {
+  if (!el.alignBind) return null;
+  const v = pick(scope, el.alignBind);
+  if (v === "왼쪽" || v === "left") return "left";
+  if (v === "오른쪽" || v === "right") return "right";
+  if (v === "가운데" || v === "center") return "center";
+  return null;
+}
+
 function resolveSrc(v: unknown, assets?: Record<string, string>): string | null {
   if (typeof v !== "string" || v.trim() === "") return null;
   // AI 가 그린 그림(SVG)이면 바로 쓸 수 있는 주소로 바꾼다.
@@ -214,7 +229,7 @@ function walk(
           colorHex: isTodo
             ? resolveColor(style, "todo")
             : resolveColor(style, el.color ?? t.color, "ink"),
-          align: el.align ?? "left",
+          align: 글자자리(el, scope) ?? el.align ?? "left",
           valign: el.valign ?? "top",
           lineSpacingMul: el.lineSpacingMul ?? t.lineSpacingMul,
           charSpacing: el.charSpacing ?? t.charSpacing,

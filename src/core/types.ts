@@ -83,6 +83,14 @@ export interface TextEl extends Box, Visibility {
   size?: number;
   bold?: boolean;
   align?: "left" | "center" | "right";
+  /**
+   * 왼쪽·가운데·오른쪽을 내용 칸에서 읽어 온다.
+   *
+   * 현수막은 "글씨를 왼쪽으로 몰아줘" 가 흔한 주문인데,
+   * 자리가 틀에 박혀 있으면 AI 도 직원도 그걸 못 한다.
+   * 이 칸을 두면 글 상자는 그대로 두고 글만 한쪽으로 붙는다.
+   */
+  alignBind?: string;
   valign?: "top" | "middle" | "bottom";
   /** 비어 있으면 빨간 [ 확인 필요 ] 로 표시 */
   required?: boolean;

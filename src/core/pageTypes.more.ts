@@ -143,6 +143,8 @@ export const MORE_PAGE_TYPES: PageType[] = [
       { key: "주제목", label: "큰 글씨", kind: "text" },
       { key: "부제목", label: "작은 글씨", kind: "text" },
       { key: "덧말", label: "날짜 · 장소 · 주최 (없어도 됨)", kind: "text" },
+      { key: "자리", label: "글씨 쪽 (가운데 · 왼쪽 · 오른쪽)", kind: "text",
+        hint: "비워 두면 가운데" },
     ],
     sample: {
       주제목: "제주 유채꽃 축제",
@@ -151,12 +153,20 @@ export const MORE_PAGE_TYPES: PageType[] = [
     },
     elements: [
       { type: "image", bind: "art", x: 0, y: 0, w: 10, h: 5.625, fit: "cover" },
-      { type: "text", bind: "주제목", x: 0.6, y: 1.75, w: 8.8, h: 1.3,
-        token: "coverTitleBold", color: "white", align: "center", valign: "middle" },
-      { type: "text", bind: "부제목", x: 0.6, y: 3.05, w: 8.8, h: 0.75,
-        token: "coverTitleThin", color: "white", align: "center", valign: "middle" },
-      { type: "text", bind: "덧말", x: 0.6, y: 3.85, w: 8.8, h: 0.6,
-        token: "body", color: "white", align: "center", valign: "middle" },
+      /*
+        글 상자는 판을 거의 다 쓴다. 붙는 쪽만 "자리" 칸으로 바꾼다 —
+        상자를 옮기지 않아도 왼쪽·가운데·오른쪽이 된다.
+
+        크기를 토큰이 아니라 숫자로 박은 까닭:
+        현수막은 몇 미터 밖에서 본다. 제안서 본문 크기(11)를 그대로 쓰면
+        날짜·장소 줄이 판 높이의 2.7% 가 되어 실제로 안 읽힌다.
+      */
+      { type: "text", bind: "주제목", x: 0.5, y: 1.65, w: 9, h: 1.45,
+        size: 40, bold: true, color: "white", align: "center", alignBind: "자리", valign: "middle" },
+      { type: "text", bind: "부제목", x: 0.5, y: 3.05, w: 9, h: 0.8,
+        size: 24, color: "white", align: "center", alignBind: "자리", valign: "middle" },
+      { type: "text", bind: "덧말", x: 0.5, y: 3.9, w: 9, h: 0.65,
+        size: 17, color: "white", align: "center", alignBind: "자리", valign: "middle" },
     ],
   },
   {
