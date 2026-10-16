@@ -553,7 +553,7 @@ export function Dashboard(p: Props) {
                 <span className="cnt">{쓰임(c) === "현수막" ? "작업물" : "제안서"} {list.length}건</span>
                 {쓰임(c) === "현수막" && <em className="refmark">인쇄물 · 규격으로 만듭니다</em>}
                 <div className="spacer" />
-                <label className="btn sm" title="완성된 파일을 작업물로 등록합니다">
+                <label className="btn sm" title="완성된 파일을 한 건씩 등록합니다 (아래 자료함이 아니라 여기로)">
                   + 완성본 등록
                   <input type="file" multiple className="숨은칸"
                     onChange={(e) => {

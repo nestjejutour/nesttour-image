@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { 작게끝 } from "../core/paper";
 import type { Category, DeckDraft, Draft, LibItem, PageType, Project, Slide, StylePreset } from "../core/types";
 import { GripH, usePanel } from "./panels";
 import { interpret } from "../core/interpret";
@@ -85,7 +86,7 @@ export function Browse({
       const h = el.clientHeight - 80;   // 아래 버튼 자리
       if (w <= 0 || h <= 0) return;
       const z = Math.min(w / (style.slide.widthIn * 96), h / (style.slide.heightIn * 96));
-      setZoom(Math.max(0.25, Math.min(1.6, Number(z.toFixed(3)))));
+      setZoom(Math.max(작게끝, Math.min(1.6, Number(z.toFixed(3)))));
     };
     fit();
     const ro = new ResizeObserver(fit);

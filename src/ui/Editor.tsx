@@ -8,7 +8,7 @@ import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
 import { downloadPdf } from "../render/pdf";
-import { PRINT_SIZES, SLIDE_SIZES, slideSizeOf } from "../core/paper";
+import { PRINT_SIZES, SLIDE_SIZES, slideSizeOf, 작게끝 } from "../core/paper";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
 import { SourceDrawer } from "./SourceDrawer";
@@ -259,7 +259,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
       const h = el.clientHeight - 86;
       if (w <= 0 || h <= 0) return;
       const z = Math.min(w / (style.slide.widthIn * 96), h / (style.slide.heightIn * 96));
-      setZoom(Math.max(0.2, Math.min(1.2, Number(z.toFixed(3)))));
+      setZoom(Math.max(작게끝, Math.min(1.2, Number(z.toFixed(3)))));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -526,7 +526,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
                 />
               </div>
               <div className="zoom" style={{ marginTop: 12, justifyContent: "center" }}>
-                <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.max(0.2, z - 0.1)); }}>−</button>
+                <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.max(작게끝, z - 0.1)); }}>−</button>
                 <span style={{ minWidth: 48, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
                 <button className="btn sm" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(1.6, z + 0.1)); }}>+</button>
                 <button className={`btn sm ${autoFit ? "accent" : ""}`} onClick={() => setAutoFit(true)}>화면 맞춤</button>

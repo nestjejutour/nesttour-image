@@ -1418,3 +1418,4 @@ ol.saylist li::before {
   background: var(--bg); flex-shrink: 0;
 }
 .browse-docs .lib { margin-top: 14px; padding-top: 0; border-top: 0; }
+.libhead .무슨칸 { color: var(--muted); }

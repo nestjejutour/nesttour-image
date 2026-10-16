@@ -59,5 +59,14 @@ console.log("건별 자료(원본):", await pg.evaluate(() => {
 // 한 건을 열면 그 그림이 보이고 그 건의 자료에 원본이 있어야 한다
 await pg.locator(".cardwrap").first().click(); await pg.waitForTimeout(1500);
 console.log("연 뒤 이 건의 자료:", await pg.locator(".browse-docs .libcard").count(), "개 ← 1 이어야 한다");
+// 화면에 들어가는가 — 400×90cm 가 네 배 크게 나오면 안 된다
+const 담김 = await pg.evaluate(() => {
+  const 무대 = document.querySelector(".browse-stage");
+  const 판 = document.querySelector(".browse-stage .stage-inner > *");
+  if (!무대 || !판) return null;
+  const a = 무대.getBoundingClientRect(), b = 판.getBoundingClientRect();
+  return { 무대: Math.round(a.width), 판: Math.round(b.width), 넘치나: b.width > a.width + 2 };
+});
+console.log("무대 너비:", 담김?.무대, "· 판 너비:", 담김?.판, 담김?.넘치나 ? "← 넘침 ✗" : "← 들어감 ✓");
 await pg.screenshot({ path: `${OUT}/완성본열기.png` });
 await b.close();

@@ -62,3 +62,13 @@ export function fitToPaper(widthIn: number, heightIn: number) {
     plain: Math.abs(scale - 1) < 0.001 && Math.abs(widthIn - DESIGN.widthIn) < 0.02,
   };
 }
+
+
+/**
+ * 화면에 맞추는 배율의 아래 끝.
+ *
+ * 16:9 한 장(10인치)만 생각하고 0.25 로 막아 두었더니
+ * 400×90cm 현수막(157인치)이 네 배 크게 나와 화면을 넘쳤다.
+ * 큰 판도 들어가야 하므로 끝까지 열어 둔다.
+ */
+export const 작게끝 = 0.02;

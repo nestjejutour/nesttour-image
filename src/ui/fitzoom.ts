@@ -1,3 +1,4 @@
+import { 작게끝 } from "../core/paper";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -26,7 +27,7 @@ export function useFit(
       const h = el.clientHeight - padY;
       if (w <= 0 || h <= 0) return;
       const z = Math.min(w / (widthIn * 96), h / (heightIn * 96));
-      setZoom(Math.max(0.3, Math.min(1.8, Number(z.toFixed(3)))));
+      setZoom(Math.max(작게끝, Math.min(1.8, Number(z.toFixed(3)))));
     };
     fit();
     const ro = new ResizeObserver(fit);

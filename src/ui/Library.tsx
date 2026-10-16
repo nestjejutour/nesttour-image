@@ -260,12 +260,15 @@ export function Library({ sel, projectId, 제목, categories, items, byName, onA
     <div className="lib">
       <div className="libhead">
         <b>{제목 ?? "자료"}</b>
+        {!projectId && <small className="무슨칸">참고용 — 제안서가 아닌 것</small>}
         <small>{보일것.length}개{못뽑은수 > 0 && ` · 그림 못 뽑음 ${못뽑은수}개`}</small>
         {방금 !== null && <small className="방금">{방금}개 담아 저장했습니다</small>}
         {만든폴더.length > 0 && (
           <small className="방금">폴더 {만든폴더.join(" · ")} 를 분류로 만들었습니다</small>
         )}
-        {자리 && <small title="이 기기에서 쓰고 있는 자리">{자리}</small>}
+        {자리 && 보일것.length > 0 && (
+          <small title="이 기기(브라우저)가 쓰고 있는 저장 공간 전체입니다">저장 공간 {자리}</small>
+        )}
         {고른것.length > 0 && 받을수있는수 === 0 && (
           <small className="없음">선택한 자료에 원본이 없어 저장할 수 없습니다</small>
         )}
