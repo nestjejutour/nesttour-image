@@ -3,7 +3,7 @@ import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "..
 import type { Backend } from "../store/backend";
 import { firebaseBackend, firebaseReady, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
-import type { Category, Content, DeckDraft, Doc, Draft, HistoryEntry, Person, Project, RuleScope, Slide } from "../core/types";
+import type { Category, Content, DeckDraft, Doc, Draft, HistoryEntry, LibItem, Person, Project, RuleScope, Slide } from "../core/types";
 import { overrideWith, overridesFrom, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
 import { Editor } from "./Editor";
@@ -477,6 +477,7 @@ function Studio({
       return {
         ...d,
         projects: d.projects.map((p) => (치울것.has(p.category) ? { ...p, category: 옮길곳 } : p)),
+        library: d.library.map((x) => (치울것.has(x.categoryId) ? { ...x, categoryId: 옮길곳 } : x)),
         categories: d.categories
           .filter((c) => !(치울것.has(c.id) && !c.builtIn))
           .map((c) => (치울것.has(c.id) ? { ...c, hidden: true } : c)),
@@ -904,6 +905,19 @@ function Studio({
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
             onReorderCategories={reorderCategories}
             onRestoreCategory={restoreCategory}
+            library={db.library}
+            byName={나.name}
+            onAddLib={(xs: LibItem[]) => {
+              update((d) => ({ ...d, library: [...xs, ...d.library] }));
+              const 곳 = db.categories.find((c) => c.id === xs[0]?.categoryId)?.name ?? "자료함";
+              자취("자료함", 곳, `자료 ${xs.length}개 넣음`);
+            }}
+            onRemoveLib={(id: string) =>
+              update((d) => ({ ...d, library: d.library.filter((x) => x.id !== id) }))}
+            onRenameLib={(id: string, name: string) =>
+              update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) }))}
+            onMoveLib={(id: string, categoryId: string) =>
+              update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, categoryId } : x)) }))}
             onChangeKind={(id, kind) =>
               update((d) => ({ ...d, categories: d.categories.map((c) =>
                 c.id === id ? { ...c, kind } : (c.parentId === id ? { ...c, kind } : c)) }))}

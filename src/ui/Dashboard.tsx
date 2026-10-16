@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Category, PageType, Project, StylePreset } from "../core/types";
+import type { Category, LibItem, PageType, Project, StylePreset } from "../core/types";
+import { Library } from "./Library";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { clientKind, moodsOf, type Mood } from "../core/mood";
@@ -38,6 +39,13 @@ interface Props {
   onChangeKind: (id: string, kind: Category["kind"]) => void;
   /** 치워 둔 분류 도로 꺼내기 */
   onRestoreCategory: (id: string) => void;
+  /* ── 분류에 쌓아 두는 자료 ── */
+  library: LibItem[];
+  byName?: string;
+  onAddLib: (xs: LibItem[]) => void;
+  onRemoveLib: (id: string) => void;
+  onRenameLib: (id: string, name: string) => void;
+  onMoveLib: (id: string, categoryId: string) => void;
 }
 
 const PER_ROW = 5;
@@ -452,8 +460,8 @@ export function Dashboard(p: Props) {
 
         {shown.length === 0 && (
           <div className="empty-state">
-            <p style={{ fontSize: 18, color: "var(--ink)", marginTop: 0 }}>여기엔 아직 자료가 없습니다</p>
-            <p style={{ fontSize: 15.5 }}>완성본을 올리거나 새 제안서를 만들면 여기 쌓입니다.</p>
+            <p style={{ fontSize: 18, color: "var(--ink)", marginTop: 0 }}>여기엔 아직 제안서가 없습니다</p>
+            <p style={{ fontSize: 15.5 }}>완성본을 올리거나 새 제안서를 만들면 여기 쌓입니다. 아래에 자료를 넣어 두셔도 됩니다.</p>
           </div>
         )}
 
@@ -486,6 +494,18 @@ export function Dashboard(p: Props) {
             </section>
           );
         })}
+
+        {/* 분류에 쌓아 두는 자료 — 현수막 .ai 처럼 제안서가 아닌 것들 */}
+        <Library
+          sel={sel}
+          categories={categories.filter((c) => !c.hidden)}
+          items={p.library}
+          byName={p.byName}
+          onAdd={p.onAddLib}
+          onRemove={p.onRemoveLib}
+          onRename={p.onRenameLib}
+          onMove={p.onMoveLib}
+        />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import type { Category, HistoryEntry, PageType, Person, Project, Rule, StylePreset, Trail } from "../core/types";
+import type { Category, HistoryEntry, LibItem, PageType, Person, Project, Rule, StylePreset, Trail } from "../core/types";
 import { BUILT_IN_STYLES } from "../core/style";
 import { BUILT_IN_PAGE_TYPES } from "../core/pageTypes";
 import { SEED_PROJECTS } from "./seed";
@@ -31,6 +31,8 @@ export interface DB {
   history: HistoryEntry[];
   /** "프로젝트id:페이지id" → 그 페이지에서 오간 대화 */
   chats: Record<string, ChatTurn[]>;
+  /** 분류에 쌓아 둔 자료 (미리보기 그림은 따로 IndexedDB 에 있다) */
+  library: LibItem[];
   /** 들어온 적 있는 사람들 (처음 들어올 때 이름이 적힌다) */
   people: Person[];
   /** 대표 암호 · 직원 암호. 어느 쪽을 넣었느냐로 자리가 갈린다 */
@@ -93,6 +95,7 @@ function seed(): DB {
     projects: SEED_PROJECTS,
     history: [],
     chats: {},
+    library: [],
     // 이름을 미리 깔아 두지 않는다. 처음 들어오는 사람이 제 이름을 적는다.
     people: [],
     대표암호: "2230",
@@ -124,6 +127,7 @@ export function load(): DB {
     projects: saved.projects?.length ? saved.projects : db.projects,
       history: saved.history ?? [],
       chats: saved.chats ?? {},
+      library: saved.library ?? [],
       people: saved.people ?? [],
       대표암호: saved.대표암호 || db.대표암호,
       직원암호: saved.직원암호 || db.직원암호,
@@ -147,6 +151,7 @@ export function save(db: DB): void {
         projects: db.projects,
         history: db.history,
         chats: db.chats,
+        library: db.library,
         people: db.people,
         대표암호: db.대표암호,
         직원암호: db.직원암호,
@@ -224,6 +229,7 @@ export function merge(saved: Partial<DB>): DB {
     projects: saved.projects?.length ? saved.projects : db.projects,
     history: saved.history ?? [],
     chats: saved.chats ?? {},
+    library: saved.library ?? [],
     people: saved.people ?? [],
     대표암호: saved.대표암호 || db.대표암호,
     직원암호: saved.직원암호 || db.직원암호,

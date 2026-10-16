@@ -1,0 +1,94 @@
+/**
+ * 파일에서 미리보기 그림 한 장을 뽑는다.
+ *
+ * · .ai  — 일러스트가 "PDF 호환 파일 만들기" 로 저장했으면 속이 PDF 다.
+ *          그 옵션을 끄고 저장한 파일은 그림을 못 뽑는다. 이름만 남는다.
+ * · .pdf — 첫 장
+ * · 그림 — 그대로 줄인다
+ * · 그 밖 — 못 뽑는다
+ *
+ * 원본은 담지 않는다. 현수막 .ai 한 장이 수십~수백 MB 라 100개면 몇 GB 다.
+ * 원본은 회사 자료함에 그대로 두고, 여기에는 보고 고르기 위한 그림만 둔다.
+ */
+
+/** 긴 변을 이만큼으로 줄인다. 100장을 담아도 저장 칸이 버틴다 */
+const 길이 = 360;
+const 품질 = 0.68;
+
+export type 미리보기 = { thumb?: string; w?: number; h?: number; 못뽑은까닭?: string };
+
+const 그려담기 = (c: HTMLCanvasElement) => c.toDataURL("image/jpeg", 품질);
+
+/** 긴 변 기준으로 줄일 비율 */
+const 비율 = (w: number, h: number) => Math.min(1, 길이 / Math.max(w, h));
+
+export async function 미리보기뽑기(file: File): Promise<미리보기> {
+  const 이름 = file.name.toLowerCase();
+  const 확장 = 이름.slice(이름.lastIndexOf(".") + 1);
+
+  try {
+    if (file.type.startsWith("image/") || ["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(확장)) {
+      return await 그림에서(file);
+    }
+    if (확장 === "pdf" || 확장 === "ai" || 확장 === "eps" || file.type === "application/pdf") {
+      return await 피디에프에서(file);
+    }
+    return { 못뽑은까닭: "그림을 뽑을 수 없는 형식입니다" };
+  } catch (e: any) {
+    const 말 = String(e?.message ?? e);
+    // 일러스트가 PDF 호환 없이 저장한 .ai 가 여기로 온다
+    if (확장 === "ai") {
+      return { 못뽑은까닭: "PDF 호환으로 저장된 파일이 아닙니다 (그림을 못 뽑습니다)" };
+    }
+    return { 못뽑은까닭: 말.slice(0, 80) };
+  }
+}
+
+async function 그림에서(file: File): Promise<미리보기> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error("그림을 열지 못했습니다"));
+      i.src = url;
+    });
+    const r = 비율(img.naturalWidth, img.naturalHeight);
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.naturalWidth * r));
+    c.height = Math.max(1, Math.round(img.naturalHeight * r));
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return { thumb: 그려담기(c), w: img.naturalWidth, h: img.naturalHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function 피디에프에서(file: File): Promise<미리보기> {
+  const pdfjs = await import("pdfjs-dist");
+  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjs.getDocument({ data: buf }).promise;
+  const page = await doc.getPage(1);
+
+  const 원래 = page.getViewport({ scale: 1 });
+  const r = 비율(원래.width, 원래.height);
+  const view = page.getViewport({ scale: r });
+
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(view.width));
+  c.height = Math.max(1, Math.round(view.height));
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, c.width, c.height);
+  await page.render({ canvasContext: ctx, viewport: view, canvas: c } as any).promise;
+
+  const out = { thumb: 그려담기(c), w: Math.round(원래.width), h: Math.round(원래.height) };
+  try { await doc.destroy(); } catch { /* 닫다 실패해도 그림은 나왔다 */ }
+  return out;
+}

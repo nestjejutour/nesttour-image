@@ -451,3 +451,33 @@ export interface Trail {
   /** "만듦" · "고침" · "이름 바꿈" · "지움" · "시안 적용" 같은 한마디 */
   what: string;
 }
+
+
+/**
+ * 분류에 쌓아 두는 자료 한 장.
+ *
+ * 현수막 .ai 처럼 "제안서가 아닌 것" 을 분류별로 모아 두고 꺼내 쓰기 위함이다.
+ * 담는 것은 미리보기 그림과 이름뿐이다 — 원본은 회사 자료함에 그대로 둔다.
+ * (현수막 .ai 한 장이 수십~수백 MB 다. 100개면 몇 GB 라 브라우저에 못 담는다)
+ */
+export interface LibItem {
+  id: string;
+  /** 파일 이름 (고칠 수 있다) */
+  name: string;
+  /** 어느 분류에 담겼는가 (세부 분류면 그 id) */
+  categoryId: string;
+  /** 원본 파일 이름 — 회사 자료함에서 찾을 때 쓴다 */
+  fileName: string;
+  /** 원본 크기 (바이트) */
+  size: number;
+  /** 원본 가로·세로 (아는 경우) */
+  w?: number;
+  h?: number;
+  /** 미리보기를 못 뽑았으면 그 까닭 */
+  noThumb?: string;
+  /** 찾을 때 쓰는 꼬리표 */
+  tags?: string[];
+  note?: string;
+  addedAt: string;
+  byName?: string;
+}

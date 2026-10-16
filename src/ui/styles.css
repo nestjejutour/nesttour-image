@@ -1219,3 +1219,54 @@ ol.saylist li::before {
 }
 /* "전체" 줄에는 손댈 게 없다 */
 .dash-nav > .navitem .cnt { margin-left: auto; }
+
+/* ── 자료함 — 분류에 쌓아 두는 것들 ── */
+.lib { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
+.libhead { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; flex-wrap: wrap; }
+.libhead b { font-size: 16px; }
+.libhead small { color: var(--muted); font-size: 13px; }
+.libfind {
+  width: 180px; padding: 5px 9px; font-size: 14px;
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.libdrop {
+  border: 1.5px dashed var(--line); border-radius: 10px;
+  padding: 18px; text-align: center; color: var(--muted);
+  transition: border-color .12s, background .12s;
+}
+.libdrop.들어옴 { border-color: var(--accent); background: var(--tint-warm); }
+.libdrop b { display: block; color: var(--ink); font-size: 14.5px; margin-bottom: 4px; }
+.libdrop small { font-size: 13px; line-height: 1.55; }
+.libbar { height: 4px; background: var(--line); border-radius: 3px; margin: 9px auto; max-width: 320px; }
+.libbar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .15s; }
+
+.libgrid {
+  display: grid; gap: 12px; margin-top: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+}
+.libcard {
+  position: relative; border: 1px solid var(--line); border-radius: 9px;
+  background: #fff; overflow: visible;
+}
+.libshot {
+  display: block; width: 100%; height: 124px; padding: 0; border: 0;
+  background: var(--tint); border-radius: 8px 8px 0 0; overflow: hidden;
+  cursor: zoom-in; line-height: 0;
+}
+.libshot img { width: 100%; height: 100%; object-fit: contain; }
+.nothumb {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  color: var(--muted); font-size: 12.5px; line-height: 1.4; padding: 0 10px; text-align: center;
+}
+.bigview .nothumb { color: #fff; height: 200px; font-size: 15px; }
+.bigview img.big { max-width: 86vw; max-height: 78vh; background: #fff; }
+.libname { padding: 8px 10px; }
+.libname b { display: block; font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.libname small { color: var(--muted); font-size: 11.5px; }
+.librename { width: calc(100% - 16px); margin: 7px 8px; padding: 5px 7px; border: 1px solid var(--ink); border-radius: 6px; font-size: 13.5px; }
+.libmore { position: absolute; right: 4px; bottom: 8px; }
+.libcard .rowmenu { top: auto; bottom: 34px; }
+.libcard .rowmenu select {
+  width: 100%; margin: 3px 0; padding: 6px 8px; font-size: 13.5px;
+  border: 1px solid var(--line); border-radius: 6px;
+}
