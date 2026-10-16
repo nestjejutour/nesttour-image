@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 import { readdirSync, readFileSync } from "node:fs";
-const OUT = process.argv[2] || ".";
+const OUT = process.argv[2] || "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad";
 const 터 = "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad/현수막";
 const 짐 = readdirSync(터).map((n) => ({ name: n, b64: readFileSync(`${터}/${n}`).toString("base64") }));
 
@@ -34,7 +34,7 @@ console.log("고르기 창 열리나:", await (async () => {
 })());
 await pg.keyboard.press("Escape"); await pg.waitForTimeout(300);
 
-const 꽂혔나 = await pg.locator(".libhead input[type=file]").evaluate((el, 짐) => {
+const 꽂혔나 = await pg.locator(".libhead input[type=file]").first().evaluate((el, 짐) => {
   const dt = new DataTransfer();
   for (const f of 짐) {
     const bin = atob(f.b64);

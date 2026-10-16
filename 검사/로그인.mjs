@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-const OUT = process.argv[2] || ".";
+const OUT = process.argv[2] || "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad";
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await b.newPage({ viewport: { width: 1700, height: 1000 }, deviceScaleFactor: 1.2 });
 pg.on("pageerror", e => console.log("✗ 페이지오류:", e.message));

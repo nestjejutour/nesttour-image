@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import { readFileSync } from "fs";
-const S = process.argv[2];
+// 시험자료는 검사 폴더 안에 있다 (검사/시험자료만들기.mjs 가 만든다)
+const S = process.argv[2] || "검사";
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await b.newPage({ viewport: { width: 1700, height: 1000 }, deviceScaleFactor: 1.4 });
 pg.on("pageerror", e => console.log("✗ 페이지오류:", e.message));
@@ -41,6 +42,10 @@ const step = (n, ok, extra = "") => console.log(`${ok ? "·" : "✗"} ${n}${extr
 await pg.goto("http://localhost:5173/", { waitUntil: "networkidle" });
 await pg.evaluate(() => localStorage.clear());
 await pg.reload({ waitUntil: "networkidle" }); await pg.waitForTimeout(1800);
+// 로그인 화면이 생긴 뒤로는 여기를 지나야 보관함이 나온다
+await pg.locator(".namebox").fill("박시영"); await pg.locator(".pinbox").fill("2230");
+await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1600);
+
 
 /* ① 보관함 대화창에 제안요청서를 끌어다 놓는다 */
 const bytes = Array.from(readFileSync(`${S}/시험자료/제안요청서.hwp`));

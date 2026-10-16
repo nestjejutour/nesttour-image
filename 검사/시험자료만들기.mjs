@@ -1,7 +1,7 @@
 import { zipSync, strToU8, deflateSync } from "fflate";
 import CFB from "cfb";
 import { writeFileSync } from "fs";
-const OUT = process.argv[2];
+const OUT = process.argv[2] || "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad";
 const enc = (s) => strToU8(s);
 
 /* ── 워드 ── */

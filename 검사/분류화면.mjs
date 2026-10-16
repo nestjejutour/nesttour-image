@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
-const OUT = process.argv[2] || ".";
+const OUT = process.argv[2] || "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad";
 const 터 = "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad/현수막";
 const 짐 = ["현수막-1.ai", "현수막-2.ai"].map((n) => ({ name: n, b64: readFileSync(`${터}/${n}`).toString("base64") }));
 
@@ -64,13 +64,16 @@ await pg.locator(".빈자리").evaluate((el, 짐) => {
   }
   el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
 }, 짐);
-await pg.waitForFunction(() => document.querySelectorAll(".libcard").length >= 2, null, { timeout: 40000 });
+// 제안서 자리에 놓은 것은 "작업물" 로 선다 — 아래 자료함이 아니라 위 칸이다.
+// (대표님: "여기에서 등록하는건 모두 위에 들어가야해")
+await pg.waitForFunction(() => document.querySelectorAll(".cardwrap").length >= 2, null, { timeout: 40000 });
 await pg.waitForTimeout(900);
-console.log("빈 제안서 자리에 놓은 뒤 자료:", await pg.locator(".libcard").count(), "개 ← 2 여야 한다");
+console.log("빈 제안서 자리에 놓은 뒤 작업물:", await pg.locator(".cardwrap").count(), "건 ← 2 여야 한다");
+console.log("아래 자료함:", await pg.locator(".libcard").count(), "개 ← 0 이어야 한다");
 console.log("어느 분류로:", await pg.evaluate(() => {
   const d = JSON.parse(localStorage.getItem("mtmb-studio-v1") || "{}");
   const 이름 = (id) => (d.categories || []).find((c) => c.id === id)?.name ?? id;
-  return [...new Set((d.library || []).map((x) => 이름(x.categoryId)))].join(",");
+  return [...new Set((d.projects || []).map((x) => 이름(x.category)))].join(",");
 }));
 
 // 제안서를 현수막으로 옮긴다

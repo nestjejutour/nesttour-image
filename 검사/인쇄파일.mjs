@@ -17,8 +17,16 @@ const r = await pg.evaluate(async () => {
   const { interpret } = await import("/src/core/interpret.ts");
   const { MORE_PAGE_TYPES } = await import("/src/core/pageTypes.more.ts");
   const { 인쇄배율 } = await import("/src/render/canvas.ts");
-  const { jsPDF } = await import("jspdf");
-  const { renderToBlob } = await import("/src/render/canvas.ts");
+  const { downloadPdf } = await import("/src/render/pdf.ts");
+
+  // 파일을 내려받지 않고 가로채서 크기만 잰다
+  const 원래 = HTMLAnchorElement.prototype.click;
+  let 받은크기 = null;
+  window.__잰것 = () => 받은크기;
+  const 원래URL = URL.createObjectURL;
+  URL.createObjectURL = function (blob) { 받은크기 = blob.size; return 원래URL.call(URL, blob); };
+  HTMLAnchorElement.prototype.click = function () { /* 내려받지 않는다 */ };
+  window.__되돌리기 = () => { HTMLAnchorElement.prototype.click = 원래; URL.createObjectURL = 원래URL; };
 
   const 틀 = MORE_PAGE_TYPES.find((t) => t.id === "banner-ai");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 280">
@@ -32,14 +40,12 @@ const r = await pg.evaluate(async () => {
     const d = 인쇄배율(style);
     let 말 = "";
     let MB = null;
+    받은크기 = null;
     try {
-      const blob = await renderToBlob(ops, style, { type: "image/jpeg", quality: 0.95, dpi: d });
-      if (!blob) throw new Error("그림을 못 떴다");
-      const url = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
-      const doc = new jsPDF({ orientation: 가로in >= 세로in ? "landscape" : "portrait", unit: "in", format: [가로in, 세로in] });
-      doc.addImage(url, "JPEG", 0, 0, 가로in, 세로in);
-      const out = doc.output("blob");
-      MB = +(out.size / 1024 / 1024).toFixed(2);
+      const r = await downloadPdf([{ ops }], style, "검사", undefined, "screen", true);
+      if (!r.ok) throw new Error(r.error ?? "저장 실패");
+      MB = 받은크기 === null ? null : +(받은크기 / 1024 / 1024).toFixed(2);
+      if (MB === null) 말 = "파일이 안 만들어졌다";
     } catch (e) { 말 = String(e?.message ?? e); }
     return { 이름, dpi: Math.round(d), MB, 초: +((performance.now() - t0) / 1000).toFixed(1), 말 };
   };

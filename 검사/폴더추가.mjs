@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
-const OUT = process.argv[2] || ".";
+const OUT = process.argv[2] || "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad";
 const 터 = "/tmp/claude-0/-home-user-nesttour-image/503da243-c6eb-561b-b5d2-32ad2b29269f/scratchpad/현수막폴더";
 const 짐 = [
   { 길: "현수막폴더/개인/현수막-1.ai", 실: `${터}/개인/현수막-1.ai` },

@@ -4,3 +4,10 @@ dist/
 .env.local
 .DS_Store
 *.log
+
+# 검사가 뱉는 찌꺼기 — 돌릴 때마다 바뀌어서 커밋을 어지럽힌다
+/*.png
+/download
+/*.bin
+/undefined/
+검사/shots/
