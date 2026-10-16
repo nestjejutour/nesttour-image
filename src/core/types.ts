@@ -229,10 +229,27 @@ export interface Slide {
   adjust?: Record<string, Nudge>;
   /** 이 페이지에만 더 넣은 것들 */
   extras?: Extra[];
-  /** 시안 A/B/C */
-  variants?: Content[];
-  chosenVariant?: number;
+  /** 이 한 장만 규격을 달리할 때 (시안을 고르면 여기 들어온다) */
+  styleOverride?: StyleOverride;
   note?: string;
+}
+
+/**
+ * 시안 하나.
+ *
+ * 아직 제안서에 들어가지 않은 "이렇게 하면 어떻겠습니까" 다.
+ * 고르면 그때 페이지가 바뀐다.
+ */
+export interface Draft {
+  id: string;
+  /** 사람에게 보여 줄 이름 — "선 하나로 정리", "색 빼고 글자만" */
+  name: string;
+  /** 왜 이렇게 했는지 한 줄 */
+  why?: string;
+  pageTypeId: string;
+  content: Content;
+  /** 이 시안만의 규격 */
+  styleOverride?: StyleOverride;
 }
 
 // ---------- 창고 6 : 분류(메뉴) ----------

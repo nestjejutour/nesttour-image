@@ -18,6 +18,11 @@ export type Action =
   /* 아래 둘은 범위를 고르는 확인을 받는다 */
   | { do: "스타일제안"; path: string; value: number | string; why: string; scope?: "제안서" | "스타일" }
   | { do: "규칙제안"; text: string; scope?: "공통" | "스타일" | "분류" | "제안서" }
+  /* 아직 넣지 않고 "이렇게 하면 어떻겠습니까" 로 보여 준다 */
+  | { do: "시안"; options: {
+      name: string; why?: string; pageTypeId?: string;
+      content: Content; style?: Record<string, number | string>;
+    }[] }
   /* 보관함에서 — 제안서 자체를 새로 만든다 */
   | { do: "새제안서"; title: string; client?: string; category?: string;
       slides: { pageTypeId: string; content: Content }[] };
@@ -163,6 +168,19 @@ ${deckBlock}
      scope: "제안서"=이 제안서만 / "스타일"=이 브랜드 규격 전체.
      확신이 없으면 "제안서"로 제안하라. 1회성 지시가 전체로 번지면 안 된다.
      쓸 수 있는 값: ${sizeTokens}, color.ink, color.muted, color.accent, color.line
+{"do":"시안","options":[{"name":"...","why":"...","pageTypeId":"...","content":{...},"style":{...}}]}
+   — 디자인을 바꿔 달라고 할 때 쓴다. 바로 고치지 말고 시안을 2~3개 내놓아라.
+     대표가 화면에서 나란히 보고 고른다. 고른 것만 페이지에 들어간다.
+     "다시 디자인해줘", "세련되게", "색 빼고", "간결하게", "다르게 해봐" → 전부 이것이다.
+     · name: 한눈에 구분되는 이름. "선 하나로 정리", "색 빼고 글자만", "사진을 크게"
+     · why: 왜 이렇게 했는지 한 줄
+     · pageTypeId: 틀을 바꿀 거면 넣는다. 그대로 두면 지금 틀을 쓴다.
+       틀을 바꾸면 content 는 그 틀의 칸 이름에 맞춰야 한다.
+     · content: 그 틀에 들어갈 내용. 지금 글을 그대로 옮기되 길이만 다듬어라.
+       글을 지어내지 마라. 숫자는 절대 바꾸지 마라.
+     · style: 이 한 장만의 규격. 예) {"type.pageTitle.size":20,"color.accent":"#2B2B2B"}
+       색을 빼라고 하면 accent 를 ink 색과 같게 두면 된다.
+     세 개는 서로 뚜렷이 달라야 한다. 비슷한 걸 세 개 내놓지 마라.
 {"do":"규칙제안","text":"...","scope":"스타일"}
    — 지시가 "앞으로도 이렇게"로 들릴 때만. 매번 제안하지 마라.
      scope: "공통"=어떤 문서든 / "스타일"=이 브랜드만 / "분류"=이 문서 종류만 / "제안서"=이 건만.
@@ -174,6 +192,8 @@ ${deckBlock}
 {"say":"대표에게 할 말 한두 문장","actions":[ ... ]}
 
 - say 는 한국어로 짧고 단정하게. 인사말·사과 없이 무엇을 바꿨는지만.
+- 디자인을 바꿔 달라는 말에는 "시안" 으로 답하라. 바로 고쳐 버리지 마라.
+  시안은 화면에 그림으로 바로 보인다. "보여드릴 수 없다" 고 말하지 마라.
 - 고칠 게 없거나 질문이면 actions 를 빈 배열로 두고 say 에만 답하라.
 - 추측해서 숫자를 지어내지 마라. 모르면 그 칸은 "" 로 두고 say 에서 물어라.
 - 위에 적힌 "반드시 지킬 원칙"을 어기는 요청이면, 그대로 하지 말고 왜 그런지 한 문장으로 말하고 대안을 제시하라.

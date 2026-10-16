@@ -300,7 +300,14 @@ function ClaudeTab(p: Props) {
     let made: string[] = [];
     if (now.length) { made = p.onActions(now); p.onNote(text); }
 
-    const say = r.data.say || "고쳤습니다.";
+    // 시안을 냈으면 그 이름을 말에 남긴다.
+    // 다음에 "이것도 별로" 라고 하면 AI 가 뭘 이미 보여줬는지 알아야 한다.
+    const 낸시안 = all.find((a) => a.do === "시안") as Extract<Action, { do: "시안" }> | undefined;
+    const say =
+      (r.data.say || "고쳤습니다.") +
+      (낸시안?.options?.length
+        ? `\n\n시안: ${낸시안.options.map((o) => o.name).join(" · ")}`
+        : "");
     p.onTurns((t) => {
       const next = [...t, { role: "assistant" as const, text: say, ...(made.length ? { made } : {}) }];
       if (later.length) setPending((q) => [...q, ...later.map((a) => ({ at: next.length - 1, action: a }))]);

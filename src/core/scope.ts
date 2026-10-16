@@ -41,17 +41,29 @@ export function scopeLabel(
  * 이 제안서에 실제로 적용되는 규격을 만든다.
  * 기본 스타일 위에 "이 제안서만" 바꾼 값을 덮는다.
  */
-export function styleFor(base: StylePreset, o?: StyleOverride): StylePreset {
-  if (!o) return base;
-  return {
-    ...base,
-    slide: { ...base.slide, ...(o.slide ?? {}) },
-    hairline: o.hairline ?? base.hairline,
-    color: { ...base.color, ...(o.color ?? {}) },
-    type: Object.fromEntries(
-      Object.entries(base.type).map(([k, v]) => [k, { ...v, ...(o.type?.[k] ?? {}) }]),
-    ),
-  };
+export function styleFor(base: StylePreset, ...layers: (StyleOverride | undefined)[]): StylePreset {
+  let out = base;
+  for (const o of layers) {
+    if (!o) continue;
+    out = {
+      ...out,
+      slide: { ...out.slide, ...(o.slide ?? {}) },
+      hairline: o.hairline ?? out.hairline,
+      color: { ...out.color, ...(o.color ?? {}) },
+      type: Object.fromEntries(
+        Object.entries(out.type).map(([k, v]) => [k, { ...v, ...(o.type?.[k] ?? {}) }]),
+      ),
+    };
+  }
+  return out;
+}
+
+/** 길-값 묶음을 덮어쓰기 묶음으로 ("type.pageTitle.size": 22 …) */
+export function overridesFrom(pairs: Record<string, number | string> | undefined): StyleOverride | undefined {
+  if (!pairs) return undefined;
+  let o: StyleOverride | undefined;
+  for (const [path, value] of Object.entries(pairs)) o = overrideWith(o, path, value);
+  return o;
 }
 
 /** "type.pageTitle.size" 같은 길에 값을 넣은 덮어쓰기 묶음을 만든다 */

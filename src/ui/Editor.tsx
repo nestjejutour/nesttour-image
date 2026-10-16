@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Category, Content, PageType, Project, StylePreset, Todo } from "../core/types";
+import type { Category, Content, Draft, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
+import { styleFor } from "../core/scope";
 import { setAt } from "../core/content";
 import { readShrunk } from "../core/image";
 import type { Extra, Nudge } from "../core/types";
@@ -11,6 +12,7 @@ import { PRINT_SIZES, SLIDE_SIZES, slideSizeOf } from "../core/paper";
 import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
 import { SourceDrawer } from "./SourceDrawer";
+import { Drafts } from "./Drafts";
 import { Files } from "./Files";
 import type { Action } from "../ai/chat";
 import type { ChatTurn } from "../store/db";
@@ -46,9 +48,16 @@ interface Props {
   toServer: boolean;
   /** 이 건의 판 크기 바꾸기 (16:9 / 4:3 / A4 …) */
   onSlideSize: (widthIn: number, heightIn: number) => void;
+  /** AI 가 내놓은 시안들 (고르기 전까지 제안서는 그대로다) */
+  drafts: Draft[];
+  onPickDraft: (d: Draft) => void;
+  onCloseDrafts: () => void;
+  /** 덮어쓰기 전의 밑 규격 — 시안마다 다르게 그리려면 필요하다 */
+  baseStyle: StylePreset;
 }
 
-export function Editor({ project, style, pageTypes, categories, allProjects, cur, onCur, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns, toServer, onSlideSize }: Props) {
+export function Editor({ project, style, pageTypes, categories, allProjects, cur, onCur, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns, toServer, onSlideSize,
+  drafts, onPickDraft, onCloseDrafts, baseStyle }: Props) {
   const [zoom, setZoom] = useState(0.78);
   /** 폭에 맞춰 자동으로 줄인다. +/- 를 누르면 손맛을 지킨다. */
   const [autoFit, setAutoFit] = useState(true);
@@ -84,9 +93,11 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
       project.slides.map((s, i) => {
         const t = typeOf(s.pageTypeId);
         if (!t) return { ops: [] };
+        // 시안을 고른 장은 그 장만의 규격을 갖는다
+        const 이장규격 = s.styleOverride ? styleFor(style, s.styleOverride) : style;
         return {
           ops: interpret(t, s.content, {
-            style,
+            style: 이장규격,
             assets: project.assets,
             pageNumber: pageNumbers[i],
             adjust: s.adjust,
@@ -473,13 +484,23 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         </div>
 
         {/* ── 가운데: 미리보기 (회색 바탕 위에) ── */}
+        {/* 시안이 와 있으면 작업 자리를 덮는다. 나란히 놓고 견주는 게 먼저다. */}
+        {drafts.length > 0 && (
+          <Drafts
+            drafts={drafts} project={project} slideIndex={cur}
+            baseStyle={baseStyle} pageTypes={pageTypes}
+            onPick={onPickDraft} onClose={onCloseDrafts}
+            onAgain={() => { onCloseDrafts(); setMsg("대화창에 어디가 마음에 안 드는지 적어 주시면 다시 내놓습니다."); }}
+          />
+        )}
+
         <div className="stage" ref={stageRef}>
           {slide ? (
             <div>
               <div className="stage-inner">
                 <SlideView
                   ops={plans[cur]?.ops ?? []}
-                  style={style}
+                  style={slide?.styleOverride ? styleFor(style, slide.styleOverride) : style}
                   zoom={zoom}
                   edit={{
                     picked,

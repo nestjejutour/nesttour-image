@@ -3,8 +3,8 @@ import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "..
 import type { Backend } from "../store/backend";
 import { firebaseBackend, firebaseReady, logout, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
-import type { Category, Content, Doc, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
-import { overrideWith, rulesFor, styleFor } from "../core/scope";
+import type { Category, Content, Doc, Draft, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
+import { overrideWith, overridesFrom, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
 import { Editor } from "./Editor";
 import { NewProject } from "./NewProject";
@@ -163,6 +163,8 @@ function Studio({
   const loose = useRef<Record<string, string>>({});
   /** 아직 들어갈 제안서가 없는 자료들 */
   const looseDocs = useRef<Doc[]>([]);
+  /** AI 가 내놓은 시안들 — 고르기 전까지 제안서는 그대로다 */
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
@@ -420,7 +422,7 @@ function Studio({
   const activePageType = activeSlide
     ? db.pageTypes.find((t) => t.id === activeSlide.pageTypeId) ?? null
     : null;
-  const activeStyle = styleOf(project);
+  const activeStyle = styleFor(baseStyle, project?.styleOverride, activeSlide?.styleOverride);
   const activeOps = useMemo(
     () =>
       activePageType && activeSlide && project
@@ -469,6 +471,28 @@ function Studio({
         if (fresh.length === 1) { setOpenId(fresh[0].id); setLastEdited(fresh[0].id); setCur(0); }
         return fresh.map((x) => x.id);
       }
+    }
+
+    // 디자인 시안 — 넣지 않고 화면에 띄운다. 고르면 그때 들어간다.
+    const 안 = as.find((a) => a.do === "시안") as Extract<Action, { do: "시안" }> | undefined;
+    if (안?.options?.length && openId) {
+      const now = project?.slides[cur];
+      setDrafts(
+        안.options.slice(0, 4).map((o) => ({
+          id: uid(),
+          name: o.name || "시안",
+          why: o.why,
+          pageTypeId:
+            o.pageTypeId && known.has(o.pageTypeId) ? o.pageTypeId : (now?.pageTypeId ?? ""),
+          content: o.content ?? {},
+          styleOverride: (() => {
+            const ov = overridesFrom(o.style);
+            if (ov) delete ov.slide;   // 판 크기는 한 벌이 같아야 한다
+            return ov;
+          })(),
+        })).filter((d) => d.pageTypeId),
+      );
+      return [];
     }
 
     if (!openId) return [];
@@ -522,6 +546,21 @@ function Studio({
   const putDoc = (d: Doc) => {
     if (!openId) { looseDocs.current = [...looseDocs.current, d]; return; }
     putProject((x) => ({ ...x, docs: [...(x.docs ?? []), d], updatedAt: new Date().toISOString() }));
+  };
+
+  /** 시안을 고른다 — 이때 처음으로 페이지가 바뀐다 */
+  const pickDraft = (d: Draft) => {
+    putProject((p) => ({
+      ...p,
+      slides: p.slides.map((s2, i) =>
+        i === cur
+          ? { ...s2, pageTypeId: d.pageTypeId, content: d.content, styleOverride: d.styleOverride,
+              adjust: undefined }   // 틀이 바뀌면 끌어 옮긴 자리는 뜻을 잃는다
+          : s2,
+      ),
+      updatedAt: new Date().toISOString(),
+    }));
+    setDrafts([]);
   };
 
   const setSlideContent = (next: Content) =>
@@ -602,6 +641,10 @@ function Studio({
           onStyleChange={changeStyle}
           turnsOf={turnsOf} onTurns={onTurns}
           toServer={!!backend.putFile}
+          drafts={drafts}
+          onPickDraft={pickDraft}
+          onCloseDrafts={() => setDrafts([])}
+          baseStyle={baseStyle}
           onSlideSize={(w, h) =>
             putProject((p) => ({
               ...p,
