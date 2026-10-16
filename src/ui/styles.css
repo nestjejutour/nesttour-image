@@ -1292,3 +1292,22 @@ ol.saylist li::before {
   animation: 스르륵 .25s ease-out;
 }
 @keyframes 스르륵 { from { opacity: 0; transform: translateY(-3px); } }
+.goodnote {
+  color: var(--ink); background: var(--tint); border-left: 3px solid var(--accent);
+  padding: 9px 12px; border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 14.5px; line-height: 1.6;
+}
+/* 자료함 — 고르기와 저장하기 */
+.allpick {
+  display: flex; align-items: center; gap: 5px; cursor: pointer;
+  font-size: 13.5px; color: var(--muted);
+}
+.allpick input { width: 15px; height: 15px; }
+.libpick {
+  position: absolute; left: 7px; top: 7px; z-index: 2;
+  background: rgba(255,255,255,0.92); border-radius: 5px;
+  padding: 2px; line-height: 0; cursor: pointer;
+}
+.libpick input { width: 16px; height: 16px; cursor: pointer; }
+.libcard.골랐음 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.libname small b.없음 { color: var(--accent); font-weight: 600; }
+.libdrop b.없음 { display: inline; color: var(--accent); }

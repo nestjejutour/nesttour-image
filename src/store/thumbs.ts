@@ -8,15 +8,18 @@
 
 const DB = "mtmb-thumbs";
 const 칸 = "thumbs";
+/** 원본 파일 칸. 현수막 .ai 가 1MB 안팎이라 100개도 들어간다 */
+const 원본칸 = "files";
 
 let 열린것: Promise<IDBDatabase> | null = null;
 
 function 열기(): Promise<IDBDatabase> {
   if (열린것) return 열린것;
   열린것 = new Promise((res, rej) => {
-    const r = indexedDB.open(DB, 1);
+    const r = indexedDB.open(DB, 2);
     r.onupgradeneeded = () => {
       if (!r.result.objectStoreNames.contains(칸)) r.result.createObjectStore(칸);
+      if (!r.result.objectStoreNames.contains(원본칸)) r.result.createObjectStore(원본칸);
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -24,11 +27,11 @@ function 열기(): Promise<IDBDatabase> {
   return 열린것;
 }
 
-async function 한번<T>(mode: IDBTransactionMode, 일: (s: IDBObjectStore) => IDBRequest): Promise<T> {
+async function 한번<T>(mode: IDBTransactionMode, 일: (s: IDBObjectStore) => IDBRequest, 어느칸 = 칸): Promise<T> {
   const db = await 열기();
   return new Promise((res, rej) => {
-    const t = db.transaction(칸, mode);
-    const req = 일(t.objectStore(칸));
+    const t = db.transaction(어느칸, mode);
+    const req = 일(t.objectStore(어느칸));
     req.onsuccess = () => res(req.result as T);
     req.onerror = () => rej(req.error);
   });
@@ -47,4 +50,25 @@ export const delThumb = (id: string) =>
 export async function 쓸어담기(살릴것: Set<string>) {
   const ids = await 한번<IDBValidKey[]>("readonly", (s) => s.getAllKeys());
   for (const k of ids) if (typeof k === "string" && !살릴것.has(k)) await delThumb(k);
+}
+
+
+/* ── 원본 파일 ── */
+
+export const putFile = (id: string, blob: Blob) =>
+  한번<void>("readwrite", (s) => s.put(blob, id), 원본칸);
+
+export const getFile = (id: string) =>
+  한번<Blob | undefined>("readonly", (s) => s.get(id), 원본칸);
+
+export const delFile = (id: string) =>
+  한번<void>("readwrite", (s) => s.delete(id), 원본칸);
+
+/** 이 기기에서 쓰고 있는 자리 */
+export async function 쓰는자리(): Promise<{ 쓴것: number; 줄것: number } | null> {
+  try {
+    const e = await navigator.storage?.estimate?.();
+    if (!e) return null;
+    return { 쓴것: e.usage ?? 0, 줄것: e.quota ?? 0 };
+  } catch { return null; }
 }

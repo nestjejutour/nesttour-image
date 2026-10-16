@@ -475,6 +475,10 @@ export interface LibItem {
   h?: number;
   /** 미리보기를 못 뽑았으면 그 까닭 */
   noThumb?: string;
+  /** 원본 파일을 품고 있는가 (자리가 모자라면 못 품는다) */
+  hasFile?: boolean;
+  /** 원본을 못 품었으면 그 까닭 */
+  noFile?: string;
   /** 찾을 때 쓰는 꼬리표 */
   tags?: string[];
   note?: string;

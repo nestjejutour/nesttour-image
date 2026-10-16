@@ -54,6 +54,31 @@ console.log("그림 뽑힌 수:", await pg.locator(".libshot img").count(), "/ 6
 console.log("못 뽑은 것:", (await pg.locator(".nothumb").allTextContents()).join(" | "));
 await pg.locator(".lib").screenshot({ path: `${OUT}/자료함.png` });
 
+// 저장하기 — 고른 것만 원본 그대로
+console.log("전체 체크 처음:", await pg.locator(".allpick input").isChecked() ? "켜짐 ✓" : "꺼짐 ✗");
+console.log("저장 단추:", (await pg.getByRole("button", { name: /저장하기/ }).innerText()).trim());
+// 원본 못 담은 것은 고를 수 없어야 한다
+const 못고름 = await pg.locator(".libpick input[disabled]").count();
+console.log("고를 수 없는 것:", 못고름, "개 (원본 없음)");
+// 둘만 남기고 체크를 푼다
+await pg.locator(".allpick input").uncheck(); await pg.waitForTimeout(300);
+await pg.locator(".libcard").nth(0).locator(".libpick input").check();
+await pg.locator(".libcard").nth(1).locator(".libpick input").check(); await pg.waitForTimeout(300);
+console.log("둘만 고른 뒤:", (await pg.getByRole("button", { name: /저장하기/ }).innerText()).trim());
+const 받음 = pg.waitForEvent("download", { timeout: 30000 });
+await pg.getByRole("button", { name: /저장하기/ }).click();
+const 파일 = await 받음;
+console.log("내려받은 것:", 파일.suggestedFilename());
+await 파일.saveAs(`${OUT}/${파일.suggestedFilename()}`);
+
+// 하나만 고르면 원본 그대로
+await pg.locator(".libcard").nth(1).locator(".libpick input").uncheck(); await pg.waitForTimeout(300);
+const 받음2 = pg.waitForEvent("download", { timeout: 30000 });
+await pg.getByRole("button", { name: /저장하기/ }).click();
+const 파일2 = await 받음2;
+console.log("하나만:", 파일2.suggestedFilename());
+await pg.locator(".allpick input").check(); await pg.waitForTimeout(300);
+
 // 옮기기 메뉴
 await pg.locator(".libmore").first().click(); await pg.waitForTimeout(400);
 const 묶음 = await pg.locator(".movepick optgroup").evaluateAll((els) =>
