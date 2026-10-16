@@ -18,11 +18,13 @@ const 흔한것: { 이름: string; w: number; h: number }[] = [
 ];
 
 export function 규격묻기({
-  분류이름, 기본W, 기본H, onOk, onCancel,
+  분류이름, 기본W, 기본H, 바꾸기 = false, onOk, onCancel,
 }: {
   분류이름: string;
   기본W?: number;
   기본H?: number;
+  /** 이미 있는 작업물의 규격을 바꾸는 중인가. 켜면 이름을 묻지 않는다 */
+  바꾸기?: boolean;
   /** 밀리미터로 돌려준다 */
   onOk: (mmW: number, mmH: number, 이름: string) => void;
   onCancel: () => void;
@@ -36,10 +38,13 @@ export function 규격묻기({
 
   return (
     <div className="page" style={{ maxWidth: 620 }}>
-      <h1>{분류이름} — 규격</h1>
+      <h1>{분류이름} — 규격{바꾸기 ? " 바꾸기" : ""}</h1>
       <p className="lede">
-        만드실 인쇄물의 크기를 <b>센티미터</b>로 적어 주십시오.
-        이 숫자가 그대로 인쇄 데이터 크기가 됩니다.
+        {바꾸기
+          ? <>새 크기를 <b>센티미터</b>로 적어 주십시오.
+              디자인은 그대로 두고 판만 늘고 줄어듭니다.</>
+          : <>만드실 인쇄물의 크기를 <b>센티미터</b>로 적어 주십시오.
+              이 숫자가 그대로 인쇄 데이터 크기가 됩니다.</>}
       </p>
 
       <div className="picks" style={{ marginBottom: 16 }}>
@@ -64,11 +69,13 @@ export function 규격묻기({
           <input inputMode="decimal" value={세로}
             onChange={(e) => set세로(e.target.value.replace(/[^\d.]/g, ""))} />
         </label>
-        <label className="field grow" style={{ minWidth: 200 }}>
-          <small>이름 — 몰라도 됩니다</small>
-          <input value={이름} onChange={(e) => set이름(e.target.value)}
-            placeholder="예: 팔음초 28회 제주 회관여행" />
-        </label>
+        {!바꾸기 && (
+          <label className="field grow" style={{ minWidth: 200 }}>
+            <small>이름 — 몰라도 됩니다</small>
+            <input value={이름} onChange={(e) => set이름(e.target.value)}
+              placeholder="예: 팔음초 28회 제주 회관여행" />
+          </label>
+        )}
       </div>
 
       {!쓸만한가 && (
@@ -80,7 +87,7 @@ export function 규격묻기({
       <div className="row" style={{ gap: 8, marginTop: 18 }}>
         <button className="btn primary" disabled={!쓸만한가}
           onClick={() => onOk(Math.round(w * 10), Math.round(h * 10), 이름.trim())}>
-          이 규격으로 시작
+          {바꾸기 ? "이 규격으로 바꾸기" : "이 규격으로 시작"}
         </button>
         <button className="btn" onClick={onCancel}>취소</button>
       </div>

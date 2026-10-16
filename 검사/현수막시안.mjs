@@ -183,6 +183,36 @@ const 꽉 = await pg.evaluate(() => {
 console.log(`${꽉 && Math.abs(꽉.판[0] - 꽉.그림[0]) < 3 ? "✓" : "✗"} 그림이 판을 꽉 채운다 — ` +
   `판 ${꽉?.판.join("×")} · 그림 ${꽉?.그림.join("×")}`);
 
+// 규격을 화면에서 바꿀 수 있는가
+const 규격단추 = pg.getByRole("button", { name: /cm$/ });
+const 규격글 = (await 규격단추.count()) ? (await 규격단추.first().innerText()).trim() : "(없음)";
+console.log(`${규격글.includes("400 × 70 cm") ? "✓" : "✗"} 지금 규격이 화면에 적혀 있다 — ${규격글}`);
+
+if (await 규격단추.count()) {
+  await 규격단추.first().click(); await pg.waitForTimeout(700);
+  await pg.locator(".drafts .field input").nth(0).fill("500");
+  await pg.locator(".drafts .field input").nth(1).fill("90");
+  const 이름칸 = await pg.locator(".drafts .field input").count();
+  console.log(`${이름칸 === 2 ? "✓" : "✗"} 바꿀 때는 이름을 묻지 않는다 — 칸 ${이름칸}개`);
+  await pg.getByRole("button", { name: "이 규격으로 바꾸기" }).click(); await pg.waitForTimeout(1500);
+  const 바뀐것 = await pg.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem("mtmb-studio-v1") || "{}");
+    const p = (d.projects || []).find((x) => x.title.includes("유채꽃"));
+    const s2 = p?.styleOverride?.slide;
+    return s2 ? `${Math.round(s2.widthIn * 2.54)} × ${Math.round(s2.heightIn * 2.54)} cm` : "(없음)";
+  });
+  console.log(`${바뀐것 === "500 × 90 cm" ? "✓" : "✗"} 규격이 바뀌었다 — ${바뀐것}`);
+  const 새글 = (await pg.getByRole("button", { name: /cm$/ }).first().innerText()).trim();
+  console.log(`${새글.includes("500 × 90 cm") ? "✓" : "✗"} 바뀐 규격이 화면에 다시 적힌다 — ${새글}`);
+  const 꽉2 = await pg.evaluate(() => {
+    const 판 = document.querySelector(".stage-inner > *"), 그림 = document.querySelector(".stage-inner img");
+    if (!판 || !그림) return null;
+    const a = 판.getBoundingClientRect(), b2 = 그림.getBoundingClientRect();
+    return Math.abs(a.width - b2.width) < 3 && Math.abs(a.height - b2.height) < 3;
+  });
+  console.log(`${꽉2 ? "✓" : "✗"} 규격을 바꿔도 그림이 판을 꽉 채운다`);
+}
+
 // 인쇄용 단추가 있는가
 const 인쇄단추 = pg.getByRole("button", { name: "인쇄용 PDF" });
 const 인쇄있나 = await 인쇄단추.count();

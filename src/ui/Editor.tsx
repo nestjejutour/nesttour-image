@@ -7,6 +7,7 @@ import { readShrunk } from "../core/image";
 import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
+import { 규격묻기 } from "./규격묻기";
 import { 인쇄크기말 } from "../render/canvas";
 import { downloadPdf } from "../render/pdf";
 import { PRINT_SIZES, SLIDE_SIZES, slideSizeOf, 작게끝 } from "../core/paper";
@@ -85,6 +86,19 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
 
   /** 현수막·배너처럼 판 크기가 자유로운 것인가. 이쪽은 인쇄용 저장이 본 일이다 */
   const 인쇄물인가 = project.slides.some((s2) => typeOf(s2.pageTypeId)?.자유판);
+
+  /** 규격을 바꾸는 창이 열려 있는가 */
+  const [규격바꾸기, set규격바꾸기] = useState(false);
+
+  /** 지금 판을 cm 로 — 400 × 70 cm */
+  const 지금규격 = (() => {
+    const 자 = (인치: number) => {
+      const cm = 인치 * 2.54;
+      return Number.isInteger(Math.round(cm * 10) / 10) && Math.abs(cm - Math.round(cm)) < 0.05
+        ? String(Math.round(cm)) : cm.toFixed(1);
+    };
+    return `${자(style.slide.widthIn)} × ${자(style.slide.heightIn)} cm`;
+  })();
 
   /** 페이지마다 번호를 매긴다 (번호 안 찍는 페이지는 세지 않는다) */
   const pageNumbers = useMemo(() => {
@@ -322,18 +336,39 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         >
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        {/* 판 크기 — 16:9 가 기본이다. 바꿔도 디자인은 통째로 줄여 맞춘다. */}
-        <select
-          className="scopesel"
-          value={slideSizeOf(style.slide.widthIn, style.slide.heightIn).id}
-          onChange={(e) => {
-            const s2 = SLIDE_SIZES.find((x) => x.id === e.target.value);
-            if (s2) onSlideSize(s2.widthIn, s2.heightIn);
-          }}
-          title="판 크기 — 요즘은 와이드 16:9 를 가장 많이 씁니다"
-        >
-          {SLIDE_SIZES.map((s2) => <option key={s2.id} value={s2.id}>{s2.name}</option>)}
-        </select>
+        {/*
+          판 크기.
+
+          현수막은 16:9·A4 같은 정해진 네모가 없다. 고객사가 "400×70" 이라고 부르면
+          그 숫자가 곧 주문서다. 그래서 고르는 칸 대신 지금 치수를 적어 두고,
+          누르면 cm 로 고쳐 넣게 한다.
+          (고르는 칸을 두면 400×70 이 어느 네모에도 안 맞아서 "와이드 16:9" 로 잘못 보였고,
+           모르고 건드리면 현수막 크기가 통째로 날아갔다)
+        */}
+        {인쇄물인가 ? (
+          <button className="btn sm" onClick={() => set규격바꾸기(true)}
+            title="누르면 가로·세로를 cm 로 고칠 수 있습니다">
+            📐 {지금규격}
+          </button>
+        ) : (
+          <select
+            className="scopesel"
+            value={slideSizeOf(style.slide.widthIn, style.slide.heightIn).id}
+            onChange={(e) => {
+              const s2 = SLIDE_SIZES.find((x) => x.id === e.target.value);
+              if (s2) onSlideSize(s2.widthIn, s2.heightIn);
+            }}
+            title="판 크기 — 요즘은 와이드 16:9 를 가장 많이 씁니다"
+          >
+            {SLIDE_SIZES.map((s2) => <option key={s2.id} value={s2.id}>{s2.name}</option>)}
+            {/* 어느 네모에도 안 맞는 크기면 그 크기를 그대로 보여 준다. 거짓으로 16:9 라고 하지 않는다 */}
+            {!SLIDE_SIZES.some((x) => x.id === slideSizeOf(style.slide.widthIn, style.slide.heightIn).id) && (
+              <option value={slideSizeOf(style.slide.widthIn, style.slide.heightIn).id}>
+                {지금규격}
+              </option>
+            )}
+          </select>
+        )}
         <small style={{ color: "var(--muted)" }}>
           {project.client || "고객사 미입력"} · {project.slides.length}장 · {style.name}
           {project.styleOverride && <span className="chip">이 건만 규격 바꿈</span>}
@@ -530,6 +565,23 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
             onPick={onPickDraft} onClose={onCloseDrafts}
             onAgain={() => { onCloseDrafts(); setMsg("대화창에 어디가 마음에 안 드는지 적어 주시면 다시 내놓습니다."); }}
           />
+        )}
+
+        {/* 규격 바꾸기 — 시안 칸과 같은 자리에 덮는다. 대화창은 그대로 보인다 */}
+        {규격바꾸기 && (
+          <div className="drafts" style={{ overflow: "auto", padding: 20 }}>
+            <규격묻기
+              분류이름={project.title || "인쇄물"}
+              기본W={Math.round(style.slide.widthIn * 25.4)}
+              기본H={Math.round(style.slide.heightIn * 25.4)}
+              바꾸기
+              onOk={(mmW, mmH) => {
+                onSlideSize(Number((mmW / 25.4).toFixed(3)), Number((mmH / 25.4).toFixed(3)));
+                set규격바꾸기(false);
+              }}
+              onCancel={() => set규격바꾸기(false)}
+            />
+          </div>
         )}
 
         <div className="stage" ref={stageRef}>
