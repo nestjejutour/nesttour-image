@@ -1270,3 +1270,12 @@ ol.saylist li::before {
   width: 100%; margin: 3px 0; padding: 6px 8px; font-size: 13.5px;
   border: 1px solid var(--line); border-radius: 6px;
 }
+/* 직원에게 보일 분류 고르기 */
+.picks { display: flex; flex-wrap: wrap; gap: 7px; }
+.pick {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 20px; padding: 6px 13px 6px 10px;
+  font-size: 14px; color: var(--muted);
+}
+.pick.on { border-color: var(--accent); color: var(--ink); background: var(--tint-warm); }
+.pick input { width: 15px; height: 15px; }

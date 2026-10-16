@@ -42,6 +42,8 @@ interface Props {
   /* ── 분류에 쌓아 두는 자료 ── */
   library: LibItem[];
   byName?: string;
+  /** 대표인가 — 큰 분류를 지우거나 이름을 바꾸는 건 대표만 한다 */
+  대표?: boolean;
   onAddLib: (xs: LibItem[]) => void;
   onRemoveLib: (id: string) => void;
   onRenameLib: (id: string, name: string) => void;
@@ -205,8 +207,10 @@ export function Dashboard(p: Props) {
       <div className="dash-nav">
         <p className="sec" style={{ marginTop: 0 }}>
           분류
-          <button className="secadd" title="분류 하나 더 만들기"
-            onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
+          {p.대표 && (
+            <button className="secadd" title="분류 하나 더 만들기"
+              onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
+          )}
         </p>
         <button className={`navitem ${sel === "all" ? "on" : ""}`} onClick={() => setSel("all")}>
           <span className="twist 빈" aria-hidden /><b>전체</b>
@@ -275,7 +279,7 @@ export function Dashboard(p: Props) {
                       });
                     }}>{접힘 ? "▸" : "▾"}</span>
                 ) : <span className="twist 빈" aria-hidden />}
-                <b>{c.name || "(이름 없음)"}</b>
+                <b>{c.name.trim() || "(이름 없음)"}</b>
                 {c.kind === "참고 자료" && <em>참고</em>}
                 <span className="cnt">{inCat(c.id).length}</span>
               </button>
@@ -288,9 +292,11 @@ export function Dashboard(p: Props) {
                     onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); set메뉴(null);
                                      set접은것((t) => { const n = new Set(t); n.delete(c.id); return n; }); }}>+</button>
                 )}
-                <button className="rowbtn" title="더 보기"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => set메뉴(메뉴 === c.id ? null : c.id)}>⋯</button>
+                {(p.대표 || !!c.parentId) && (
+                  <button className="rowbtn" title="더 보기"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => set메뉴(메뉴 === c.id ? null : c.id)}>⋯</button>
+                )}
               </span>
             )}
 
@@ -350,7 +356,7 @@ export function Dashboard(p: Props) {
           />
         )}
 
-        {categories.some((c) => c.hidden) && (
+        {p.대표 && categories.some((c) => c.hidden) && (
           <div className="hiddencats">
             <small>치워 둔 분류</small>
             {categories.filter((c) => c.hidden).map((c) => (

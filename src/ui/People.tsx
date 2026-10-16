@@ -104,6 +104,34 @@ export function People({
             </p>
           )}
 
+          <h1 style={{ marginTop: 26 }}>직원에게 보일 분류</h1>
+          <p className="lede">
+            고르지 않으시면 전부 보입니다. 하나라도 고르시면 그것만 보입니다.
+            대표님은 무엇을 고르시든 늘 전부 보십니다.
+          </p>
+          <div className="picks">
+            {db.categories.filter((c) => !c.parentId && !c.hidden).map((c) => {
+              const 켜짐 = db.직원분류.includes(c.id);
+              return (
+                <label key={c.id} className={`pick ${켜짐 ? "on" : ""}`}>
+                  <input type="checkbox" checked={켜짐}
+                    onChange={(e) => setDb((d) => ({
+                      ...d,
+                      직원분류: e.target.checked
+                        ? [...d.직원분류, c.id]
+                        : d.직원분류.filter((x) => x !== c.id),
+                    }))} />
+                  <span>{c.name.trim() || "(이름 없음)"}</span>
+                </label>
+              );
+            })}
+          </div>
+          {db.직원분류.length === 0 && (
+            <p className="saynote" style={{ marginTop: 9 }}>
+              지금은 직원도 분류를 전부 봅니다.
+            </p>
+          )}
+
           <label className="onlymine">
             <input type="checkbox" checked={!!db.onlyMine}
               onChange={(e) => setDb((d) => ({ ...d, onlyMine: e.target.checked }))} />

@@ -259,10 +259,25 @@ function Studio({
    * 서로 못 보게 막으면 쓸모가 반으로 준다.
    * 대표가 "직원은 자기 것만" 을 켜면 그때부터 갈라 보인다. 대표는 늘 전부 본다.
    */
-  const 보이는제안서 =
-    나?.role === "대표" || !db.onlyMine
-      ? db.projects
-      : db.projects.filter((x) => !x.madeBy || x.madeBy === 나?.id);
+  /**
+   * 직원에게 보일 분류.
+   *
+   * 대표는 무엇을 골라 두든 전부 본다.
+   * 골라 둔 게 없으면(처음) 모두에게 전부 보인다 — 막는 건 대표가 켜는 것이다.
+   */
+  const 보이는분류 =
+    나?.role === "대표" || !db.직원분류.length
+      ? db.categories
+      : db.categories.filter((c) =>
+          db.직원분류.includes(c.id) || (c.parentId && db.직원분류.includes(c.parentId)));
+  const 분류범위 = new Set(보이는분류.map((c) => c.id));
+
+  const 보이는제안서 = (() => {
+    const 내것만 = 나?.role !== "대표" && db.onlyMine;
+    return db.projects
+      .filter((x) => 분류범위.has(x.category))
+      .filter((x) => !내것만 || !x.madeBy || x.madeBy === 나?.id);
+  })();
 
   /**
    * 지금 화면에 떠 있는 제안서.
@@ -802,9 +817,13 @@ function Studio({
   // 누구인지 밝히기 전에는 아무것도 안 보여 준다
   if (!나) return <SignIn 대표암호={db.대표암호} 직원암호={db.직원암호} onIn={들어옴} />;
 
+  // 기록·창고는 AI 가 읽는 저장소다. 직원이 들여다볼 자리가 아니다.
+  const 볼수있는탭: View[] = 나.role === "대표" ? ["보관함", "기록", "창고"] : ["보관함"];
+  if (!볼수있는탭.includes(view)) setView("보관함");
+
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -822,7 +841,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -857,7 +876,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -892,11 +911,11 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
-            projects={보이는제안서} categories={db.categories}
+            projects={보이는제안서} categories={보이는분류}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={(id) => { setBrowseId(id); setCur(0); }} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
             onBlank={startBlank}
@@ -905,7 +924,8 @@ function Studio({
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
             onReorderCategories={reorderCategories}
             onRestoreCategory={restoreCategory}
-            library={db.library}
+            library={db.library.filter((x) => 분류범위.has(x.categoryId))}
+            대표={나.role === "대표"}
             byName={나.name}
             onAddLib={(xs: LibItem[]) => {
               update((d) => ({ ...d, library: [...xs, ...d.library] }));
@@ -936,10 +956,11 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, onOut, savedAt, saveErr, dock, busy, dockOpen, onDock, undo, children,
+  view, setView, onNew, bare, who, onOut, tabs, savedAt, saveErr, dock, busy, dockOpen, onDock, undo, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
   bare?: boolean; who?: string | null; onOut?: () => void; savedAt?: Date | null; saveErr?: string;
+  tabs?: View[];
   dock?: React.ReactNode; busy?: boolean;
   dockOpen?: boolean; onDock?: () => void; undo?: Undo; children: React.ReactNode;
 }) {
@@ -963,9 +984,9 @@ function Shell({
               title="한 단계 다시 하기 (Ctrl+Shift+Z)">{">"}</button>
           </div>
         )}
-        {!bare && (
+        {!bare && tabs && tabs.length > 1 && (
           <div className="tabs">
-            {(["보관함", "기록", "창고"] as View[]).map((v) => (
+            {tabs.map((v) => (
               <button key={v} className={`tab ${view === v ? "on" : ""}`} onClick={() => setView(v)}>{v}</button>
             ))}
           </div>

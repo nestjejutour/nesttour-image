@@ -38,6 +38,13 @@ export interface DB {
   /** 대표 암호 · 직원 암호. 어느 쪽을 넣었느냐로 자리가 갈린다 */
   대표암호: string;
   직원암호: string;
+  /**
+   * 직원에게 보일 큰 분류들.
+   *
+   * 비어 있으면 전부 보인다. 대표가 골라 두면 그것만 보인다.
+   * 대표는 무엇을 골라 두든 늘 전부 본다.
+   */
+  직원분류: string[];
   /** 누가 언제 무엇을 손댔는가 */
   trail: Trail[];
   /** 직원에게 자기가 만든 것만 보일 것인가 (대표가 켠다) */
@@ -100,6 +107,7 @@ function seed(): DB {
     people: [],
     대표암호: "2230",
     직원암호: "2012",
+    직원분류: [],
     trail: [],
     onlyMine: false,
   };
@@ -131,6 +139,7 @@ export function load(): DB {
       people: saved.people ?? [],
       대표암호: saved.대표암호 || db.대표암호,
       직원암호: saved.직원암호 || db.직원암호,
+      직원분류: saved.직원분류 ?? [],
       trail: saved.trail ?? [],
       onlyMine: saved.onlyMine ?? false,
     };
@@ -155,6 +164,7 @@ export function save(db: DB): void {
         people: db.people,
         대표암호: db.대표암호,
         직원암호: db.직원암호,
+        직원분류: db.직원분류,
         trail: db.trail.slice(-600),   // 너무 쌓이면 저장 칸을 잡아먹는다
         onlyMine: db.onlyMine,
       }),
@@ -233,6 +243,7 @@ export function merge(saved: Partial<DB>): DB {
     people: saved.people ?? [],
     대표암호: saved.대표암호 || db.대표암호,
     직원암호: saved.직원암호 || db.직원암호,
+    직원분류: saved.직원분류 ?? [],
     trail: saved.trail ?? [],
     onlyMine: saved.onlyMine ?? false,
   };
