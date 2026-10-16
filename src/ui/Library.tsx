@@ -33,6 +33,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
   const [크게, set크게] = useState<LibItem | null>(null);
   const [고치는이름, set고치는이름] = useState<string | null>(null);
   const [메뉴, set메뉴] = useState<string | null>(null);
+  /** 방금 담은 개수 — 잠깐 보였다 사라진다 */
+  const [방금, set방금] = useState<number | null>(null);
 
   /** 담을 곳 — 전체를 보고 있으면 첫 분류에 담는다 */
   const 담을곳 = sel !== "all" ? sel : (categories[0]?.id ?? "");
@@ -84,6 +86,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
     }
     set담는중(null);
     onAdd(담긴);
+    set방금(담긴.length);
+    setTimeout(() => set방금(null), 4000);
   };
 
   const 못뽑은수 = 보일것.filter((x) => x.noThumb).length;
@@ -93,6 +97,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
       <div className="libhead">
         <b>자료</b>
         <small>{보일것.length}개{못뽑은수 > 0 && ` · 그림 못 뽑음 ${못뽑은수}개`}</small>
+        {방금 !== null && <small className="방금">{방금}개 담아 저장했습니다</small>}
         <div className="spacer" />
         {보일것.length > 0 && (
           <input className="libfind" placeholder="이름으로 찾기"
@@ -131,6 +136,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
               {담을곳이름 ? `"${담을곳이름}" 에 들어갑니다. ` : ""}
               한 번에 여러 개, 폴더째 끌어다 놓아도 됩니다.
               일러스트(.ai)·PDF·사진에서 미리보기를 뽑습니다.
+              <br />놓는 즉시 저장됩니다 — 따로 저장하실 것이 없습니다.
             </small>
           </>
         )}
@@ -165,12 +171,24 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
               {메뉴 === x.id && (
                 <div className="rowmenu" onPointerDown={(e) => e.stopPropagation()}>
                   <button onClick={() => { set고치는이름(x.id); set메뉴(null); }}>이름 바꾸기</button>
-                  <select value={x.categoryId}
-                    onChange={(e) => { onMove(x.id, e.target.value); set메뉴(null); }}>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.parentId ? "— " : ""}{c.name} 로 옮기기</option>
-                    ))}
-                  </select>
+                  <label className="movepick">
+                    <small>옮기기</small>
+                    <select value={x.categoryId}
+                      onChange={(e) => { onMove(x.id, e.target.value); set메뉴(null); }}>
+                      {categories.filter((c) => !c.parentId).map((c) => {
+                        const 속 = categories.filter((k) => k.parentId === c.id);
+                        return 속.length ? (
+                          <optgroup key={c.id} label={c.name}>
+                            <option value={c.id}>{c.name} (바로 여기)</option>
+                            {속.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+                          </optgroup>
+                        ) : (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <hr />
                   <button className="빨강" onClick={() => { void delThumb(x.id); onRemove(x.id); set메뉴(null); }}>
                     지우기
                   </button>

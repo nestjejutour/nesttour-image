@@ -18,7 +18,13 @@ await pg.locator(".secadd").click(); await pg.waitForTimeout(400);
 await pg.locator(".catnew").fill("현수막");
 await pg.locator(".catnew").press("Enter"); await pg.waitForTimeout(700);
 await pg.locator(".catnew").press("Escape"); await pg.waitForTimeout(400);
-await pg.getByRole("button", { name: /현수막/ }).first().click(); await pg.waitForTimeout(600);
+const 현수막줄 = pg.locator(".navrow").filter({ hasText: "현수막" }).first();
+await 현수막줄.hover();
+await 현수막줄.locator(".rowbtn").first().click(); await pg.waitForTimeout(400);
+await pg.locator(".catnew.세부").fill("개인");
+await pg.locator(".catnew.세부").press("Enter"); await pg.waitForTimeout(600);
+await pg.locator(".catnew.세부").press("Escape"); await pg.waitForTimeout(400);
+await pg.getByRole("button", { name: /개인/ }).first().click(); await pg.waitForTimeout(600);
 
 console.log("자료함 있나:", await pg.locator(".lib").count() ? "있음 ✓" : "없음 ✗");
 console.log("놓는 자리 안내:", (await pg.locator(".libdrop small").innerText()).trim().split(".")[0]);
@@ -42,10 +48,19 @@ await pg.waitForTimeout(1200);
 
 const 이름들 = (await pg.locator(".libname b").allTextContents()).join(" | ");
 console.log("담긴 것:", 이름들);
-console.log("머리말:", (await pg.locator(".libhead small").innerText()).trim());
+console.log("머리말:", (await pg.locator(".libhead small").first().innerText()).trim());
+console.log("담았다는 알림:", (await pg.locator(".libhead .방금").innerText().catch(() => "(없음)")).trim());
 console.log("그림 뽑힌 수:", await pg.locator(".libshot img").count(), "/ 6");
 console.log("못 뽑은 것:", (await pg.locator(".nothumb").allTextContents()).join(" | "));
 await pg.locator(".lib").screenshot({ path: `${OUT}/자료함.png` });
+
+// 옮기기 메뉴
+await pg.locator(".libmore").first().click(); await pg.waitForTimeout(400);
+const 묶음 = await pg.locator(".movepick optgroup").evaluateAll((els) =>
+  els.map((e) => `${e.getAttribute("label")}: ${[...e.children].map((o) => o.textContent).join(", ")}`));
+console.log("옮기기 묶음:", 묶음.join(" | ") || "(없음)");
+await pg.screenshot({ path: `${OUT}/옮기기.png`, clip: { x: 250, y: 150, width: 820, height: 560 } });
+await pg.locator(".libhead b").click({ force: true }); await pg.waitForTimeout(400);
 
 // 크게 보기
 await pg.locator(".libshot").first().click(); await pg.waitForTimeout(700);

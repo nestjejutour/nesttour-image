@@ -1279,3 +1279,16 @@ ol.saylist li::before {
 }
 .pick.on { border-color: var(--accent); color: var(--ink); background: var(--tint-warm); }
 .pick input { width: 15px; height: 15px; }
+/* 자료함 — 옮기기 고르는 칸, 방금 담았다는 알림 */
+.movepick { display: block; padding: 5px 10px 7px; }
+.movepick small { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 3px; }
+.movepick select {
+  width: 100%; padding: 6px 8px; font-size: 13.5px;
+  border: 1px solid var(--line); border-radius: 6px; background: #fff;
+}
+.rowmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+.libhead .방금 {
+  color: var(--accent); font-weight: 600;
+  animation: 스르륵 .25s ease-out;
+}
+@keyframes 스르륵 { from { opacity: 0; transform: translateY(-3px); } }
