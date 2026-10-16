@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Category, PageType, Project, StylePreset } from "../core/types";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
@@ -53,7 +53,12 @@ export function Dashboard(p: Props) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKind, setNewKind] = useState<Category["kind"]>("우리 결과물");
-  const [editId, setEditId] = useState<string | null>(null);
+  /** 제자리에서 이름을 고치는 중인 분류 */
+  const [고치는이름, set고치는이름] = useState<string | null>(null);
+  /** 작은 메뉴(⋯)가 열린 분류 */
+  const [메뉴, set메뉴] = useState<string | null>(null);
+  /** 접어 둔 큰 분류 */
+  const [접은것, set접은것] = useState<Set<string>>(() => new Set());
 
   const moodsFor = useMemo(() => {
     const m = new Map<string, Mood[]>();
@@ -125,13 +130,27 @@ export function Dashboard(p: Props) {
     const 줄: Category[] = [];
     for (const 큰 of 아래(undefined)) {
       줄.push(큰);
+      if (접은것.has(큰.id)) continue;   // 접어 두었으면 속은 안 보인다
       for (const 세부 of 아래(큰.id)) 줄.push(세부);
     }
-    // 부모를 잃은 것이 있으면 맨 뒤에라도 보여 준다. 숨어서 사라지면 안 된다
-    for (const c of categories) if (!c.hidden && !줄.some((x) => x.id === c.id)) 줄.push(c);
+    // 부모를 잃은 것이 있으면 맨 뒤에라도 보여 준다. 숨어서 사라지면 안 된다.
+    // 다만 접어 둔 분류의 속은 미아가 아니다 — 주워 담으면 맨 아래로 떨어진다.
+    for (const c of categories) {
+      if (c.hidden || 줄.some((x) => x.id === c.id)) continue;
+      if (c.parentId && 접은것.has(c.parentId)) continue;
+      줄.push(c);
+    }
     return 줄;
   };
   const cats = 줄세우기();
+
+  // 바깥을 누르면 작은 메뉴가 닫힌다. 요즘 메뉴는 다 그렇게 닫힌다.
+  useEffect(() => {
+    if (!메뉴) return;
+    const 닫기 = () => set메뉴(null);
+    window.addEventListener("pointerdown", 닫기);
+    return () => window.removeEventListener("pointerdown", 닫기);
+  }, [메뉴]);
   /** 어느 분류의 세부 분류들 */
   const 세부들 = (id: string) => categories.filter((c) => c.parentId === id);
   /** 이 분류와 그 아래 세부 분류 전부 */
@@ -169,17 +188,6 @@ export function Dashboard(p: Props) {
     p.onReorderCategories(ids);
   };
 
-  /** 한 칸 위·아래로 — 끌기가 어려울 때 쓰는 길 */
-  const 한칸 = (id: string, d: number) => {
-    const me = categories.find((c) => c.id === id);
-    if (!me) return;
-    const ids = 형제들(me.parentId);
-    const i = ids.indexOf(id);
-    const j = i + d;
-    if (i < 0 || j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    p.onReorderCategories(ids);
-  };
   const shown = sel === "all" ? cats.filter((c) => inCat(c.id).length > 0) : cats.filter((c) => c.id === sel);
   const expanded = sel !== "all" || !!mood || !!q.trim();
 
@@ -193,16 +201,23 @@ export function Dashboard(p: Props) {
             onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
         </p>
         <button className={`navitem ${sel === "all" ? "on" : ""}`} onClick={() => setSel("all")}>
-          전체 <span>{filtered.length}</span>
+          <span className="twist 빈" aria-hidden /><b>전체</b>
+          <span className="cnt">{filtered.length}</span>
         </button>
         {cats.map((c) => {
-          const 형제 = 형제들(c.parentId);
-          const 자리 = 형제.indexOf(c.id);
+          const 접힘 = 접은것.has(c.id);
+          const 세부 = 세부들(c.id);
           return (
           <div
             key={c.id}
-            className={`navrow ${c.parentId ? "세부" : ""} ${끄는것 === c.id ? "끄는중" : ""} ${놓을곳 === c.id ? "놓을자리" : ""}`}
-            draggable={editId !== c.id}
+            className={[
+              "navrow",
+              c.parentId ? "세부" : "",
+              끄는것 === c.id ? "끄는중" : "",
+              놓을곳 === c.id ? "놓을자리" : "",
+              메뉴 === c.id ? "메뉴열림" : "",
+            ].join(" ")}
+            draggable={고치는이름 !== c.id}
             onDragStart={(e) => {
               set끄는것(c.id);
               e.dataTransfer.effectAllowed = "move";
@@ -222,73 +237,68 @@ export function Dashboard(p: Props) {
               set끄는것(null); set놓을곳(null);
             }}
           >
-            {editId === c.id ? (
-              <div className="catedit">
-                <input
-                  autoFocus
-                  defaultValue={c.name}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      p.onRenameCategory(c.id, (e.target as HTMLInputElement).value);
-                      setEditId(null);
-                    }
-                    if (e.key === "Escape") setEditId(null);
-                  }}
-                />
-                <div className="row" style={{ marginTop: 6 }}>
-                  <button className="btn sm" disabled={자리 <= 0} title="한 칸 위로"
-                    onClick={() => 한칸(c.id, -1)}>↑ 위로</button>
-                  <button className="btn sm" disabled={자리 === 형제.length - 1} title="한 칸 아래로"
-                    onClick={() => 한칸(c.id, 1)}>↓ 아래로</button>
-                  {/* 세부 분류는 한 겹까지만. 더 깊어지면 찾기가 더 어려워진다 */}
-                  {!c.parentId && (
-                    <button className="btn sm" title="이 분류 아래에 세부 분류를 만듭니다"
-                      onClick={() => { set세부넣기(c.id); set세부이름(""); setEditId(null); }}>+ 세부 분류</button>
-                  )}
-                  {!c.parentId && (
-                    <select className="kindpick" value={c.kind}
-                      onChange={(e) => p.onChangeKind(c.id, e.target.value as Category["kind"])}>
-                      <option value="우리 결과물">우리 결과물</option>
-                      <option value="참고 자료">참고 자료</option>
-                    </select>
-                  )}
-                  <button className="btn sm danger"
-                    title={inCat(c.id).length
-                      ? `안에 든 ${inCat(c.id).length}건은 다른 분류로 옮깁니다`
-                      : "이 분류를 지웁니다"}
-                    onClick={() => { p.onDeleteCategory(c.id); setEditId(null); }}>
-                    지우기
-                  </button>
-                  <button className="btn sm" onClick={() => setEditId(null)}>닫기</button>
-                </div>
-                {inCat(c.id).length > 0 && (
-                  <small>지우면 안에 든 {inCat(c.id).length}건은 다른 분류로 옮겨집니다. 사라지지 않습니다.</small>
-                )}
-              </div>
+            {고치는이름 === c.id ? (
+              /* 이름은 제자리에서 고친다. 따로 상자를 띄우지 않는다 */
+              <input
+                className="catrename"
+                autoFocus
+                defaultValue={c.name}
+                onBlur={(e) => { p.onRenameCategory(c.id, e.target.value); set고치는이름(null); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  if (e.key === "Escape") { set고치는이름(null); }
+                }}
+              />
             ) : (
               <button
                 className={`navitem ${sel === c.id ? "on" : ""}`}
                 onClick={() => setSel(c.id)}
-                onDoubleClick={() => setEditId(c.id)}
-                title="끌어서 차례를 바꿉니다. 두 번 누르면 이름을 고치고 위·아래로 옮깁니다"
+                onDoubleClick={() => set고치는이름(c.id)}
+                title="끌어서 차례를 바꿉니다"
               >
-                <span className="grip" aria-hidden>⠿</span>
-                {c.name || "(이름 없음)"}
+                {세부.length > 0 ? (
+                  <span className="twist" aria-hidden
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      set접은것((t) => {
+                        const n = new Set(t);
+                        n.has(c.id) ? n.delete(c.id) : n.add(c.id);
+                        return n;
+                      });
+                    }}>{접힘 ? "▸" : "▾"}</span>
+                ) : <span className="twist 빈" aria-hidden />}
+                <b>{c.name || "(이름 없음)"}</b>
                 {c.kind === "참고 자료" && <em>참고</em>}
-                <span>{inCat(c.id).length}</span>
+                <span className="cnt">{inCat(c.id).length}</span>
               </button>
             )}
 
-            {/* 줄 위에서 바로 세부 분류를 넣는다 (단추 안에 단추를 넣을 수 없어 옆에 띄운다) */}
-            {editId !== c.id && 세부넣기 !== c.id && (
+            {고치는이름 !== c.id && (
               <span className="rowtools">
-                <button className="addsub" title="이름 고치기 · 자리 옮기기 · 지우기"
-                  onClick={() => { setEditId(c.id); set세부넣기(null); }}>⋯</button>
                 {!c.parentId && (
-                  <button className="addsub" title={`${c.name} 안에 세부 분류 넣기`}
-                    onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); }}>+</button>
+                  <button className="rowbtn" title="세부 분류 넣기"
+                    onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); set메뉴(null);
+                                     set접은것((t) => { const n = new Set(t); n.delete(c.id); return n; }); }}>+</button>
                 )}
+                <button className="rowbtn" title="더 보기"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => set메뉴(메뉴 === c.id ? null : c.id)}>⋯</button>
               </span>
+            )}
+
+            {/* 더 보기 — 요즘 흔한 작은 메뉴. 바깥을 누르면 닫힌다 */}
+            {메뉴 === c.id && (
+              <div className="rowmenu" onPointerDown={(e) => e.stopPropagation()}>
+                <button onClick={() => { set고치는이름(c.id); set메뉴(null); }}>이름 바꾸기</button>
+                {!c.parentId && (
+                  <button onClick={() => { p.onChangeKind(c.id, c.kind === "참고 자료" ? "우리 결과물" : "참고 자료"); set메뉴(null); }}>
+                    {c.kind === "참고 자료" ? "우리 결과물로" : "참고 자료로"}
+                  </button>
+                )}
+                <button className="빨강" onClick={() => { p.onDeleteCategory(c.id); set메뉴(null); }}>
+                  지우기{inCat(c.id).length > 0 && <small>{inCat(c.id).length}건은 옮겨집니다</small>}
+                </button>
+              </div>
             )}
 
             {/* 세부 분류 넣기 */}

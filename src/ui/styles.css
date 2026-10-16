@@ -215,7 +215,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 .navitem:hover { background: var(--panel); }
 .navitem.on { background: var(--ink); color: #fff; }
-.navitem span { margin-left: auto; font-size: 14px; opacity: 0.55; }
+
 .navitem em {
   font-style: normal; font-size: 12px; border: 1px solid currentColor;
   border-radius: 20px; padding: 0 5px; opacity: 0.6;
@@ -1082,11 +1082,6 @@ ol.saylist li::before {
   content: ""; position: absolute; left: 2px; right: 2px; top: -2px;
   height: 2px; background: var(--accent); border-radius: 2px;
 }
-.navitem .grip {
-  color: var(--line); margin-right: 6px; font-size: 11px;
-  letter-spacing: -1px; vertical-align: 1px;
-}
-.navrow:hover .navitem .grip { color: var(--muted); }
 
 /* 세부 분류 — 한 칸 들여 쓰고 옆줄을 그어 딸린 것임을 보인다 */
 .navrow.세부 { margin-left: 13px; border-left: 1px solid var(--line); padding-left: 7px; }
@@ -1135,16 +1130,6 @@ ol.saylist li::before {
 .trailrow .which { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pinfield { display: flex; flex-direction: column; gap: 4px; }
 .pinfield small { color: var(--muted); font-size: 12.5px; }
-/* 줄 끝의 작은 + — 그 분류 안에 세부 분류를 넣는다 */
-.addsub {
-  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
-  width: 20px; height: 20px; padding: 0; line-height: 1;
-  border: 0; border-radius: 5px; background: transparent;
-  color: var(--line); font-size: 15px; cursor: pointer;
-  transition: color .12s, background .12s;
-}
-.navrow:hover .addsub { color: var(--muted); background: var(--tint); }
-.addsub:hover { color: var(--accent); border-color: var(--accent); }
 /* 로그인 — 이름 기억하기 */
 .remember {
   display: flex; align-items: center; gap: 7px;
@@ -1167,19 +1152,70 @@ ol.saylist li::before {
 .catnew.세부 { margin-left: 13px; width: calc(100% - 13px); }
 .kindpick { font-size: 13px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; }
 /* + 가 건수를 가리지 않게 자리를 비워 둔다 */
-.navrow > .navitem { padding-right: 52px; }
-.navrow.세부 > .navitem { padding-right: 30px; }
+
+
 /* 건수를 오른쪽 끝으로 미는 규칙(.navitem span)에 손잡이까지 걸려
    이름이 오른쪽으로 밀려 있었다. 손잡이는 맨 왼쪽에 둔다. */
-.navitem .grip { margin-left: 0; opacity: 1; }
-/* 줄 끝의 작은 단추들 — 고치기(⋯) 와 세부 분류 넣기(+) */
-.rowtools {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  display: flex; gap: 1px;
-}
-.rowtools .addsub { position: static; transform: none; }
+
 .btn.sm.danger { color: var(--accent); border-color: var(--accent); }
 .hiddencats { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
 .hiddencats > small { display: block; color: var(--muted); font-size: 12.5px; margin-bottom: 5px; }
 .hiddencats .navitem { color: var(--muted); font-size: 14.5px; }
 .hiddencats .navitem span { color: var(--accent); opacity: 1; font-size: 12.5px; }
+
+
+/* ── 분류 나무 — 요즘 쓰는 옆 목록 ── */
+.navrow { position: relative; border-radius: 7px; }
+.navrow > .navitem { padding-right: 10px; }
+.navrow.세부 { margin-left: 0; border-left: 0; padding-left: 0; }
+.navrow.세부 > .navitem { padding-left: 29px; }
+.navrow.세부 > .navitem .twist { display: none; }
+.navitem .twist {
+  width: 15px; flex-shrink: 0; text-align: center;
+  color: var(--muted); font-size: 10px; line-height: 1; opacity: 0.75;
+}
+.navitem .twist:not(.빈):hover { color: var(--ink); opacity: 1; }
+.navitem b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navitem.on b { font-weight: 600; }
+.navitem .cnt { margin-left: auto; font-size: 13.5px; opacity: 0.5; padding-left: 6px; flex-shrink: 0; min-width: 14px; text-align: right; }
+.navrow:hover .navitem .cnt, .navrow.메뉴열림 .navitem .cnt { opacity: 0; }
+
+.rowtools {
+  position: absolute; right: 5px; top: 5px; display: none; gap: 2px;
+}
+.navrow:hover .rowtools, .navrow.메뉴열림 .rowtools { display: flex; }
+.rowbtn {
+  width: 22px; height: 22px; padding: 0; line-height: 1;
+  border: 0; border-radius: 5px; background: transparent;
+  color: var(--muted); font-size: 14px; cursor: pointer;
+}
+.rowbtn:hover { background: var(--line); color: var(--ink); }
+.navitem.on + .rowtools .rowbtn { color: rgba(255,255,255,0.75); }
+.navitem.on + .rowtools .rowbtn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+.rowmenu {
+  position: absolute; right: 4px; top: 30px; z-index: 20;
+  background: #fff; border: 1px solid var(--line); border-radius: 9px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.14); padding: 4px; min-width: 146px;
+}
+.rowmenu button {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 7px 10px; border-radius: 6px; font-size: 14px; color: var(--ink); cursor: pointer;
+}
+.rowmenu button:hover { background: var(--tint); }
+.rowmenu button.빨강 { color: var(--accent); }
+.rowmenu button small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+.catrename {
+  width: 100%; padding: 6px 9px; margin: 1px 0;
+  border: 1px solid var(--ink); border-radius: 7px; font-size: 15.5px; outline: none;
+}
+.catnew.세부 { margin-left: 29px; width: calc(100% - 29px); }
+
+/* 참고 딱지는 줄어들지 않게, 작게 */
+.navitem em {
+  flex-shrink: 0; font-size: 11px; padding: 0 5px; line-height: 1.5;
+  border-radius: 20px; opacity: 0.55;
+}
+/* "전체" 줄에는 손댈 게 없다 */
+.dash-nav > .navitem .cnt { margin-left: auto; }
