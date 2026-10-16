@@ -1145,3 +1145,9 @@ ol.saylist li::before {
 }
 .navrow:hover .addsub { opacity: 1; }
 .addsub:hover { color: var(--accent); border-color: var(--accent); }
+/* 로그인 — 이름 기억하기 */
+.remember {
+  display: flex; align-items: center; gap: 7px;
+  margin: 2px 0 11px; cursor: pointer; color: var(--muted); font-size: 14px;
+}
+.remember input { width: 15px; height: 15px; }

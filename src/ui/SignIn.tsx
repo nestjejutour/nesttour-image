@@ -13,6 +13,8 @@ import { useState } from "react";
 
 /** 지난번에 적은 이름을 기억해 둔다 */
 const 이름칸 = "mtmb-지난이름";
+/** 기억해 둘지 말지 — 끄면 이 컴퓨터에 이름을 남기지 않는다 */
+const 기억칸 = "mtmb-이름기억";
 
 export function SignIn({
   대표암호, 직원암호, onIn,
@@ -21,6 +23,9 @@ export function SignIn({
   직원암호: string;
   onIn: (name: string, role: "대표" | "직원") => void;
 }) {
+  const [기억, set기억] = useState(() => {
+    try { return localStorage.getItem(기억칸) !== "아니오"; } catch { return true; }
+  });
   const [이름, set이름] = useState(() => {
     try { return localStorage.getItem(이름칸) ?? ""; } catch { return ""; }
   });
@@ -32,7 +37,11 @@ export function SignIn({
     if (!n) { set틀림("이름을 적어 주세요."); return; }
     const 자리 = 암호 === 대표암호 ? "대표" : 암호 === 직원암호 ? "직원" : null;
     if (!자리) { set틀림("암호가 다릅니다."); set암호(""); return; }
-    try { localStorage.setItem(이름칸, n); } catch { /* 기억 못 해도 들어가는 데는 지장 없다 */ }
+    try {
+      localStorage.setItem(기억칸, 기억 ? "예" : "아니오");
+      if (기억) localStorage.setItem(이름칸, n);
+      else localStorage.removeItem(이름칸);
+    } catch { /* 기억 못 해도 들어가는 데는 지장 없다 */ }
     onIn(n, 자리);
   };
 
@@ -62,13 +71,23 @@ export function SignIn({
           onChange={(e) => { set암호(e.target.value); set틀림(""); }}
           onKeyDown={(e) => { if (e.key === "Enter") 로그인(); }}
         />
+        <label className="remember">
+          <input type="checkbox" checked={기억}
+            onChange={(e) => {
+              set기억(e.target.checked);
+              // 끄는 그 순간 바로 지운다. 로그인해야 지워지면 늦다.
+              try {
+                localStorage.setItem(기억칸, e.target.checked ? "예" : "아니오");
+                if (!e.target.checked) localStorage.removeItem(이름칸);
+              } catch { /* 못 지워도 할 수 없다 */ }
+            }} />
+          <span>이름 기억하기</span>
+        </label>
+
         <button className="btn primary" style={{ width: "100%" }} onClick={로그인}>
           로그인
         </button>
         {틀림 && <p className="gateerr">{틀림}</p>}
-        <small className="gatenote">
-          적으신 이름은 다음에 열 때 그대로 떠 있습니다. 암호만 넣으시면 됩니다.
-        </small>
       </div>
     </div>
   );
