@@ -93,12 +93,25 @@ console.log("메뉴 글자:", (await pg.locator(".rowmenu").innerText()).replace
 await pg.screenshot({ path: `${OUT}/옮기기.png`, clip: { x: 250, y: 150, width: 820, height: 560 } });
 await pg.locator(".libhead b").click({ force: true }); await pg.waitForTimeout(400);
 
-// 크게 보기
-await pg.locator(".libshot").first().click(); await pg.waitForTimeout(700);
-console.log("크게 보기:", await pg.locator(".bigview").count() ? "열림 ✓" : "안 열림 ✗");
-console.log("크게 머리말:", (await pg.locator(".bigbar").innerText()).replace(/\n/g," ").trim());
-await pg.screenshot({ path: `${OUT}/자료크게.png`, clip: { x: 300, y: 100, width: 1100, height: 700 } });
-await pg.locator(".bigview").click({ position: { x: 10, y: 10 } }); await pg.waitForTimeout(400);
+// 한 장 열어 보기
+await pg.locator(".libshot").first().click(); await pg.waitForTimeout(800);
+console.log("한 장 화면:", await pg.locator(".한장").count() ? "열림 ✓" : "안 열림 ✗");
+console.log("머리말:", (await pg.locator(".한장머리").innerText()).replace(/\n/g," ").trim());
+console.log("항목:", (await pg.locator(".한장표 dt").allTextContents()).join(" | "));
+console.log("단추:", (await pg.locator(".한장옆 .btn").allTextContents()).join(" | "));
+// 메모를 적어 본다
+await pg.locator(".한장옆 textarea").fill("야외용 · 400x90");
+await pg.locator(".한장옆 textarea").blur(); await pg.waitForTimeout(500);
+// 옆으로 넘긴다
+await pg.locator(".넘김").last().click(); await pg.waitForTimeout(600);
+console.log("넘긴 뒤:", (await pg.locator(".한장머리").innerText()).replace(/\n/g," ").trim());
+await pg.screenshot({ path: `${OUT}/자료한장.png` });
+await pg.locator(".한장").click({ position: { x: 10, y: 10 } }); await pg.waitForTimeout(400);
+await pg.waitForTimeout(6500);
+console.log("메모 남았나:", await pg.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("mtmb-studio-v1") || "{}");
+  return (d.library || []).find((x) => x.note)?.note ?? "(없음)";
+}));
 
 // 이름으로 찾기
 await pg.locator(".libfind").fill("현수막-3"); await pg.waitForTimeout(500);

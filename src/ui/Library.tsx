@@ -25,9 +25,13 @@ interface Props {
   onRemoveMany: (ids: string[]) => void;
   onRename: (id: string, name: string) => void;
   onMove: (id: string, categoryId: string) => void;
+  /** 폴더 이름으로 세부 분류를 만들어(이미 있으면 그대로) 번호를 돌려준다 */
+  onMakeFolders: (parentId: string, names: string[]) => Record<string, string>;
+  /** 메모 적기 */
+  onNote: (id: string, note: string) => void;
 }
 
-export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove }: Props) {
+export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove, onMakeFolders, onNote }: Props) {
   const [끄는중, set끄는중] = useState(false);
   const [담는중, set담는중] = useState<{ 끝난: number; 전부: number; 지금: string } | null>(null);
   const [찾기, set찾기] = useState("");
@@ -43,6 +47,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
   /** 삭제를 한 번 더 묻는 중 — 브라우저 창(confirm)은 틀 안에서 막히므로 화면 안에서 묻는다 */
   const [지울까, set지울까] = useState(false);
   const [탈난말, set탈난말] = useState("");
+  /** 방금 만들어진 세부 분류 이름들 */
+  const [만든폴더, set만든폴더] = useState<string[]>([]);
 
   /**
    * 담을 곳.
@@ -78,15 +84,42 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
   }, [메뉴]);
 
   /** 받은 파일들을 하나씩 담는다. 100개를 한꺼번에 돌리면 화면이 멈춘다 */
-  const 받기 = async (files: File[]) => {
+  const 받기 = async (받은것: File[]) => {
     set탈난말("");
-    if (!files.length) return;
+    // 윈도우·맥이 폴더마다 끼워 넣는 것들. 섞여 들어오면 목록이 지저분해진다.
+    const 찌꺼기 = /^(\.|~\$)|^(Thumbs\.db|desktop\.ini|\.DS_Store)$/i;
+    const files = 받은것.filter((f) => f.size > 0 && !찌꺼기.test(f.name));
+    if (!files.length) {
+      if (받은것.length) set탈난말("담을 수 있는 파일이 없습니다.");
+      return;
+    }
     if (!담을곳) {
       set탈난말("왼쪽에서 분류를 먼저 고르십시오. 어디에 담을지 정해야 합니다.");
       return;
     }
     // 고르자마자 보여 준다. 큰 파일은 그림 뽑는 데 몇 초 걸려 멎은 줄 안다.
     set담는중({ 끝난: 0, 전부: files.length, 지금: files[0].name });
+
+    /**
+     * 폴더째 담았으면 그 폴더를 세부 분류로 만든다.
+     *
+     * 길의 맨 앞이 지금 고른 분류와 같은 이름이면 그건 껍데기다 (그 분류를 고르고
+     * 같은 이름 폴더를 담은 것). 벗겨 낸다.
+     * 세부 분류는 한 겹까지라, 여러 겹이면 가장 안쪽 이름을 쓴다 — 그게 제일 또렷하다.
+     */
+    const 지금이름 = categories.find((c) => c.id === 담을곳)?.name;
+    const 세부분류이름 = (f: File) => {
+      let 토막 = 속한폴더(f);
+      if (토막[0] && 지금이름 && 토막[0] === 지금이름) 토막 = 토막.slice(1);
+      return 토막.length ? 토막[토막.length - 1] : "";
+    };
+    // 세부 분류 밑에 담고 있으면 더 깊이 못 판다. 그때는 꼬리표로만 남긴다.
+    const 세부가능 = !categories.find((c) => c.id === 담을곳)?.parentId;
+    const 만들이름 = 세부가능
+      ? [...new Set(files.map(세부분류이름).filter(Boolean))]
+      : [];
+    const 폴더번호 = 만들이름.length ? onMakeFolders(담을곳, 만들이름) : {};
+
     const 담긴: LibItem[] = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -104,13 +137,14 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       담긴.push({
         id,
         name: f.name.replace(/\.[^.]+$/, ""),
-        categoryId: 담을곳,
+        categoryId: 폴더번호[세부분류이름(f)] ?? 담을곳,
         fileName: f.name,
         size: f.size,
         w: 그림.w, h: 그림.h,
         noThumb: 그림.thumb ? undefined : (그림.못뽑은까닭 ?? "그림을 못 뽑았습니다"),
         hasFile: 품었나,
         noFile: 품었나 ? undefined : 못품은까닭,
+        tags: 속한폴더(f).length ? 속한폴더(f) : undefined,
         addedAt: new Date(Date.now() - i).toISOString(),   // 고른 차례를 지킨다
         byName,
       });
@@ -121,6 +155,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
     if (!담긴.length) { set탈난말("담긴 것이 없습니다. 다시 시도해 주십시오."); return; }
     onAdd(담긴);
     set방금(담긴.length);
+    if (만들이름.length) set만든폴더(만들이름);
+    setTimeout(() => set만든폴더([]), 6000);
     setTimeout(() => set방금(null), 4000);
   };
 
@@ -194,6 +230,9 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         <b>자료</b>
         <small>{보일것.length}개{못뽑은수 > 0 && ` · 그림 못 뽑음 ${못뽑은수}개`}</small>
         {방금 !== null && <small className="방금">{방금}개 담아 저장했습니다</small>}
+        {만든폴더.length > 0 && (
+          <small className="방금">폴더 {만든폴더.join(" · ")} 를 분류로 만들었습니다</small>
+        )}
         {자리 && <small title="이 기기에서 쓰고 있는 자리">{자리}</small>}
         {고른것.length > 0 && 받을수있는수 === 0 && (
           <small className="없음">선택한 자료에 원본이 없어 저장할 수 없습니다</small>
@@ -203,6 +242,16 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
           <input className="libfind" placeholder="이름으로 찾기"
             value={찾기} onChange={(e) => set찾기(e.target.value)} />
         )}
+        <label className="btn sm" title="폴더를 통째로 담습니다 (안의 파일을 모두)">
+          + 폴더 추가
+          <input type="file" multiple className="숨은칸" disabled={!담을곳}
+            ref={(el) => { if (el) { el.webkitdirectory = true; el.setAttribute("webkitdirectory", ""); } }}
+            onChange={(e) => {
+              const fs = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              void 받기안전(fs);
+            }} />
+        </label>
         {보일것.length > 0 && (
           <>
             <label className="allpick" title="전체 고르기">
@@ -251,7 +300,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         onDragLeave={() => set끄는중(false)}
         onDrop={(e) => {
           e.preventDefault(); set끄는중(false);
-          void 받기안전(Array.from(e.dataTransfer.files ?? []));
+          void 놓은것펼치기(e.dataTransfer).then(받기안전);
         }}
       >
         <input type="file" multiple className="숨은칸" disabled={!담을곳}
@@ -273,7 +322,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
               {담을곳이름
                 ? `"${담을곳이름}" 에 들어갑니다. `
                 : "어디에 담을지 정해야 받을 수 있습니다. "}
-              한 번에 여러 개, 폴더째 끌어다 놓아도 됩니다.
+              폴더째 끌어다 놓으면 그 폴더가 세부 분류로 생기고 안의 파일이 담깁니다.
               일러스트(.ai)·PDF·사진에서 미리보기를 뽑습니다.
               <br />놓는 즉시 저장됩니다 — 따로 저장하실 것이 없습니다.
               {원본없는수 > 0 && (
@@ -354,21 +403,159 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         </div>
       )}
 
-      {크게 && (
-        <div className="bigview" onClick={() => set크게(null)}>
-          <div onClick={(e) => e.stopPropagation()}>
-            <Thumb id={크게.id} 없음={크게.noThumb} 큼 />
-            <div className="bigbar">
+      {크게 && (() => {
+        const 자리 = 보일것.findIndex((x) => x.id === 크게.id);
+        const 넘기기 = (d: number) => {
+          const n = 보일것[자리 + d];
+          if (n) set크게(n);
+        };
+        const 분류이름 = categories.find((c) => c.id === 크게.categoryId)?.name ?? "";
+        return (
+        <div className="한장" onClick={() => set크게(null)}>
+          <div className="한장틀" onClick={(e) => e.stopPropagation()}>
+            <div className="한장머리">
               <b>{크게.name}</b>
-              <small>{크게.fileName} · {prettySize(크게.size)}{크게.w ? ` · ${크게.w}×${크게.h}` : ""}</small>
+              <small>{분류이름}{자리 >= 0 ? ` · ${자리 + 1} / ${보일것.length}` : ""}</small>
               <div className="spacer" />
               <button className="btn sm" onClick={() => set크게(null)}>닫기</button>
             </div>
+
+            <div className="한장몸">
+              <div className="한장그림">
+                <button className="넘김" disabled={자리 <= 0}
+                  onClick={() => 넘기기(-1)} aria-label="앞 자료">‹</button>
+                <Thumb id={크게.id} 없음={크게.noThumb} 큼 />
+                <button className="넘김" disabled={자리 < 0 || 자리 >= 보일것.length - 1}
+                  onClick={() => 넘기기(1)} aria-label="뒤 자료">›</button>
+              </div>
+
+              <div className="한장옆">
+                <label className="field">
+                  <small>이름</small>
+                  <input defaultValue={크게.name} key={`n${크게.id}`}
+                    onBlur={(e) => { onRename(크게.id, e.target.value); set크게({ ...크게, name: e.target.value.trim() || 크게.name }); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                </label>
+
+                <label className="field">
+                  <small>폴더</small>
+                  <select value={크게.categoryId}
+                    onChange={(e) => { onMove(크게.id, e.target.value); set크게({ ...크게, categoryId: e.target.value }); }}>
+                    {categories.filter((c) => !c.parentId).map((c) => {
+                      const 속 = categories.filter((k) => k.parentId === c.id);
+                      return 속.length ? (
+                        <optgroup key={c.id} label={c.name}>
+                          <option value={c.id}>{c.name} (바로 여기)</option>
+                          {속.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+                        </optgroup>
+                      ) : <option key={c.id} value={c.id}>{c.name}</option>;
+                    })}
+                  </select>
+                </label>
+
+                <label className="field">
+                  <small>메모</small>
+                  <textarea rows={4} defaultValue={크게.note ?? ""} key={`m${크게.id}`}
+                    placeholder="쓰임새, 치수, 주의할 점…"
+                    onBlur={(e) => { onNote(크게.id, e.target.value); set크게({ ...크게, note: e.target.value }); }} />
+                </label>
+
+                <dl className="한장표">
+                  <dt>원본 파일</dt><dd>{크게.fileName}</dd>
+                  <dt>크기</dt><dd>{prettySize(크게.size)}</dd>
+                  {크게.w && <><dt>치수</dt><dd>{크게.w} × {크게.h}</dd></>}
+                  <dt>담은 날</dt><dd>{new Date(크게.addedAt).toLocaleString("ko-KR")}</dd>
+                  {크게.byName && <><dt>담은 사람</dt><dd>{크게.byName}</dd></>}
+                  {크게.tags?.length && <><dt>원래 폴더</dt><dd>{크게.tags.join(" / ")}</dd></>}
+                </dl>
+
+                <div className="row" style={{ gap: 7, flexWrap: "wrap" }}>
+                  <button className="btn primary" disabled={!크게.hasFile}
+                    title={크게.hasFile ? "원본 파일을 내 컴퓨터로 내려받습니다" : "원본이 없습니다"}
+                    onClick={async () => {
+                      const b = await getFile(크게.id);
+                      if (b) 떨구기(b, 크게.fileName);
+                    }}>
+                    내 PC로 저장
+                  </button>
+                  <button className="btn danger"
+                    onClick={() => {
+                      void delThumb(크게.id); void delFile(크게.id);
+                      onRemove(크게.id); set크게(null);
+                    }}>
+                    삭제
+                  </button>
+                </div>
+
+                {!크게.hasFile && (
+                  <p className="saynote">
+                    원본이 없습니다. 이 자료를 다시 끌어다 놓으시면 원본까지 담깁니다.
+                  </p>
+                )}
+                <p className="lede" style={{ fontSize: 13 }}>
+                  일러스트 파일은 브라우저에서 고칠 수 없습니다.
+                  <b> 내 PC로 저장</b> 으로 원본을 받아 일러스트에서 여십시오.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
+}
+
+/**
+ * 그 파일이 어느 폴더에 있었는가.
+ *
+ * 폴더째 담으면 webkitRelativePath 에 "현수막/개인/팔음초.ai" 처럼 길이 담긴다.
+ * 맨 앞(고른 폴더 이름)과 파일 이름을 빼고 남는 것이 속한 갈래다.
+ */
+function 속한폴더(f: File): string[] {
+  const 길 = (f as any).webkitRelativePath as string | undefined;
+  if (!길 || !길.includes("/")) return [];
+  return 길.split("/").slice(0, -1).filter(Boolean);
+}
+
+/**
+ * 끌어다 놓은 것에서 파일을 모두 꺼낸다.
+ *
+ * 폴더를 끌어다 놓으면 dataTransfer.files 는 비어 있다.
+ * 폴더는 webkitGetAsEntry 로 하나씩 펼쳐야 파일이 나온다.
+ */
+async function 놓은것펼치기(dt: DataTransfer): Promise<File[]> {
+  const 입구 = Array.from(dt.items ?? [])
+    .map((it) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null))
+    .filter(Boolean) as any[];
+  if (!입구.length) return Array.from(dt.files ?? []);
+
+  const 모은것: File[] = [];
+  const 파일로 = (e: any) => new Promise<File | null>((res) => e.file(res, () => res(null)));
+  const 줄줄이 = (r: any) => new Promise<any[]>((res) => r.readEntries(res, () => res([])));
+
+  const 훑기 = async (e: any, 앞길: string) => {
+    if (e.isFile) {
+      const f = await 파일로(e);
+      if (f) {
+        // 폴더째 고른 것과 같은 길을 붙여 준다 (갈래를 꼬리표로 쓰기 위함)
+        try { Object.defineProperty(f, "webkitRelativePath", { value: `${앞길}${e.name}` }); } catch { /* 못 붙여도 담는다 */ }
+        모은것.push(f);
+      }
+      return;
+    }
+    if (e.isDirectory) {
+      const r = e.createReader();
+      for (;;) {
+        const 묶음 = await 줄줄이(r);
+        if (!묶음.length) break;
+        for (const x of 묶음) await 훑기(x, `${앞길}${e.name}/`);
+      }
+    }
+  };
+
+  for (const e of 입구) await 훑기(e, "");
+  return 모은것;
 }
 
 /** 파일 하나를 내려받게 떨군다 */

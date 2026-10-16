@@ -49,6 +49,8 @@ interface Props {
   onRemoveLibMany: (ids: string[]) => void;
   onRenameLib: (id: string, name: string) => void;
   onMoveLib: (id: string, categoryId: string) => void;
+  onMakeFolders: (parentId: string, names: string[]) => Record<string, string>;
+  onNoteLib: (id: string, note: string) => void;
 }
 
 const PER_ROW = 5;
@@ -121,6 +123,12 @@ export function Dashboard(p: Props) {
     const 범위 = new Set(묶음(id));
     return sorted(projects.filter((x) => 범위.has(x.category) && match(x)));
   };
+  /** 그 분류에 든 자료 수 — 옆에 적는 숫자는 제안서와 자료를 함께 센다 */
+  const 자료수 = (id: string) => {
+    const 범위 = new Set(묶음(id));
+    return p.library.filter((x) => 범위.has(x.categoryId)).length;
+  };
+  const 모두수 = (id: string) => inCat(id).length + 자료수(id);
   const filtered = projects.filter(match);
   // 최근에 손댄 것부터. 너무 많으면 고르기가 더 어렵다.
   const inProgress = projects
@@ -200,6 +208,7 @@ export function Dashboard(p: Props) {
   };
 
   const shown = sel === "all" ? cats.filter((c) => inCat(c.id).length > 0) : cats.filter((c) => c.id === sel);
+  void shown;
   const expanded = sel !== "all" || !!mood || !!q.trim();
 
   return (
@@ -215,7 +224,7 @@ export function Dashboard(p: Props) {
         </p>
         <button className={`navitem ${sel === "all" ? "on" : ""}`} onClick={() => setSel("all")}>
           <span className="twist 빈" aria-hidden /><b>전체</b>
-          <span className="cnt">{filtered.length}</span>
+          <span className="cnt">{filtered.length + p.library.length}</span>
         </button>
         {cats.map((c) => {
           const 접힘 = 접은것.has(c.id);
@@ -282,7 +291,9 @@ export function Dashboard(p: Props) {
                 ) : <span className="twist 빈" aria-hidden />}
                 <b>{c.name.trim() || "(이름 없음)"}</b>
                 {c.kind === "참고 자료" && <em>참고</em>}
-                <span className="cnt">{inCat(c.id).length}</span>
+                <span className="cnt" title={`제안서 ${inCat(c.id).length}건 · 자료 ${자료수(c.id)}개`}>
+                  {모두수(c.id)}
+                </span>
               </button>
             )}
 
@@ -311,7 +322,7 @@ export function Dashboard(p: Props) {
                   </button>
                 )}
                 <button className="빨강" onClick={() => { p.onDeleteCategory(c.id); set메뉴(null); }}>
-                  삭제{inCat(c.id).length > 0 && <small>{inCat(c.id).length}건은 다른 분류로 이동</small>}
+                  삭제{모두수(c.id) > 0 && <small>{모두수(c.id)}건은 다른 분류로 이동</small>}
                 </button>
               </div>
             )}
@@ -513,6 +524,8 @@ export function Dashboard(p: Props) {
           onRemoveMany={p.onRemoveLibMany}
           onRename={p.onRenameLib}
           onMove={p.onMoveLib}
+          onMakeFolders={p.onMakeFolders}
+          onNote={p.onNoteLib}
         />
       </div>
     </div>

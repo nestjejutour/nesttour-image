@@ -942,6 +942,25 @@ function Studio({
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) }))}
             onMoveLib={(id: string, categoryId: string) =>
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, categoryId } : x)) }))}
+            onNoteLib={(id: string, note: string) =>
+              update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, note } : x)) }))}
+            onMakeFolders={(parentId: string, names: string[]) => {
+              // 끌어다 놓은 폴더를 세부 분류로 만든다. 이미 있으면 그걸 쓴다.
+              const 있는것 = db.categories.filter((c) => c.parentId === parentId);
+              const 부모 = db.categories.find((c) => c.id === parentId);
+              const 번호: Record<string, string> = {};
+              const 새것: Category[] = [];
+              let 차례 = Math.max(0, ...있는것.map((c) => c.order));
+              for (const n of names) {
+                const 이미 = 있는것.find((c) => c.name === n);
+                if (이미) { 번호[n] = 이미.id; continue; }
+                const id = uid();
+                새것.push({ id, name: n, kind: 부모?.kind ?? "우리 결과물", order: ++차례, parentId });
+                번호[n] = id;
+              }
+              if (새것.length) update((d) => ({ ...d, categories: [...d.categories, ...새것] }));
+              return 번호;
+            }}
             onChangeKind={(id, kind) =>
               update((d) => ({ ...d, categories: d.categories.map((c) =>
                 c.id === id ? { ...c, kind } : (c.parentId === id ? { ...c, kind } : c)) }))}
