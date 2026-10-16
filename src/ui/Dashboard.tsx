@@ -34,6 +34,8 @@ interface Props {
   onDeleteCategory: (id: string) => void;
   /** 분류 차례 바꾸기 — 바뀐 차례대로 번호를 다시 매긴다 */
   onReorderCategories: (ids: string[]) => void;
+  /** 갈래 바꾸기 (우리 결과물 ↔ 참고 자료) */
+  onChangeKind: (id: string, kind: Category["kind"]) => void;
 }
 
 const PER_ROW = 5;
@@ -139,8 +141,7 @@ export function Dashboard(p: Props) {
   /** 세부 분류를 넣는 중인 큰 분류 */
   const [세부넣기, set세부넣기] = useState<string | null>(null);
   const [세부이름, set세부이름] = useState("");
-  /** 새 분류를 어디에 넣을 것인가 — "" 면 큰 분류로 */
-  const [넣을자리, set넣을자리] = useState("");
+
   const [놓을곳, set놓을곳] = useState<string | null>(null);
 
   /** 같은 칸에 걸린 형제들 (차례는 이 안에서만 바뀐다) */
@@ -184,7 +185,11 @@ export function Dashboard(p: Props) {
     <div className="dash">
       {/* ── 왼쪽: 분류 ── */}
       <div className="dash-nav">
-        <p className="sec" style={{ marginTop: 0 }}>분류</p>
+        <p className="sec" style={{ marginTop: 0 }}>
+          분류
+          <button className="secadd" title="분류 하나 더 만들기"
+            onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
+        </p>
         <button className={`navitem ${sel === "all" ? "on" : ""}`} onClick={() => setSel("all")}>
           전체 <span>{filtered.length}</span>
         </button>
@@ -238,6 +243,13 @@ export function Dashboard(p: Props) {
                     <button className="btn sm" title="이 분류 아래에 세부 분류를 만듭니다"
                       onClick={() => { set세부넣기(c.id); set세부이름(""); setEditId(null); }}>+ 세부 분류</button>
                   )}
+                  {!c.parentId && (
+                    <select className="kindpick" value={c.kind}
+                      onChange={(e) => p.onChangeKind(c.id, e.target.value as Category["kind"])}>
+                      <option value="우리 결과물">우리 결과물</option>
+                      <option value="참고 자료">참고 자료</option>
+                    </select>
+                  )}
                   {!c.builtIn && inCat(c.id).length === 0 && (
                     <button className="btn sm" onClick={() => { p.onDeleteCategory(c.id); setEditId(null); }}>
                       삭제
@@ -263,91 +275,48 @@ export function Dashboard(p: Props) {
             {/* 줄 위에서 바로 세부 분류를 넣는다 (단추 안에 단추를 넣을 수 없어 옆에 띄운다) */}
             {!c.parentId && editId !== c.id && 세부넣기 !== c.id && (
               <button className="addsub" title={`${c.name} 안에 세부 분류 넣기`}
-                onClick={() => { set세부넣기(c.id); set세부이름(""); }}>+</button>
+                onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); }}>+</button>
             )}
 
             {/* 세부 분류 넣기 */}
             {세부넣기 === c.id && (
-              <div className="catedit 세부">
-                <input
-                  autoFocus
-                  placeholder={`${c.name} 아래 세부 분류 이름`}
-                  value={세부이름}
-                  onChange={(e) => set세부이름(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && 세부이름.trim()) {
-                      p.onAddCategory(세부이름.trim(), c.kind, c.id);
-                      set세부이름("");
-                    }
-                    if (e.key === "Escape") set세부넣기(null);
-                  }}
-                />
-                <div className="row" style={{ marginTop: 6 }}>
-                  <button className="btn sm primary" disabled={!세부이름.trim()}
-                    onClick={() => { p.onAddCategory(세부이름.trim(), c.kind, c.id); set세부이름(""); }}>
-                    넣기
-                  </button>
-                  <button className="btn sm" onClick={() => set세부넣기(null)}>닫기</button>
-                </div>
-                <small>이어서 넣으시려면 계속 적고 Enter 를 누르세요.</small>
-              </div>
+              <input
+                className="catnew 세부"
+                autoFocus
+                placeholder={`${c.name} 안에 넣을 이름`}
+                value={세부이름}
+                onChange={(e) => set세부이름(e.target.value)}
+                onBlur={() => { if (!세부이름.trim()) set세부넣기(null); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && 세부이름.trim()) {
+                    p.onAddCategory(세부이름.trim(), c.kind, c.id);
+                    set세부이름("");
+                  }
+                  if (e.key === "Escape") { set세부이름(""); set세부넣기(null); }
+                }}
+              />
             )}
           </div>
           );
         })}
 
-        {adding ? (
-          (() => {
-            const 넣기 = () => {
-              if (!newName.trim()) return;
-              const 부모 = categories.find((c) => c.id === 넣을자리);
-              p.onAddCategory(newName.trim(), 부모 ? 부모.kind : newKind, 부모?.id);
-              setNewName("");   // 이어서 또 넣을 수 있게 칸만 비운다
-            };
-            return (
-              <div className="catedit">
-                <input
-                  autoFocus
-                  placeholder="새 분류 이름"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") 넣기();
-                    if (e.key === "Escape") setAdding(false);
-                  }}
-                />
-                {/* 어디에 넣을지 여기서 바로 고른다. 이름을 두 번 눌러야 나오면 못 찾는다 */}
-                <select value={넣을자리} onChange={(e) => set넣을자리(e.target.value)}>
-                  <option value="">큰 분류로 (맨 왼쪽 줄)</option>
-                  {categories
-                    .filter((c) => !c.parentId)
-                    .sort((a, b) => a.order - b.order)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>{c.name} 안에 넣기</option>
-                    ))}
-                </select>
-                {!넣을자리 && (
-                  <select value={newKind} onChange={(e) => setNewKind(e.target.value as Category["kind"])}>
-                    <option value="우리 결과물">우리 결과물 — 복제해 사용</option>
-                    <option value="참고 자료">참고 자료 — 받은 것 중 좋은 것</option>
-                  </select>
-                )}
-                <div className="row" style={{ marginTop: 6 }}>
-                  <button className="btn sm primary" disabled={!newName.trim()} onClick={넣기}>
-                    추가
-                  </button>
-                  <button className="btn sm" onClick={() => setAdding(false)}>닫기</button>
-                </div>
-                <small>
-                  {넣을자리
-                    ? `${categories.find((c) => c.id === 넣을자리)?.name} 아래에 들어갑니다. 이어서 적고 Enter 를 누르면 계속 넣습니다.`
-                    : "이어서 적고 Enter 를 누르면 계속 넣습니다."}
-                </small>
-              </div>
-            );
-          })()
-        ) : (
-          <button className="navitem add" onClick={() => setAdding(true)}>+ 분류 추가</button>
+        {adding && (
+          /* 이름 하나만 받는다. 적고 Enter. */
+          <input
+            className="catnew"
+            autoFocus
+            placeholder="새 분류 이름"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onBlur={() => { if (!newName.trim()) setAdding(false); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) {
+                p.onAddCategory(newName.trim(), newKind);
+                setNewName("");   // 이어서 또 넣을 수 있게 칸만 비운다
+              }
+              if (e.key === "Escape") { setNewName(""); setAdding(false); }
+            }}
+          />
         )}
 
         {allMoods.length > 0 && (

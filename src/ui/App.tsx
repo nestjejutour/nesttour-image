@@ -884,6 +884,9 @@ function Studio({
             onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
             onReorderCategories={reorderCategories}
+            onChangeKind={(id, kind) =>
+              update((d) => ({ ...d, categories: d.categories.map((c) =>
+                c.id === id ? { ...c, kind } : (c.parentId === id ? { ...c, kind } : c)) }))}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}

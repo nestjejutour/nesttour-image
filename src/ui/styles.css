@@ -1138,12 +1138,12 @@ ol.saylist li::before {
 /* 줄 끝의 작은 + — 그 분류 안에 세부 분류를 넣는다 */
 .addsub {
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
-  width: 21px; height: 21px; padding: 0; line-height: 1;
-  border: 1px solid var(--line); border-radius: 5px; background: #fff;
-  color: var(--muted); font-size: 14px; cursor: pointer;
-  opacity: 0; transition: opacity .12s;
+  width: 20px; height: 20px; padding: 0; line-height: 1;
+  border: 0; border-radius: 5px; background: transparent;
+  color: var(--line); font-size: 15px; cursor: pointer;
+  transition: color .12s, background .12s;
 }
-.navrow:hover .addsub { opacity: 1; }
+.navrow:hover .addsub { color: var(--muted); background: var(--tint); }
 .addsub:hover { color: var(--accent); border-color: var(--accent); }
 /* 로그인 — 이름 기억하기 */
 .remember {
@@ -1151,3 +1151,21 @@ ol.saylist li::before {
   margin: 2px 0 11px; cursor: pointer; color: var(--muted); font-size: 14px;
 }
 .remember input { width: 15px; height: 15px; }
+
+/* ── 분류 넣기 — + 하나, 칸 하나 ── */
+.dash-nav .sec { display: flex; align-items: center; justify-content: space-between; }
+.secadd {
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--muted); font-size: 17px; line-height: 1;
+  width: 22px; height: 22px; border-radius: 5px; padding: 0;
+}
+.secadd:hover { color: var(--accent); background: var(--tint); }
+.catnew {
+  width: 100%; margin: 3px 0 4px; padding: 7px 9px;
+  border: 1px solid var(--accent); border-radius: 6px; font-size: 14.5px;
+}
+.catnew.세부 { margin-left: 13px; width: calc(100% - 13px); }
+.kindpick { font-size: 13px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; }
+/* + 가 건수를 가리지 않게 자리를 비워 둔다 */
+.navrow > .navitem { padding-right: 28px; }
+.navrow.세부 > .navitem { padding-right: 12px; }
