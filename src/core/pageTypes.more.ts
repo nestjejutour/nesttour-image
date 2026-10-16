@@ -114,6 +114,51 @@ export const MORE_PAGE_TYPES: PageType[] = [
     },
   },
 
+
+  {
+    /**
+     * 현수막 — AI 가 그림을 그려서 올리는 판.
+     *
+     * print-full 과 뭐가 다른가: 저쪽은 "이미 만들어진 파일" 을 담는 자리고,
+     * 이쪽은 "아직 없는 디자인" 을 만드는 자리다.
+     *
+     * 글자를 그림(SVG) 안에 넣지 않고 칸으로 빼 둔 까닭:
+     *  · 그림 안의 글자는 글꼴이 안 지켜진다 (<img> 는 바깥 글꼴을 못 불러온다)
+     *  · 칸으로 빼 두면 직원이 글만 따로 고칠 수 있다
+     *  · 글자 크기도 규격으로 조절된다
+     *
+     * 자리를 가운데로 모아 둔 까닭: 현수막은 400×70 처럼 납작해서
+     * 16:9 로 잡은 자리가 위아래로 눌린다. 가운데 모여 있으면 눌려도 안 깨진다.
+     */
+    id: "banner-ai",
+    name: "현수막 (디자인)",
+    자유판: true,
+    description: "AI 가 바탕 그림을 그리고 그 위에 글을 얹는다. 새로 만드는 현수막·배너·엑스배너.",
+    group: "표지",
+    showPageNo: false,
+    builtIn: true,
+    createdAt: now,
+    slots: [
+      { key: "art", label: "바탕 그림 (AI 가 그린다)", kind: "image" },
+      { key: "주제목", label: "큰 글씨", kind: "text" },
+      { key: "부제목", label: "작은 글씨", kind: "text" },
+      { key: "덧말", label: "날짜 · 장소 · 주최 (없어도 됨)", kind: "text" },
+    ],
+    sample: {
+      주제목: "제주 유채꽃 축제",
+      부제목: "봄이 가장 먼저 닿는 곳",
+      덧말: "2026. 3. 20 ~ 4. 12  ·  서귀포 가시리",
+    },
+    elements: [
+      { type: "image", bind: "art", x: 0, y: 0, w: 10, h: 5.625, fit: "cover" },
+      { type: "text", bind: "주제목", x: 0.6, y: 1.75, w: 8.8, h: 1.3,
+        token: "coverTitleBold", color: "white", align: "center", valign: "middle" },
+      { type: "text", bind: "부제목", x: 0.6, y: 3.05, w: 8.8, h: 0.75,
+        token: "coverTitleThin", color: "white", align: "center", valign: "middle" },
+      { type: "text", bind: "덧말", x: 0.6, y: 3.85, w: 8.8, h: 0.6,
+        token: "body", color: "white", align: "center", valign: "middle" },
+    ],
+  },
   {
     /**
      * 인쇄물 한 장.

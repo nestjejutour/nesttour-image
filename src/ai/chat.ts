@@ -76,6 +76,97 @@ export const WEB_NOTE = `
 찾은 뒤에는 출처와 기준 날짜를 say 에 밝혀라.
 찾아도 확실하지 않으면 지어내지 말고 모른다고 말하라.`;
 
+/**
+ * 현수막·배너를 만들 때만 붙는 안내.
+ *
+ * 현수막은 PPT 가 아니다. 종이가 400×70cm 처럼 납작하고,
+ * 사진을 끼우는 게 아니라 그림을 그려야 한다.
+ * 그래서 AI 에게 "그림을 글로 적는 법" 을 따로 가르쳐야 한다.
+ */
+function 현수막안내(style: StylePreset): string {
+  const 가로cm = Math.round(style.slide.widthIn * 2.54);
+  const 세로cm = Math.round(style.slide.heightIn * 2.54);
+  const vbW = 가로cm * 4;
+  const vbH = 세로cm * 4;
+
+  return `
+────────────────────────────────
+여기는 현수막이다 — 제안서가 아니다
+
+종이 크기: ${가로cm} × ${세로cm} cm
+이건 실제 인쇄 크기다. 길쭉한 천에 박아서 벽에 거는 것이다.
+
+[현수막이 제안서와 다른 점]
+· 지나가며 3초 안에 읽힌다. 글이 많으면 실패한 현수막이다.
+  큰 글씨 한 줄, 작은 글씨 한 줄, 날짜·장소 한 줄. 이게 끝이다.
+· 바탕에 깔 사진이 없다. 네가 그림을 그려야 한다.
+· 멀리서 본다. 글씨는 크고 굵게, 색은 또렷하게.
+
+[바탕 그림은 네가 그린다 — "art" 칸에 SVG 를 적어라]
+사진 칸("art")에 사진 이름 대신 SVG 를 그대로 적으면 그게 바탕 그림이 된다.
+너는 사진을 찍지는 못하지만 그림은 적을 수 있다. 현수막은 원래 그림이다 —
+일러스트레이터로 만드는 것이고, 그건 선과 면과 색의 좌표다. 그걸 적으면 된다.
+선으로 적은 그림은 아무리 키워도 안 깨진다. 인쇄소에 넘길 때 이게 결정적이다.
+
+반드시 지킬 것:
+1. 첫 줄은 정확히 이렇게 — <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}">
+   이 종이 비율에 맞춘 값이다. 다른 숫자를 쓰면 그림이 늘어진다.
+2. **그림 안에 글자를 넣지 마라.** <text> 금지.
+   글자는 "주제목"·"부제목"·"덧말" 칸에 따로 적는다. 그래야 글꼴이 지켜지고
+   직원이 글만 따로 고칠 수 있다. 그림에 글을 박으면 둘 다 못 한다.
+3. 바깥 주소(http://…)·<image>·<script>·글꼴 불러오기 금지. 안 나온다.
+4. 쓸 수 있는 것: rect, circle, ellipse, path, polygon, line,
+   linearGradient, radialGradient, g, opacity, filter(blur) — 넉넉하다.
+5. 글자가 앉을 가운데 띠(세로 ${Math.round(vbH * 0.3)}~${Math.round(vbH * 0.72)} 쯤)는
+   어둡게나 밝게 고르게 깔아라. 거기에 흰 글씨가 올라간다.
+   꽃이나 무늬를 그 자리에 빽빽이 두면 글자가 묻힌다.
+6. 400~900자 정도로 적어라. 짧으면 허전하고, 너무 길면 화면이 버벅인다.
+
+[잘 나오는 짜임새]
+· 하늘 → 먼 산 → 들판 → 앞쪽 꽃 — 이렇게 층을 쌓으면 깊이가 생긴다.
+· 같은 색을 3단으로 (진한 것·중간·연한 것) 겹치면 손으로 그린 맛이 난다.
+· 한쪽에 색을 모으고 반대쪽을 비우면 글자 자리가 생긴다.
+· 꽃·잎은 작은 동그라미를 흩뿌리듯 여러 개 두면 된다. 하나하나 그리지 마라.
+
+[보기 — 제주 유채꽃, 그대로 베끼지 말고 짜임새만 보라]
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}">
+ <defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#8ECAE6"/><stop offset="1" stop-color="#E8F4D9"/>
+  </linearGradient>
+  <linearGradient id="ddm" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#1B3A2B" stop-opacity="0"/>
+   <stop offset=".55" stop-color="#1B3A2B" stop-opacity=".55"/>
+   <stop offset="1" stop-color="#1B3A2B" stop-opacity="0"/>
+  </linearGradient>
+ </defs>
+ <rect width="${vbW}" height="${vbH}" fill="url(#sky)"/>
+ <path d="M0 ${Math.round(vbH * 0.62)} L${Math.round(vbW * 0.3)} ${Math.round(vbH * 0.3)} L${Math.round(vbW * 0.42)} ${Math.round(vbH * 0.36)} L${Math.round(vbW * 0.55)} ${Math.round(vbH * 0.26)} L${vbW} ${Math.round(vbH * 0.6)} Z" fill="#7FA9B8" opacity=".45"/>
+ <path d="M0 ${Math.round(vbH * 0.72)} Q${Math.round(vbW * 0.25)} ${Math.round(vbH * 0.63)} ${Math.round(vbW * 0.5)} ${Math.round(vbH * 0.71)} T${vbW} ${Math.round(vbH * 0.68)} V${vbH} H0 Z" fill="#E3C53A"/>
+ <path d="M0 ${Math.round(vbH * 0.82)} Q${Math.round(vbW * 0.3)} ${Math.round(vbH * 0.74)} ${Math.round(vbW * 0.62)} ${Math.round(vbH * 0.83)} T${vbW} ${Math.round(vbH * 0.8)} V${vbH} H0 Z" fill="#F6D847"/>
+ <path d="M0 ${Math.round(vbH * 0.92)} Q${Math.round(vbW * 0.35)} ${Math.round(vbH * 0.86)} ${Math.round(vbW * 0.7)} ${Math.round(vbH * 0.93)} T${vbW} ${Math.round(vbH * 0.9)} V${vbH} H0 Z" fill="#FFE97A"/>
+ <g fill="#FFF3A8" opacity=".9">
+  <circle cx="${Math.round(vbW * 0.05)}" cy="${Math.round(vbH * 0.88)}" r="${Math.round(vbH * 0.035)}"/>
+  <circle cx="${Math.round(vbW * 0.11)}" cy="${Math.round(vbH * 0.95)}" r="${Math.round(vbH * 0.028)}"/>
+  <circle cx="${Math.round(vbW * 0.88)}" cy="${Math.round(vbH * 0.9)}" r="${Math.round(vbH * 0.032)}"/>
+  <circle cx="${Math.round(vbW * 0.95)}" cy="${Math.round(vbH * 0.96)}" r="${Math.round(vbH * 0.026)}"/>
+ </g>
+ <rect width="${vbW}" height="${vbH}" fill="url(#ddm)"/>
+</svg>
+맨 끝 "ddm" 한 겹이 글자 자리를 어둡게 깔아 준다. 이걸 꼭 마지막에 두어라.
+
+[무슨 말에 무엇으로 답하나]
+· "현수막 만들어줘", "유채꽃 넣어서", "예쁘게", "다시", "다른 느낌으로"
+  → 전부 {"do":"시안"} 이다. 2~3개를 내라. 바로 고쳐 버리지 마라.
+  시안마다 art 에 **서로 다른 그림**을 적어라. 색만 바꾼 걸 셋 내지 마라.
+  (예: 하나는 꽃밭, 하나는 큰 꽃 한 송이 접사 느낌, 하나는 색면만으로 단정하게)
+· "글자 더 크게", "제목 키워" → {"do":"스타일제안","path":"type.coverTitleBold.size", …}
+· "글 바꿔줘" → {"do":"내용수정"}
+· 그림은 그대로 두고 글만 고칠 때는 art 를 content 에서 빼라. 그러면 지금 그림이 남는다.
+  art 를 "" 로 적으면 그림이 지워진다. 조심하라.
+`;
+}
+
 export function chatSystem(opts: {
   brain: string;
   style: StylePreset;
@@ -132,6 +223,7 @@ ${slotHelp}
 지금 들어 있는 내용:
 ${JSON.stringify(slide.content, null, 1)}
 
+${pageType.자유판 ? 현수막안내(style) : ""}
 ────────────────────────────────
 이 제안서 전체 (${totalSlides}장)
 

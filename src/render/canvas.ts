@@ -21,6 +21,37 @@ const DPI = 192; // 1인치 = 192px (2배). AI 가 글자를 읽을 수 있을 �
  */
 const 긴변최대 = 2400;
 
+/**
+ * 인쇄용으로 뜰 때 쓸 배율(dpi).
+ *
+ * 화면용(192dpi)으로 400cm 현수막을 뜨면 가로 30,000점이 되어 브라우저가 죽는다.
+ * 그렇다고 2,400점으로 묶으면 1점이 1.7mm 가 되어 인쇄소에서 뭉개진다.
+ * 그래서 "점 개수 예산" 을 두고 그 안에서 배율을 최대로 올린다.
+ *
+ *  · A4 (11.7×8.3인치) → 300dpi, 3,500×2,500점. 글이 또렷하다.
+ *  · 400×70cm 현수막   → 약 83dpi, 13,000×2,300점.
+ *    대형 현수막은 원래 72~150dpi 로 뽑는다. 몇 미터 떨어져서 보는 물건이다.
+ *    게다가 바탕이 AI 가 그린 선 그림(SVG)이라, 사진을 늘린 것과 달리
+ *    이 배율에서 선이 계산되어 그려진다 — 뭉개지지 않는다.
+ *
+ * 예산 30,000,000점은 메모리 120MB 쯤이다. 사무실 PC 에서 버틴다.
+ */
+export function 인쇄배율(style: StylePreset, 예산 = 30_000_000, 최대 = 300): number {
+  const 넓이 = style.slide.widthIn * style.slide.heightIn;
+  if (!(넓이 > 0)) return 최대;
+  const 긴변 = Math.max(style.slide.widthIn, style.slide.heightIn);
+  // 한 변이 16,000점을 넘으면 브라우저가 캔버스를 못 만든다
+  return Math.max(48, Math.min(최대, Math.sqrt(예산 / 넓이), 16000 / 긴변));
+}
+
+/** 사람에게 보여 줄 한 줄 — "13,000 × 2,300점 (83dpi)" */
+export function 인쇄크기말(style: StylePreset): string {
+  const d = 인쇄배율(style);
+  const w = Math.round(style.slide.widthIn * d).toLocaleString();
+  const h = Math.round(style.slide.heightIn * d).toLocaleString();
+  return `${w} × ${h}점 (${Math.round(d)}dpi)`;
+}
+
 export async function renderToBlob(
   ops: DrawOp[],
   style: StylePreset,

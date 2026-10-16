@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { DrawOp, StylePreset } from "../core/types";
-import { renderToBlob } from "./canvas";
+import { renderToBlob, 인쇄배율 } from "./canvas";
 import { capability } from "../platform";
 import { printSize } from "../core/paper";
 
@@ -21,6 +21,8 @@ export async function downloadPdf(
   onProgress?: (done: number, total: number) => void,
   /** 인쇄 규격 id. 없거나 "screen" 이면 지금 판 크기 그대로 */
   paperId?: string,
+  /** 인쇄소에 넘길 것인가. 켜면 배율을 최대로 올려 뜬다 (느리고 파일이 크다) */
+  인쇄용 = false,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!plans.length) return { ok: false, error: "페이지가 없습니다." };
 
@@ -43,8 +45,20 @@ export async function downloadPdf(
 
   const doc = new jsPDF({ orientation: dir, unit: "in", format: [w, h] });
 
+  // 인쇄용은 배율을 올려서 뜬다. 너무 커서 캔버스가 안 만들어지면 반씩 줄이며 다시 해 본다 —
+  // "저장 실패" 한 줄만 던지고 끝내면 대표님은 인쇄소에 넘길 게 없다.
+  const 배율 = 인쇄용 ? 인쇄배율(style) : undefined;
+
   for (let i = 0; i < plans.length; i++) {
-    const blob = await renderToBlob(plans[i].ops, style, { type: "image/jpeg", quality: 0.92 });
+    let blob: Blob | null = null;
+    for (let d = 배율; ; d = d && d > 60 ? d / 2 : undefined) {
+      try {
+        blob = await renderToBlob(plans[i].ops, style, {
+          type: "image/jpeg", quality: 인쇄용 ? 0.95 : 0.92, ...(d ? { dpi: d } : {}),
+        });
+      } catch { blob = null; }
+      if (blob || !d || d <= 60) break;
+    }
     if (!blob) continue;
     const dataUrl = await toDataUrl(blob);
     if (i > 0) doc.addPage([w, h], dir);

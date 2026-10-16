@@ -20,7 +20,10 @@ await pg.route("**/api/ai", async (route) => {
 
 await pg.goto("http://localhost:5173/", { waitUntil: "networkidle" });
 await pg.evaluate(() => localStorage.clear());
-await pg.reload({ waitUntil: "networkidle" }); await pg.waitForTimeout(1800);
+await pg.reload({ waitUntil: "networkidle" }); await pg.waitForTimeout(1200);
+// 로그인 화면이 생긴 뒤로는 여기를 지나야 보관함이 나온다
+await pg.locator(".namebox").fill("박시영"); await pg.locator(".pinbox").fill("2230");
+await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1500);
 await pg.locator(".card").first().click(); await pg.waitForTimeout(900);
 await pg.getByRole("button", { name: "편집하기" }).click(); await pg.waitForTimeout(1500);
 

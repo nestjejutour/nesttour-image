@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { DrawOp, StylePreset } from "../core/types";
 import { capability } from "../platform";
+import { 벡터를사진으로 } from "../core/vec";
 
 /**
  * 손 ② — PPT 파일
@@ -96,6 +97,41 @@ export function buildDeck(slides: SlidePlan[], style: StylePreset): PptxGenJS {
   return pptx;
 }
 
+/**
+ * AI 가 그린 그림(SVG)을 사진으로 바꿔 둔다.
+ *
+ * PPT 는 SVG 를 제대로 못 받는다. 화면과 PDF 는 SVG 를 그대로 그리지만
+ * 여기만은 한 번 떠서 넣어야 한다. 떠낸 사진은 크게 뜬다 — PPT 를 띄워
+ * 발표하는 자리에서 흐릿하면 안 된다.
+ */
+async function 그림을사진으로(slides: SlidePlan[]): Promise<SlidePlan[]> {
+  const 바꾼것 = new Map<string, string | null>();
+  const svg들 = new Set<string>();
+  for (const p of slides)
+    for (const op of p.ops)
+      if (op.kind === "image" && op.src.startsWith("data:image/svg+xml")) svg들.add(op.src);
+  if (!svg들.size) return slides;
+
+  for (const src of svg들) {
+    try {
+      const svg = decodeURIComponent(src.replace(/^data:image\/svg\+xml[^,]*,/, ""));
+      바꾼것.set(src, await 벡터를사진으로(svg, 2400));
+    } catch {
+      바꾼것.set(src, null);
+    }
+  }
+
+  return slides.map((p) => ({
+    ...p,
+    ops: p.ops.flatMap((op) => {
+      if (op.kind !== "image" || !바꾼것.has(op.src)) return [op];
+      const 새것 = 바꾼것.get(op.src);
+      // 못 떠냈으면 넣지 않는다. 깨진 그림이 들어가는 것보다 빈 자리가 낫다.
+      return 새것 ? [{ ...op, src: 새것 }] : [];
+    }),
+  }));
+}
+
 type Downloads = { save(r: { filename: string; data: Blob }): Promise<{ status: string }> };
 
 /** PPT 파일을 만들어 내려준다. 어디서 도는지에 따라 방법이 다르다. */
@@ -105,7 +141,7 @@ export async function downloadPptx(
   fileName: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const name = fileName.endsWith(".pptx") ? fileName : `${fileName}.pptx`;
-  const pptx = buildDeck(slides, style);
+  const pptx = buildDeck(await 그림을사진으로(slides), style);
 
   const downloads = await capability<Downloads>("downloads", 1500);
   if (downloads) {

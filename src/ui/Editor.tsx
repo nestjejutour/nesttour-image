@@ -7,6 +7,7 @@ import { readShrunk } from "../core/image";
 import type { Extra, Nudge } from "../core/types";
 import { SlideView } from "../render/html";
 import { downloadPptx } from "../render/pptx";
+import { 인쇄크기말 } from "../render/canvas";
 import { downloadPdf } from "../render/pdf";
 import { PRINT_SIZES, SLIDE_SIZES, slideSizeOf, 작게끝 } from "../core/paper";
 import { SlotForm } from "./SlotForm";
@@ -81,6 +82,9 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
   const [picked, setPicked] = useState<string | null>(null);
 
   const typeOf = (id: string) => pageTypes.find((t) => t.id === id);
+
+  /** 현수막·배너처럼 판 크기가 자유로운 것인가. 이쪽은 인쇄용 저장이 본 일이다 */
+  const 인쇄물인가 = project.slides.some((s2) => typeOf(s2.pageTypeId)?.자유판);
 
   /** 페이지마다 번호를 매긴다 (번호 안 찍는 페이지는 세지 않는다) */
   const pageNumbers = useMemo(() => {
@@ -399,6 +403,26 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           }}
         >
           PDF 저장
+        </button>
+        {/*
+          인쇄소에 넘길 파일.
+          위의 "PDF 저장" 은 화면에서 보는 배율로 뜬다 — 메일로 돌려 보기엔 맞지만
+          400cm 현수막을 그대로 박으면 뭉개진다. 이 단추는 배율을 최대로 올려 뜬다.
+          느리고 파일이 크다. 그래서 따로 두었다.
+        */}
+        <button
+          className={`btn sm ${인쇄물인가 ? "primary" : ""}`}
+          disabled={!project.slides.length || !!busyOut}
+          title={`${인쇄크기말(style)} 로 뜹니다. 인쇄소에 이 파일을 넘기십시오.`}
+          onClick={async () => {
+            setMsg(""); setBusyOut(`인쇄용 PDF 만드는 중… (${인쇄크기말(style)})`);
+            const r = await downloadPdf(plans, style, `${project.title} (인쇄용)`,
+              (d, t) => setBusyOut(`인쇄용 PDF 만드는 중… ${d}/${t}장`), project.printPaper, true);
+            setBusyOut("");
+            if (!r.ok) setMsg(r.error ?? "인쇄용 PDF 저장 실패");
+          }}
+        >
+          인쇄용 PDF
         </button>
         <button
           className="btn sm primary"

@@ -12,6 +12,7 @@ import type {
 } from "./types";
 import { resolveColor } from "./style";
 import { DESIGN, fitToPaper } from "./paper";
+import { 벡터인가, 벡터성한가, 벡터주소 } from "./vec";
 
 /**
  * ============================================================
@@ -61,6 +62,9 @@ function visible(el: { showIf?: string; hideIf?: string }, scope: Content): bool
 
 function resolveSrc(v: unknown, assets?: Record<string, string>): string | null {
   if (typeof v !== "string" || v.trim() === "") return null;
+  // AI 가 그린 그림(SVG)이면 바로 쓸 수 있는 주소로 바꾼다.
+  // 사진 칸 하나로 "사진" 과 "AI 가 그린 그림" 을 함께 받는다 — 손이 셋 다 그대로 돈다.
+  if (벡터인가(v)) return 벡터성한가(v) ? 벡터주소(v) : null;
   // 바로 쓸 수 있는 주소인가 (data:, http, /..., seed/bus.jpg 같은 파일 경로)
   if (v.startsWith("data:") || v.startsWith("http") || v.startsWith("/")) return v;
   if (/\.(png|jpe?g|webp|svg|gif)$/i.test(v)) return v;

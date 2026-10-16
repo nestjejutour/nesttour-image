@@ -347,7 +347,12 @@ function Studio({
 
   /** 규격을 받아 그 크기의 작업물을 만든다 */
   const 인쇄물만들기 = (categoryId: string, mmW: number, mmH: number, 이름: string) => {
-    const cover = db.pageTypes.find((t) => t.group === "표지") ?? db.pageTypes[0];
+    // 현수막은 "현수막 (디자인)" 틀로 연다. AI 가 바탕 그림을 그려 넣을 수 있는 유일한 틀이다.
+    // 이게 없으면 제안서 표지가 열려서 글칸만 나오고, 그림을 그릴 자리가 없다.
+    const cover =
+      db.pageTypes.find((t) => t.id === "banner-ai") ??
+      db.pageTypes.find((t) => t.group === "표지") ??
+      db.pageTypes[0];
     const 인치 = (mm: number) => Number((mm / 25.4).toFixed(3));
     const 자 = (mm: number) => (Number.isInteger(mm / 10) ? mm / 10 : (mm / 10).toFixed(1));
     set규격물을곳(null);
@@ -358,7 +363,11 @@ function Studio({
         overrideWith(undefined, "slide.widthIn", 인치(mmW)),
         "slide.heightIn", 인치(mmH),
       ),
-      slides: cover ? [{ id: uid(), pageTypeId: cover.id, content: {} }] : [],
+      // 빈 판을 열어 주면 직원이 뭘 해야 할지 모른다. 이름을 큰 글씨 자리에 미리 앉혀 둔다.
+      slides: cover
+        ? [{ id: uid(), pageTypeId: cover.id,
+             content: cover.id === "banner-ai" ? { 주제목: 이름 || "", 부제목: "", 덧말: "" } : {} }]
+        : [],
     });
   };
 
