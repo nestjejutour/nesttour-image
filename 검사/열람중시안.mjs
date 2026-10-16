@@ -49,7 +49,7 @@ console.log("대화창 아직 보이나:", await pg.locator(".dock textarea").fi
 console.log("고르기 전 3번 장 틀:", await 모습(), "← 그대로여야 한다");
 await pg.screenshot({ path: `${OUT}/열람시안.png` });
 
-await pg.locator(".draftcard").nth(2).getByRole("button", { name: "이걸로" }).click();
+await pg.locator(".draftcard").nth(2).getByRole("button", { name: "2안으로" }).click();
 await pg.waitForTimeout(2000);
 console.log("고른 뒤 보고 있는 장:", await 쪽());
 await pg.waitForTimeout(6000);

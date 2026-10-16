@@ -57,6 +57,8 @@ interface Props {
   toServer: boolean;
   open: boolean;
   onToggle: () => void;
+  /** AI 가 일하는 중인지 바깥에 알린다 — 화면 맨 위에 띠로 보여 주기 위함 */
+  onBusy?: (b: boolean) => void;
 }
 
 /** 화면이 둘을 나란히 놓을 만큼 넓은가 */
@@ -173,6 +175,16 @@ function ClaudeTab(p: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setPending([]); setErr(""); }, [p.slide?.id, p.project?.id]);
+
+  /* 기다리는 동안 몇 초째인지 — 멈춘 건지 일하는 건지 알 수 있어야 한다 */
+  const [초, set초] = useState(0);
+  useEffect(() => {
+    p.onBusy?.(busy);
+    if (!busy) { set초(0); return; }
+    const t0 = Date.now();
+    const h = setInterval(() => set초(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(h);
+  }, [busy]);
 
   /**
    * 파일 받기 — 붙여넣기(Ctrl+V) · 끌어다 놓기 · 버튼, 셋 다 같은 길로 들어온다.
@@ -420,7 +432,9 @@ function ClaudeTab(p: Props) {
             {live
               ? <p>{live}<span className="caret" /></p>
               : <p className="thinking">
-                  {web?.on ? "찾아보는 중…" : onPage ? "화면을 보는 중…" : "읽는 중…"}
+                  <span className="spin" aria-hidden />
+                  {web?.on ? "찾아보는 중" : onPage ? "화면을 보고 생각하는 중" : "읽는 중"}
+                  {초 > 1 ? ` · ${초}초째` : "…"}
                 </p>}
             <button className="btn sm" style={{ marginTop: 7 }}
               onClick={() => stopper.current?.abort()}>멈추기</button>

@@ -967,7 +967,53 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   position: absolute; left: 3px; bottom: 2px; font-size: 10px;
   color: var(--muted); line-height: 1; background: rgba(255,255,255,0.85); padding: 1px 3px;
 }
-.deckbig {
-  position: absolute; inset: 0; z-index: 9; background: rgba(0,0,0,0.72);
-  display: flex; align-items: center; justify-content: center; cursor: zoom-out;
+
+/* ── 시안 크게 보기 — 한 장짜리·전체 시안 둘 다 쓴다 ── */
+.bigview {
+  position: absolute; inset: 0; z-index: 9; background: rgba(0,0,0,0.74);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 18px; cursor: zoom-out;
 }
+.bigview > div { cursor: default; max-height: 100%; overflow: auto; }
+.bigbar {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin-top: 11px; color: #fff;
+}
+.bigbar b { font-size: 15.5px; }
+.bigbar small { font-size: 13px; color: #cfcfcf; }
+.bigswitch { display: flex; gap: 5px; margin-left: 6px; }
+/* 작은 그림을 누르면 크게 — 누를 수 있다는 걸 보이게 */
+.draftcard .shot {
+  display: block; padding: 0; border: 0; background: #fff;
+  cursor: zoom-in; position: relative; width: 100%;
+}
+.draftcard .shot .zoomtag {
+  position: absolute; right: 6px; bottom: 6px;
+  font-size: 11.5px; color: #fff; background: rgba(0,0,0,0.55);
+  padding: 2px 7px; border-radius: 20px; opacity: 0; transition: opacity .12s;
+}
+.draftcard .shot:hover .zoomtag { opacity: 1; }
+.draftcard .shot:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ── AI 가 일하는 중이라는 표시 ── */
+@keyframes 돌기 { to { transform: rotate(360deg); } }
+.spin {
+  display: inline-block; width: 13px; height: 13px; flex-shrink: 0;
+  margin-right: 7px; vertical-align: -2px;
+  border: 2px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: 돌기 .7s linear infinite;
+}
+/* 화면 맨 위를 가로지르는 띠 — 어디를 보고 있어도 눈에 들어온다 */
+@keyframes 흐르기 { to { background-position: 200% 0; } }
+.working {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 50;
+  background: linear-gradient(90deg,
+    var(--line) 0%, var(--accent) 35%, var(--accent) 55%, var(--line) 100%);
+  background-size: 200% 100%;
+  animation: 흐르기 1.1s linear infinite;
+}
+.busytag {
+  display: inline-flex; align-items: center; font-size: 12.5px;
+  color: var(--muted); white-space: nowrap;
+}
+.thinking { display: flex; align-items: center; }

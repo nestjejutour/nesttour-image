@@ -53,7 +53,7 @@ console.log("제안서 아직 그대로인가:", (await 장이름()).replace(/\n
 await pg.screenshot({ path: `${S}/drafts.png` });
 
 // 둘째 시안을 고른다
-await pg.locator(".draftcard").nth(2).getByRole("button", { name: "이걸로" }).click();
+await pg.locator(".draftcard").nth(2).getByRole("button", { name: "2안으로" }).click();
 await pg.waitForTimeout(2500);
 console.log("고른 뒤 2번 장:", (await 장이름()).replace(/\n/g, " "));
 await pg.waitForTimeout(5000);

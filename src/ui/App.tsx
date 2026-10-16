@@ -165,6 +165,8 @@ function Studio({
   const looseDocs = useRef<Doc[]>([]);
   /** AI 가 내놓은 시안들 — 고르기 전까지 제안서는 그대로다 */
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  /** AI 가 일하는 중 — 화면 맨 위에 띠로 보인다 */
+  const [aiBusy, setAiBusy] = useState(false);
   /** 제안서 한 벌을 통째로 바꾸는 시안 */
   const [deckDrafts, setDeckDrafts] = useState<DeckDraft[]>([]);
   /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
@@ -662,6 +664,7 @@ function Studio({
       toServer={!!backend.putFile}
       open={dockOpen}
       onToggle={() => setDockOpen(!dockOpen)}
+      onBusy={setAiBusy}
     />
   );
 
@@ -675,7 +678,7 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -693,7 +696,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -728,7 +731,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -763,7 +766,7 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
@@ -789,15 +792,17 @@ function Studio({
 }
 
 function Shell({
-  view, setView, onNew, bare, who, savedAt, saveErr, dock, dockOpen, onDock, undo, children,
+  view, setView, onNew, bare, who, savedAt, saveErr, dock, busy, dockOpen, onDock, undo, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
   bare?: boolean; who?: string | null; savedAt?: Date | null; saveErr?: string;
-  dock?: React.ReactNode;
+  dock?: React.ReactNode; busy?: boolean;
   dockOpen?: boolean; onDock?: () => void; undo?: Undo; children: React.ReactNode;
 }) {
   return (
     <div className="app">
+      {/* AI 가 일하는 중이라는 걸 화면 어디를 보고 있어도 알 수 있게 */}
+      {busy && <div className="working" title="AI 가 일하는 중입니다" />}
       <div className="topbar">
         <div className="brand">
           MTMB <span>디자인 스튜디오</span>
@@ -831,6 +836,11 @@ function Shell({
               ? `저장됨 ${String(savedAt.getHours()).padStart(2, "0")}:${String(savedAt.getMinutes()).padStart(2, "0")}`
               : "자동 저장"}
         </small>
+        {busy && (
+          <small className="busytag" title="AI 가 일하는 중입니다">
+            <span className="spin" aria-hidden />AI 작업 중
+          </small>
+        )}
         {onDock && (
           <button className={`btn sm ${dockOpen ? "accent" : ""}`} onClick={onDock}>
             {dockOpen ? "대화 닫기" : "AI 와 대화"}

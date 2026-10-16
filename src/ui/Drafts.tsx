@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useFit } from "./fitzoom";
 import type { Draft, PageType, Project, StylePreset } from "../core/types";
 import { interpret } from "../core/interpret";
 import { styleFor } from "../core/scope";
@@ -9,6 +11,9 @@ import { SlideView } from "../render/html";
  * "이 페이지 다시 디자인해줘" 하면 AI 가 두세 가지를 내놓는다.
  * 보고 있던 자리에 지금 것과 나란히 띄워 비교하고, 고른 것만 페이지에 들어간다.
  * 고르기 전에는 제안서가 바뀌지 않는다 — 마음 편히 봐도 된다.
+ *
+ * 작게 늘어놓은 것만으로는 판단이 안 된다.
+ * 누르면 크게 뜨고, 큰 화면에서 좌우로 넘겨 가며 견준 뒤 거기서 바로 고른다.
  */
 
 interface Props {
@@ -27,56 +32,87 @@ interface Props {
 export function Drafts({
   drafts, project, slideIndex, baseStyle, pageTypes, onPick, onClose, onAgain,
 }: Props) {
+  /** 크게 볼 것 — 0 은 지금 것, 1 부터가 1안 */
+  const [big, setBig] = useState<number | null>(null);
+
   const now = project.slides[slideIndex];
   if (!now) return null;
 
   const draw = (pageTypeId: string, content: any, own?: any) => {
     const t = pageTypes.find((x) => x.id === pageTypeId);
-    if (!t) return { ops: [], style: baseStyle };
+    if (!t) return { ops: [], style: baseStyle, 틀이름: "" };
     const style = styleFor(baseStyle, project.styleOverride, own);
     return {
       ops: interpret(t, content, { style, assets: project.assets }),
       style,
-      name: t.name,
+      틀이름: t.name,
     };
   };
 
-  const 지금 = draw(now.pageTypeId, now.content, now.styleOverride);
+  /** 지금 것을 0번으로 두고 한 줄로 세운다 — 크게 보기에서 좌우로 넘기기 위함 */
+  const 줄 = [
+    { 번호: 0, 이름: "지금 이대로", why: "", draft: null as Draft | null,
+      ...draw(now.pageTypeId, now.content, now.styleOverride) },
+    ...drafts.map((d, i) => ({
+      번호: i + 1, 이름: `${i + 1}안`, why: d.why || d.name, draft: d,
+      ...draw(d.pageTypeId, d.content, d.styleOverride),
+    })),
+  ];
+
+  const 큰것 = big !== null ? 줄[big] : null;
+  const [bigRef, bigZoom] = useFit(
+    big !== null, (큰것?.style ?? baseStyle).slide.widthIn, (큰것?.style ?? baseStyle).slide.heightIn);
+  const 넘기기 = (d: number) =>
+    setBig((b) => (b === null ? b : Math.max(0, Math.min(줄.length - 1, b + d))));
 
   return (
     <div className="drafts">
       <div className="drafts-head">
         <b>시안 {drafts.length}개</b>
-        <small>마음에 드는 것을 고르시면 이 페이지가 그대로 바뀝니다. 고르기 전에는 바뀌지 않습니다.</small>
+        <small>눌러서 크게 보시고, 마음에 드는 안을 고르시면 이 페이지가 그대로 바뀝니다. 고르기 전에는 바뀌지 않습니다.</small>
         <div className="spacer" />
         <button className="btn sm" onClick={onAgain}>다 별로예요</button>
         <button className="btn sm" onClick={onClose}>닫기</button>
       </div>
 
       <div className="drafts-row">
-        {/* 지금 것 — 견주어 보라고 맨 앞에 둔다 */}
-        <div className="draftcard now">
-          <div className="shot"><SlideView ops={지금.ops} style={지금.style} zoom={0.42} /></div>
-          <div className="draftinfo">
-            <b>지금 이대로</b>
-            <small>{지금.name}</small>
-          </div>
-        </div>
-
-        {drafts.map((d) => {
-          const g = draw(d.pageTypeId, d.content, d.styleOverride);
-          return (
-            <div className="draftcard" key={d.id}>
-              <div className="shot"><SlideView ops={g.ops} style={g.style} zoom={0.42} /></div>
-              <div className="draftinfo">
-                <b>{d.name}</b>
-                <small>{d.why || g.name}</small>
-                <button className="btn sm accent" onClick={() => onPick(d)}>이걸로</button>
-              </div>
+        {줄.map((x) => (
+          <div className={`draftcard ${x.draft ? "" : "now"}`} key={x.번호}>
+            <button className="shot" title="누르면 크게 보입니다" onClick={() => setBig(x.번호)}>
+              <SlideView ops={x.ops} style={x.style} zoom={0.42} />
+              <span className="zoomtag">크게 보기</span>
+            </button>
+            <div className="draftinfo">
+              <b>{x.이름}{x.draft ? ` · ${x.draft.name}` : ""}</b>
+              <small>{x.why || x.틀이름}</small>
+              {x.draft
+                ? <button className="btn sm accent" onClick={() => onPick(x.draft!)}>{x.번호}안으로</button>
+                : <small className="tag">지금 페이지</small>}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
+
+      {큰것 && (
+        <div className="bigview" ref={bigRef} onClick={() => setBig(null)}>
+          <button className="nav" aria-label="앞 안"
+            onClick={(e) => { e.stopPropagation(); 넘기기(-1); }} disabled={big === 0}>‹</button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <SlideView ops={큰것.ops} style={큰것.style} zoom={bigZoom} />
+            <div className="bigbar">
+              <b>{큰것.이름}{큰것.draft ? ` · ${큰것.draft.name}` : ""}</b>
+              <small>{큰것.why || 큰것.틀이름}</small>
+              <div className="spacer" />
+              {큰것.draft && (
+                <button className="btn sm accent" onClick={() => onPick(큰것.draft!)}>{큰것.번호}안으로</button>
+              )}
+              <button className="btn sm" onClick={() => setBig(null)}>닫기</button>
+            </div>
+          </div>
+          <button className="nav" aria-label="뒤 안"
+            onClick={(e) => { e.stopPropagation(); 넘기기(1); }} disabled={big === 줄.length - 1}>›</button>
+        </div>
+      )}
     </div>
   );
 }

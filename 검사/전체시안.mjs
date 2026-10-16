@@ -54,12 +54,12 @@ await pg.screenshot({ path: `${OUT}/전체시안.png` });
 // 한 장 크게 보기
 await pg.locator(".deckrow").nth(1).locator(".deckpage").nth(1).click();
 await pg.waitForTimeout(600);
-console.log("크게 보기:", await pg.locator(".deckbig").count() ? "열림 ✓" : "안 열림 ✗");
+console.log("크게 보기:", await pg.locator(".bigview").count() ? "열림 ✓" : "안 열림 ✗");
 await pg.screenshot({ path: `${OUT}/전체시안-크게.png` });
-await pg.locator(".deckbig").click({ position: { x: 20, y: 20 } }); await pg.waitForTimeout(400);
+await pg.locator(".bigview").click({ position: { x: 12, y: 12 } }); await pg.waitForTimeout(400);
 
 // 둘째 안(구성까지 바꾸는 안)을 고른다
-await pg.locator(".deckrow").nth(2).getByRole("button", { name: "이 안으로" }).click();
+await pg.locator(".deckrow").nth(2).getByRole("button", { name: "2안으로" }).click();
 await pg.waitForTimeout(2500);
 console.log("시안판 닫혔나:", await pg.locator(".deckrows").count() === 0 ? "예 ✓" : "아니오 ✗");
 await pg.waitForTimeout(6000);
