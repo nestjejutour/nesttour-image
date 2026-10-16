@@ -1312,3 +1312,13 @@ ol.saylist li::before {
 .libname small b.없음 { color: var(--accent); font-weight: 600; }
 .libdrop b.없음 { display: inline; color: var(--accent); }
 .libhead .골랐수 { color: var(--ink); font-weight: 600; }
+/* 한 번 더 묻기 — 브라우저 창(confirm)은 틀 안에서 막히므로 화면 안에서 묻는다 */
+.정말 { display: inline-flex; align-items: center; gap: 6px; }
+.정말 b { font-size: 13.5px; color: var(--accent); }
+.정말칸 {
+  margin-top: 12px; padding: 11px 13px; border: 1px solid var(--accent);
+  border-radius: 8px; background: var(--tint-warm);
+}
+.정말칸 b { display: block; font-size: 14.5px; margin-bottom: 3px; }
+.정말칸 small { color: var(--muted); font-size: 13px; line-height: 1.55; }
+.libhead .없음 { color: var(--accent); font-weight: 600; }

@@ -40,6 +40,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
   const [뺀것, set뺀것] = useState<Set<string>>(() => new Set());
   const [내리는중, set내리는중] = useState("");
   const [자리, set자리] = useState("");
+  /** 삭제를 한 번 더 묻는 중 — 브라우저 창(confirm)은 틀 안에서 막히므로 화면 안에서 묻는다 */
+  const [지울까, set지울까] = useState(false);
 
   /** 담을 곳 — 전체를 보고 있으면 첫 분류에 담는다 */
   const 담을곳 = sel !== "all" ? sel : (categories[0]?.id ?? "");
@@ -116,8 +118,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
 
   /** 고른 것을 한꺼번에 삭제한다 */
   const 일괄삭제 = async () => {
+    set지울까(false);
     if (!고른것.length) return;
-    if (!confirm(`고르신 ${고른것.length}개를 삭제합니다.\n되돌릴 수 없습니다. 이어서 하시겠습니까?`)) return;
     for (const x of 고른것) {
       try { await delThumb(x.id); } catch { /* 없으면 넘어간다 */ }
       try { await delFile(x.id); } catch { /* 없으면 넘어간다 */ }
@@ -172,6 +174,9 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         <small>{보일것.length}개{못뽑은수 > 0 && ` · 그림 못 뽑음 ${못뽑은수}개`}</small>
         {방금 !== null && <small className="방금">{방금}개 담아 저장했습니다</small>}
         {자리 && <small title="이 기기에서 쓰고 있는 자리">{자리}</small>}
+        {고른것.length > 0 && 받을수있는수 === 0 && (
+          <small className="없음">선택한 자료에 원본이 없어 저장할 수 없습니다</small>
+        )}
         <div className="spacer" />
         {보일것.length > 0 && (
           <input className="libfind" placeholder="이름으로 찾기"
@@ -187,20 +192,28 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
             <small className="골랐수">{고른것.length}개 선택</small>
             <button className="btn sm" disabled={!!내리는중 || !받을수있는수}
               title={받을수있는수
-                ? "선택한 자료를 원본 그대로 내려받습니다"
+                ? "선택한 자료의 원본 파일을 내 컴퓨터로 내려받습니다"
                 : "선택한 자료에 원본이 없습니다. 다시 끌어다 놓으시면 원본까지 담깁니다"}
               onClick={() => void 내려받기()}>
-              {내리는중 || `저장 ${받을수있는수}개`}
+              {내리는중 || `내 PC로 저장 ${받을수있는수}개`}
             </button>
-            <button className="btn sm danger" disabled={!고른것.length || !!내리는중}
-              title="선택한 자료를 삭제합니다"
-              onClick={() => void 일괄삭제()}>
-              삭제 {고른것.length}개
-            </button>
+            {지울까 ? (
+              <span className="정말">
+                <b>{고른것.length}개를 삭제할까요?</b>
+                <button className="btn sm danger" onClick={() => void 일괄삭제()}>삭제</button>
+                <button className="btn sm" onClick={() => set지울까(false)}>취소</button>
+              </span>
+            ) : (
+              <button className="btn sm danger" disabled={!고른것.length || !!내리는중}
+                title="선택한 자료를 삭제합니다"
+                onClick={() => set지울까(true)}>
+                삭제 {고른것.length}개
+              </button>
+            )}
           </>
         )}
         <label className="btn sm primary">
-          + 파일 넣기
+          + 파일 추가
           <input type="file" multiple hidden
             onChange={(e) => {
               const fs = Array.from(e.target.files ?? []);
@@ -280,7 +293,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
                 onClick={() => set메뉴(메뉴 === x.id ? null : x.id)}>⋯</button>
               {메뉴 === x.id && (
                 <div className="rowmenu" onPointerDown={(e) => e.stopPropagation()}>
-                  <button onClick={() => { set고치는이름(x.id); set메뉴(null); }}>이름 바꾸기</button>
+                  <button onClick={() => { set고치는이름(x.id); set메뉴(null); }}>이름 변경</button>
                   <label className="movepick">
                     <small>폴더 이동</small>
                     <select value={x.categoryId}

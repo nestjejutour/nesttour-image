@@ -42,7 +42,7 @@ console.log("\n메뉴:", (await pg.locator(".rowmenu button").allTextContents())
 await pg.screenshot({ path: `${OUT}/분류메뉴.png`, clip: { x: 0, y: 60, width: 300, height: 400 } });
 
 // 이름 바꾸기
-await pg.getByRole("button", { name: "이름 바꾸기" }).click(); await pg.waitForTimeout(400);
+await pg.getByRole("button", { name: "이름 변경" }).click(); await pg.waitForTimeout(400);
 await pg.locator(".catrename").fill("제안서(수정)");
 await pg.locator(".catrename").press("Enter"); await pg.waitForTimeout(700);
 console.log("이름 바꾼 뒤:", (await 목록())[0]);

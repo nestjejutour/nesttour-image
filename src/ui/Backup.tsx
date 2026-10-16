@@ -14,6 +14,8 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
   const [하는중, set하는중] = useState("");
   const [끝난말, set끝난말] = useState("");
   const [탈난말, set탈난말] = useState("");
+  /** 덮어쓰기를 한 번 더 묻는 중 (브라우저 창은 틀 안에서 막힌다) */
+  const [들일것, set들일것] = useState<File | null>(null);
 
   const 그림수 = db.library.filter((x) => !x.noThumb).length;
 
@@ -29,10 +31,7 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
   };
 
   const 들이기 = async (f: File) => {
-    if (!confirm(
-      "지금 이 브라우저에 있는 것을 전부 덮어씁니다.\n" +
-      "먼저 \"백업 저장\" 을 한 번 해 두시는 편이 안전합니다.\n\n이어서 하시겠습니까?",
-    )) return;
+    set들일것(null);
     set하는중("들여오는 중…"); set끝난말(""); set탈난말("");
     try {
       const 들온것 = await 들여오기(f);
@@ -73,10 +72,24 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
             onChange={(e) => {
               const f = e.target.files?.[0];
               e.target.value = "";
-              if (f) void 들이기(f);
+              if (f) set들일것(f);
             }} />
         </label>
       </div>
+
+      {들일것 && (
+        <div className="정말칸">
+          <b>{들일것.name} 로 복원합니다</b>
+          <small>
+            지금 이 브라우저에 있는 것을 전부 덮어씁니다. 되돌릴 수 없습니다.
+            먼저 <b>백업 저장</b> 을 한 번 해 두시는 편이 안전합니다.
+          </small>
+          <div className="row" style={{ marginTop: 9 }}>
+            <button className="btn sm danger" onClick={() => void 들이기(들일것)}>복원</button>
+            <button className="btn sm" onClick={() => set들일것(null)}>취소</button>
+          </div>
+        </div>
+      )}
 
       {끝난말 && <p className="goodnote">{끝난말}</p>}
       {탈난말 && <p className="gateerr">{탈난말}</p>}
