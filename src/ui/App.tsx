@@ -942,6 +942,11 @@ function Studio({
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) }))}
             onMoveLib={(id: string, categoryId: string) =>
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, categoryId } : x)) }))}
+            onMoveProject={(id: string, categoryId: string) => {
+              const 건 = db.projects.find((x) => x.id === id);
+              update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === id ? { ...x, category: categoryId } : x)) }));
+              if (건) 자취(id, 건.title, "분류 이동");
+            }}
             onNoteLib={(id: string, note: string) =>
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, note } : x)) }))}
             onMakeFolders={(parentId: string, names: string[]) => {

@@ -51,6 +51,22 @@ console.log("빈자리 단추:", (await pg.locator(".빈자리 .btn").allTextCon
 console.log("옆줄 숫자:", (await pg.locator(".navrow .navitem").allTextContents()).map(t=>t.replace(/\n/g," ").trim()).join(" | "));
 await pg.screenshot({ path: `${OUT}/분류화면.png`, clip: { x: 0, y: 60, width: 1300, height: 900 } });
 
+// 제안서를 현수막으로 옮긴다
+await pg.getByRole("button", { name: /^제안서/ }).first().click(); await pg.waitForTimeout(700);
+await pg.locator(".cardwrap").first().hover(); await pg.waitForTimeout(300);
+console.log("\n옮기기 단추:", await pg.locator(".cardmove").count() ? "있음 ✓" : "없음 ✗");
+await pg.locator(".cardmove").first().click(); await pg.waitForTimeout(400);
+console.log("고를 수 있는 곳:", (await pg.locator(".cardask select option").allTextContents()).join(" / "));
+await pg.locator(".cardask select").selectOption({ label: "현수막" }); await pg.waitForTimeout(900);
+console.log("옮긴 뒤 제안서 분류:", await 꼴("제안서"));
+await pg.getByRole("button", { name: /현수막/ }).first().click(); await pg.waitForTimeout(700);
+console.log("옮긴 뒤 현수막 분류:", await 꼴("현수막"), "← 카드 1 이어야 한다");
+await pg.waitForTimeout(6500);
+console.log("기록:", await pg.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("mtmb-studio-v1") || "{}");
+  return (d.trail || []).slice(-1).map((t) => `${t.whoName} ${t.what} ${t.projectTitle}`)[0] ?? "(없음)";
+}));
+
 // 전체에서는 빈 분류가 접혀 있어야 한다
 await pg.getByRole("button", { name: /^전체/ }).first().click(); await pg.waitForTimeout(700);
 console.log(await 꼴("전체"), "← 빈 분류는 접혀 있어야 한다");

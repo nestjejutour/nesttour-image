@@ -51,6 +51,8 @@ interface Props {
   onMoveLib: (id: string, categoryId: string) => void;
   onMakeFolders: (parentId: string, names: string[]) => Record<string, string>;
   onNoteLib: (id: string, note: string) => void;
+  /** 제안서를 다른 분류로 옮기기 */
+  onMoveProject: (id: string, categoryId: string) => void;
 }
 
 const PER_ROW = 5;
@@ -508,6 +510,8 @@ export function Dashboard(p: Props) {
                     <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
                       moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)}
                       onDelete={() => p.onDelete(pr.id)}
+                      categories={categories}
+                      onMove={(cid) => p.onMoveProject(pr.id, cid)}
                     onToggleStatus={() => p.onToggleStatus(pr.id)} />
                   ))}
                 </div>
@@ -557,13 +561,18 @@ function when(iso: string): string {
 }
 
 function Card({
-  pr, style, pageTypes, moods, onClick, onDelete, onToggleStatus,
+  pr, style, pageTypes, moods, onClick, onDelete, onToggleStatus, categories, onMove,
 }: {
   pr: Project; style: StylePreset; pageTypes: PageType[];
   moods: Mood[]; onClick: () => void; onDelete?: () => void;
   onToggleStatus?: () => void;
+  /** 다른 분류로 옮기기 */
+  categories?: Category[];
+  onMove?: (categoryId: string) => void;
 }) {
   const [asking, setAsking] = useState(false);
+  /** 옮길 곳을 고르는 중 */
+  const [옮길까, set옮길까] = useState(false);
   const first = pr.slides[0];
   const t = first && pageTypes.find((x) => x.id === first.pageTypeId);
   const ops = t
@@ -585,6 +594,31 @@ function Card({
         ) : (
           <button className="carddel" title="삭제"
             onClick={(e) => { e.stopPropagation(); setAsking(true); }}>×</button>
+        )
+      )}
+      {onMove && categories && !asking && (
+        옮길까 ? (
+          <div className="cardask" onClick={(e) => e.stopPropagation()}>
+            <b>어느 분류로 옮길까요?</b>
+            <select autoFocus defaultValue={pr.category}
+              onChange={(e) => { onMove(e.target.value); set옮길까(false); }}>
+              {categories.filter((c) => !c.parentId && !c.hidden).map((c) => {
+                const 속 = categories.filter((k) => k.parentId === c.id && !k.hidden);
+                return 속.length ? (
+                  <optgroup key={c.id} label={c.name}>
+                    <option value={c.id}>{c.name} (바로 여기)</option>
+                    {속.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+                  </optgroup>
+                ) : <option key={c.id} value={c.id}>{c.name}</option>;
+              })}
+            </select>
+            <div className="row" style={{ marginTop: 7 }}>
+              <button className="btn sm" onClick={() => set옮길까(false)}>취소</button>
+            </div>
+          </div>
+        ) : (
+          <button className="cardmove" title="다른 분류로 옮기기"
+            onClick={(e) => { e.stopPropagation(); set옮길까(true); }}>⇄</button>
         )
       )}
       <div className="thumb">

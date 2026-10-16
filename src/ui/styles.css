@@ -1383,3 +1383,17 @@ ol.saylist li::before {
 }
 .빈자리 b { display: block; color: var(--ink); font-size: 14.5px; font-weight: 500; }
 .빈자리 .row { justify-content: center; }
+/* 제안서 카드 — 다른 분류로 옮기기 */
+.cardmove {
+  position: absolute; right: 34px; top: 7px; z-index: 3;
+  width: 22px; height: 22px; padding: 0; line-height: 1;
+  border: 0; border-radius: 5px; background: rgba(255,255,255,0.92);
+  color: var(--muted); font-size: 13px; cursor: pointer; opacity: 0;
+  transition: opacity .12s;
+}
+.cardwrap:hover .cardmove { opacity: 1; }
+.cardmove:hover { color: var(--accent); }
+.cardask select {
+  width: 100%; margin-top: 6px; padding: 6px 8px; font-size: 13.5px;
+  border: 1px solid var(--line); border-radius: 6px;
+}
