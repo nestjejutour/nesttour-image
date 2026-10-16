@@ -187,6 +187,17 @@ function Studio({
   const project = db.projects.find((p) => p.id === openId) ?? null;
   const browsing = db.projects.find((p) => p.id === browseId) ?? null;
 
+  /**
+   * 지금 화면에 떠 있는 제안서.
+   *
+   * 편집 화면이든 열람 화면이든, 대표가 한 장을 보고 있으면
+   * 대화도 그 장을 보고 있어야 한다.
+   * (이게 없을 때, 열람 화면에서 "이 페이지 다시 디자인해줘" 라고 하면
+   *  AI 가 보관함에 있는 줄 알고 제안서를 통째로 새로 만들었다)
+   */
+  const viewing = project ?? browsing;
+  const viewId = openId ?? browseId;
+
   /* ── 공장에 쌓인 걸 전부 녹여 AI 지시문을 만든다 ── */
   const brain = useMemo(
     () => buildBrain({
@@ -209,7 +220,7 @@ function Studio({
 
   /* ── 창고에 쓰기 ── */
   const putProject = (apply: (p: Project) => Project) =>
-    update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === openId ? apply(x) : x)) }));
+    update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === viewId ? apply(x) : x)) }));
 
   /**
    * 백지 한 장으로 바로 시작.
@@ -323,7 +334,7 @@ function Studio({
    * (없으면 올린 글이 그대로 버려져 화면에 아무것도 안 나온다)
    */
   const chatKey = (slideId: string | null) =>
-    slideId ? `${openId ?? "없음"}:${slideId}` : "보관함:전체";
+    slideId ? `${viewId ?? "없음"}:${slideId}` : "보관함:전체";
   const turnsOf = (slideId: string | null): ChatTurn[] => db.chats[chatKey(slideId)] ?? [];
   const onTurns = (slideId: string | null, apply: (t: ChatTurn[]) => ChatTurn[]) =>
     update((d) => {
@@ -418,25 +429,25 @@ function Studio({
   };
 
   /* ── 지금 보고 있는 페이지 (대화 선반이 함께 본다) ── */
-  const activeSlide = project?.slides[cur] ?? null;
+  const activeSlide = viewing?.slides[cur] ?? null;
   const activePageType = activeSlide
     ? db.pageTypes.find((t) => t.id === activeSlide.pageTypeId) ?? null
     : null;
-  const activeStyle = styleFor(baseStyle, project?.styleOverride, activeSlide?.styleOverride);
+  const activeStyle = styleFor(baseStyle, viewing?.styleOverride, activeSlide?.styleOverride);
   const activeOps = useMemo(
     () =>
-      activePageType && activeSlide && project
+      activePageType && activeSlide && viewing
         ? interpret(activePageType, activeSlide.content, {
-            style: activeStyle, assets: project.assets, pageNumber: cur + 1,
+            style: activeStyle, assets: viewing.assets, pageNumber: cur + 1,
             adjust: activeSlide.adjust, extras: activeSlide.extras,
           })
         : [],
-    [activePageType, activeSlide, project, activeStyle, cur],
+    [activePageType, activeSlide, viewing, activeStyle, cur],
   );
   const activeRules = rulesFor(db.rules, {
     styleId: baseStyle.id,
-    categoryId: project?.category ?? "proposal",
-    projectId: openId,
+    categoryId: viewing?.category ?? "proposal",
+    projectId: viewId,
   });
 
   /**
@@ -466,17 +477,18 @@ function Studio({
       if (fresh.length) {
         loose.current = {}; looseDocs.current = [];
         update((d) => ({ ...d, projects: [...fresh, ...d.projects] }));
-        setCreating(null); setBrowseId(null);
+        setCreating(null);
         // 한 건이면 바로 연다. 여럿이면 보여 주기만 하고 대표가 고르게 둔다.
-        if (fresh.length === 1) { setOpenId(fresh[0].id); setLastEdited(fresh[0].id); setCur(0); }
+        // 보던 화면에서 끌어내지 않는다 — 보고 있던 제안서가 눈앞에서 사라지면 안 된다.
+        if (fresh.length === 1) { setBrowseId(null); setOpenId(fresh[0].id); setLastEdited(fresh[0].id); setCur(0); }
         return fresh.map((x) => x.id);
       }
     }
 
     // 디자인 시안 — 넣지 않고 화면에 띄운다. 고르면 그때 들어간다.
     const 안 = as.find((a) => a.do === "시안") as Extract<Action, { do: "시안" }> | undefined;
-    if (안?.options?.length && openId) {
-      const now = project?.slides[cur];
+    if (안?.options?.length && viewId) {
+      const now = viewing?.slides[cur];
       setDrafts(
         안.options.slice(0, 4).map((o) => ({
           id: uid(),
@@ -495,7 +507,7 @@ function Studio({
       return [];
     }
 
-    if (!openId) return [];
+    if (!viewId) return [];
     putProject((p) => {
       const slides = [...p.slides];
       for (const a of as) {
@@ -538,13 +550,13 @@ function Studio({
    * 연 제안서가 없으면 잠시 들고 있다가, 새로 만들어지는 제안서에 같이 넣는다.
    */
   const putAsset = (key: string, dataUrl: string) => {
-    if (openId) { putProject((x) => ({ ...x, assets: { ...x.assets, [key]: dataUrl } })); return; }
+    if (viewId) { putProject((x) => ({ ...x, assets: { ...x.assets, [key]: dataUrl } })); return; }
     loose.current = { ...loose.current, [key]: dataUrl };
   };
 
   /** 대화창에 올린 자료를 이 건의 파일함에 넣어 둔다 */
   const putDoc = (d: Doc) => {
-    if (!openId) { looseDocs.current = [...looseDocs.current, d]; return; }
+    if (!viewId) { looseDocs.current = [...looseDocs.current, d]; return; }
     putProject((x) => ({ ...x, docs: [...(x.docs ?? []), d], updatedAt: new Date().toISOString() }));
   };
 
@@ -578,7 +590,7 @@ function Studio({
       rules={activeRules}
       categories={db.categories}
       allProjects={db.projects}
-      project={project}
+      project={viewing}
       slide={activeSlide}
       pageType={activePageType}
       slideIndex={cur}
@@ -670,11 +682,17 @@ function Studio({
             onTakePage={(s) => takePage(s, browsing)}
             takenCount={tray.length}
             onOpenTray={() => setTrayOpen(true)}
-            onOpen={(id) => { setBrowseId(null); setOpenId(id); setLastEdited(id); setCur(0); }}
+            onOpen={(id) => { setBrowseId(null); setOpenId(id); setLastEdited(id); }}
+            cur={Math.min(cur, Math.max(0, browsing.slides.length - 1))}
+            onCur={setCur}
+            baseStyle={baseStyle}
+            drafts={drafts}
+            onPickDraft={pickDraft}
+            onCloseDrafts={() => setDrafts([])}
             categoryName={db.categories.find((c) => c.id === browsing.category)?.name ?? "미분류"}
             allProjects={db.projects}
             categories={db.categories}
-            onPick={setBrowseId}
+            onPick={(id) => { setBrowseId(id); setCur(0); }}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
@@ -693,7 +711,7 @@ function Studio({
           <Dashboard
             projects={db.projects} categories={db.categories}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
-            onBrowse={setBrowseId} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
+            onBrowse={(id) => { setBrowseId(id); setCur(0); }} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
             onBlank={startBlank}
             onOpenTray={() => setTrayOpen(true)} trayCount={tray.length}
             onDelete={deleteProject} onToggleStatus={toggleStatus}

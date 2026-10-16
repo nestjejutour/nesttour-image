@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Category, PageType, Project, Slide, StylePreset } from "../core/types";
+import type { Category, Draft, PageType, Project, Slide, StylePreset } from "../core/types";
 import { GripH, usePanel } from "./panels";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { moodsOf } from "../core/mood";
+import { styleFor } from "../core/scope";
+import { Drafts } from "./Drafts";
 
 /**
  * 열람 — 지난 완성본을 한 장씩 넘겨 보는 화면.
@@ -35,12 +37,22 @@ interface Props {
   allProjects: Project[];
   categories: Category[];
   onPick: (id: string) => void;
+  /** 지금 보는 장 — 바깥이 들고 있다. 대화창이 같은 장을 봐야 하기 때문이다 */
+  cur: number;
+  onCur: (i: number) => void;
+  /** 이 브랜드의 바탕 규격 (한 장만의 규격을 얹을 때 쓴다) */
+  baseStyle: StylePreset;
+  /** AI 가 내놓은 시안 */
+  drafts: Draft[];
+  onPickDraft: (d: Draft) => void;
+  onCloseDrafts: () => void;
 }
 
 export function Browse({
   project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpenTray, onOpen, categoryName, allProjects, categories, onPick,
+  cur, onCur, baseStyle, drafts, onPickDraft, onCloseDrafts,
 }: Props) {
-  const [cur, setCur] = useState(0);
+  const setCur = onCur;
   const [navOpen, setNavOpen] = useState(false);
   const [navCat, setNavCat] = useState<string>("all");
   const [zoom, setZoom] = useState(0.62);
@@ -72,19 +84,25 @@ export function Browse({
     return project.slides.map((s) => (typeOf(s.pageTypeId)?.showPageNo === false ? 0 : ++n));
   }, [project.slides, pageTypes]);
 
+  /** 이 장만의 규격이 있으면 얹는다 (시안에서 고른 것) */
+  const styleAt = (i: number) => {
+    const o = project.slides[i]?.styleOverride;
+    return o ? styleFor(style, o) : style;
+  };
+
   const opsOf = (i: number) => {
     const s = project.slides[i];
     const t = s && typeOf(s.pageTypeId);
     return t
       ? interpret(t, s.content, {
-          style, assets: project.assets, pageNumber: pageNumbers[i],
+          style: styleAt(i), assets: project.assets, pageNumber: pageNumbers[i],
           adjust: s.adjust, extras: s.extras,
         })
       : [];
   };
 
   const go = (d: number) =>
-    setCur((c) => Math.max(0, Math.min(project.slides.length - 1, c + d)));
+    setCur(Math.max(0, Math.min(project.slides.length - 1, cur + d)));
 
   const slide = project.slides[cur];
 
@@ -154,11 +172,21 @@ export function Browse({
           </div>
         )}
 
+      {/* 시안이 오면 보던 자리에 바로 펼친다. 대화창은 가리지 않는다 */}
+      {drafts.length > 0 && (
+        <Drafts
+          drafts={drafts} project={project} slideIndex={cur}
+          baseStyle={baseStyle} pageTypes={pageTypes}
+          onPick={onPickDraft} onClose={onCloseDrafts}
+          onAgain={onCloseDrafts}
+        />
+      )}
+
       <div className="browse-stage" ref={stageRef}>
         <button className="nav" onClick={() => go(-1)} disabled={cur === 0} aria-label="이전 장">‹</button>
         <div>
           <div className="stage-inner">
-            <SlideView ops={opsOf(cur)} style={style} zoom={zoom} />
+            <SlideView ops={opsOf(cur)} style={styleAt(cur)} zoom={zoom} />
           </div>
           <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
             <span style={{ color: "#fff", fontSize: 15, minWidth: 74, textAlign: "center" }}>
@@ -178,7 +206,7 @@ export function Browse({
       <div className="filmstrip" style={{ height: strip.size }}>
         {project.slides.map((s, i) => (
           <button key={s.id} className={`frame ${i === cur ? "on" : ""}`} onClick={() => setCur(i)}>
-            <SlideView ops={opsOf(i)} style={style} zoom={(strip.size - 26) / (style.slide.heightIn * 96)} />
+            <SlideView ops={opsOf(i)} style={styleAt(i)} zoom={(strip.size - 26) / (style.slide.heightIn * 96)} />
             <small>{i + 1}</small>
           </button>
         ))}

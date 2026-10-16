@@ -910,6 +910,8 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 /* 시안을 고르는 동안은 작업 자리를 덮는다 (대화창은 그대로 보인다) */
 .editor { position: relative; }
+/* 열람 화면에서도 시안이 보던 자리에 펼쳐진다 */
+.browse { position: relative; }
 .drafts-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 10px 14px; border-bottom: 1px solid var(--line); background: #fff;
