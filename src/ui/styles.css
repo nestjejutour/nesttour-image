@@ -1086,7 +1086,7 @@ ol.saylist li::before {
 /* 세부 분류 — 한 칸 들여 쓰고 옆줄을 그어 딸린 것임을 보인다 */
 .navrow.세부 { margin-left: 13px; border-left: 1px solid var(--line); padding-left: 7px; }
 .navrow.세부 .navitem { font-size: 14.5px; color: var(--muted); }
-.navrow.세부 .navitem.on { color: var(--ink); }
+.navrow.세부 .navitem.on { color: #fff; }
 .catedit.세부 { margin-left: 13px; }
 .catedit small { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
 
@@ -1311,3 +1311,4 @@ ol.saylist li::before {
 .libcard.골랐음 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .libname small b.없음 { color: var(--accent); font-weight: 600; }
 .libdrop b.없음 { display: inline; color: var(--accent); }
+.libhead .골랐수 { color: var(--ink); font-weight: 600; }

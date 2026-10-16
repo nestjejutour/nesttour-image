@@ -22,11 +22,12 @@ interface Props {
   byName?: string;
   onAdd: (items: LibItem[]) => void;
   onRemove: (id: string) => void;
+  onRemoveMany: (ids: string[]) => void;
   onRename: (id: string, name: string) => void;
   onMove: (id: string, categoryId: string) => void;
 }
 
-export function Library({ sel, categories, items, byName, onAdd, onRemove, onRename, onMove }: Props) {
+export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove }: Props) {
   const [끄는중, set끄는중] = useState(false);
   const [담는중, set담는중] = useState<{ 끝난: number; 전부: number; 지금: string } | null>(null);
   const [찾기, set찾기] = useState("");
@@ -110,7 +111,20 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
   const 못뽑은수 = 보일것.filter((x) => x.noThumb).length;
   const 고른것 = 보일것.filter((x) => !뺀것.has(x.id));
   const 원본없는수 = 보일것.filter((x) => !x.hasFile).length;
+  const 받을수있는수 = 고른것.filter((x) => x.hasFile).length;
   const 다골랐나 = 고른것.length === 보일것.length && 보일것.length > 0;
+
+  /** 고른 것을 한꺼번에 삭제한다 */
+  const 일괄삭제 = async () => {
+    if (!고른것.length) return;
+    if (!confirm(`고르신 ${고른것.length}개를 삭제합니다.\n되돌릴 수 없습니다. 이어서 하시겠습니까?`)) return;
+    for (const x of 고른것) {
+      try { await delThumb(x.id); } catch { /* 없으면 넘어간다 */ }
+      try { await delFile(x.id); } catch { /* 없으면 넘어간다 */ }
+    }
+    onRemoveMany(고른것.map((x) => x.id));
+    set뺀것(new Set());
+  };
 
   /** 고른 것을 원본 그대로 내려받는다. 여러 개면 묶음(zip) 한 덩어리로 */
   const 내려받기 = async () => {
@@ -170,10 +184,18 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
                 onChange={(e) => set뺀것(e.target.checked ? new Set() : new Set(보일것.map((x) => x.id)))} />
               <span>전체</span>
             </label>
-            <button className="btn sm" disabled={!!내리는중 || !고른것.some((x) => x.hasFile)}
-              title="고른 자료를 원본 그대로 내려받습니다"
+            <small className="골랐수">{고른것.length}개 선택</small>
+            <button className="btn sm" disabled={!!내리는중 || !받을수있는수}
+              title={받을수있는수
+                ? "선택한 자료를 원본 그대로 내려받습니다"
+                : "선택한 자료에 원본이 없습니다. 다시 끌어다 놓으시면 원본까지 담깁니다"}
               onClick={() => void 내려받기()}>
-              {내리는중 || `저장하기 ${고른것.filter((x) => x.hasFile).length}개`}
+              {내리는중 || `저장 ${받을수있는수}개`}
+            </button>
+            <button className="btn sm danger" disabled={!고른것.length || !!내리는중}
+              title="선택한 자료를 삭제합니다"
+              onClick={() => void 일괄삭제()}>
+              삭제 {고른것.length}개
             </button>
           </>
         )}
@@ -225,8 +247,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
         <div className="libgrid">
           {보일것.map((x) => (
             <div className={`libcard ${뺀것.has(x.id) ? "" : "골랐음"}`} key={x.id}>
-              <label className="libpick" title={x.hasFile ? "저장할 것 고르기" : "원본이 없어 저장할 수 없습니다"}>
-                <input type="checkbox" checked={!뺀것.has(x.id)} disabled={!x.hasFile}
+              <label className="libpick" title="고르기">
+                <input type="checkbox" checked={!뺀것.has(x.id)}
                   onChange={(e) => set뺀것((t) => {
                     const n = new Set(t);
                     e.target.checked ? n.delete(x.id) : n.add(x.id);
@@ -260,7 +282,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
                 <div className="rowmenu" onPointerDown={(e) => e.stopPropagation()}>
                   <button onClick={() => { set고치는이름(x.id); set메뉴(null); }}>이름 바꾸기</button>
                   <label className="movepick">
-                    <small>옮기기</small>
+                    <small>폴더 이동</small>
                     <select value={x.categoryId}
                       onChange={(e) => { onMove(x.id, e.target.value); set메뉴(null); }}>
                       {categories.filter((c) => !c.parentId).map((c) => {
@@ -279,7 +301,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRen
                   <hr />
                   <button className="빨강"
                     onClick={() => { void delThumb(x.id); void delFile(x.id); onRemove(x.id); set메뉴(null); }}>
-                    지우기
+                    삭제
                   </button>
                 </div>
               )}

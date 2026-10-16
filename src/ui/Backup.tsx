@@ -21,7 +21,7 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
     set하는중("담는 중…"); set끝난말(""); set탈난말("");
     try {
       const r = await 내려받기(db);
-      set끝난말(`${r.이름} (${prettySize(r.크기)}) 를 내려받았습니다. 회사 자료함에 두세요.`);
+      set끝난말(`${r.이름} (${prettySize(r.크기)})  저장했습니다. 회사 자료함에 보관하십시오.`);
     } catch (e: any) {
       set탈난말(e?.message ?? "내려받지 못했습니다");
     }
@@ -31,7 +31,7 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
   const 들이기 = async (f: File) => {
     if (!confirm(
       "지금 이 브라우저에 있는 것을 전부 덮어씁니다.\n" +
-      "먼저 \"내려받아 보관\" 을 한 번 해 두시는 편이 안전합니다.\n\n이어서 하시겠습니까?",
+      "먼저 \"백업 저장\" 을 한 번 해 두시는 편이 안전합니다.\n\n이어서 하시겠습니까?",
     )) return;
     set하는중("들여오는 중…"); set끝난말(""); set탈난말("");
     try {
@@ -51,9 +51,9 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
       <p className="saynote" style={{ marginBottom: 18 }}>
         지금 자료는 <b>이 브라우저 안에만</b> 있습니다.
         다른 컴퓨터나 휴대폰에서 열면 보이지 않고, 브라우저 기록을 지우면 함께 지워집니다.
-        중요한 작업을 하신 날에는 아래에서 <b>한 번 내려받아</b> 회사 자료함에 두세요.
+        중요한 작업을 하신 날에는 아래에서 <b>백업을 한 번 저장해</b> 회사 자료함에 두십시오.
         <br />보관 파일에는 제안서·분류·규칙과 자료의 <b>미리보기</b>가 들어갑니다.
-        자료의 <b>원본 파일</b>은 덩치가 커서 빠집니다 — 그건 보관함의 자료함에서 <b>저장하기</b>로 받으세요.
+        자료의 <b>원본 파일</b>은 덩치가 커서 빠집니다 — 원본은 보관함의 자료함에서 <b>저장</b>으로 내려받으십시오.
       </p>
 
       <div className="status" style={{ marginBottom: 18 }}>
@@ -65,10 +65,10 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
 
       <div className="row" style={{ gap: 9, flexWrap: "wrap" }}>
         <button className="btn primary" disabled={!!하는중} onClick={() => void 내보내기()}>
-          {하는중 === "담는 중…" ? "담는 중…" : "내려받아 보관"}
+          {하는중 === "담는 중…" ? "저장 중…" : "백업 저장"}
         </button>
         <label className="btn">
-          보관 파일 들여오기
+          백업 복원
           <input type="file" accept="application/json,.json" hidden
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -85,7 +85,7 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
       <p className="lede">
         따로 저장하실 것이 없습니다. 고치는 즉시 저장됩니다 —
         화면 오른쪽 위 <b>저장됨 00:00</b> 이 그 표시입니다.
-        여기 <b>내려받아 보관</b> 은 그와 별개로, 컴퓨터가 바뀌거나 탈이 났을 때를 위한 것입니다.
+        여기 <b>백업 저장</b> 은 그와 별개로, 컴퓨터가 바뀌거나 탈이 났을 때를 위한 것입니다.
       </p>
       <p className="lede">
         회사 서버(Firebase)를 붙이면 이 일이 저절로 됩니다 —

@@ -46,6 +46,7 @@ interface Props {
   대표?: boolean;
   onAddLib: (xs: LibItem[]) => void;
   onRemoveLib: (id: string) => void;
+  onRemoveLibMany: (ids: string[]) => void;
   onRenameLib: (id: string, name: string) => void;
   onMoveLib: (id: string, categoryId: string) => void;
 }
@@ -303,14 +304,14 @@ export function Dashboard(p: Props) {
             {/* 더 보기 — 요즘 흔한 작은 메뉴. 바깥을 누르면 닫힌다 */}
             {메뉴 === c.id && (
               <div className="rowmenu" onPointerDown={(e) => e.stopPropagation()}>
-                <button onClick={() => { set고치는이름(c.id); set메뉴(null); }}>이름 바꾸기</button>
+                <button onClick={() => { set고치는이름(c.id); set메뉴(null); }}>이름 변경</button>
                 {!c.parentId && (
                   <button onClick={() => { p.onChangeKind(c.id, c.kind === "참고 자료" ? "우리 결과물" : "참고 자료"); set메뉴(null); }}>
                     {c.kind === "참고 자료" ? "우리 결과물로" : "참고 자료로"}
                   </button>
                 )}
                 <button className="빨강" onClick={() => { p.onDeleteCategory(c.id); set메뉴(null); }}>
-                  지우기{inCat(c.id).length > 0 && <small>{inCat(c.id).length}건은 옮겨집니다</small>}
+                  삭제{inCat(c.id).length > 0 && <small>{inCat(c.id).length}건은 다른 분류로 이동</small>}
                 </button>
               </div>
             )}
@@ -358,11 +359,11 @@ export function Dashboard(p: Props) {
 
         {p.대표 && categories.some((c) => c.hidden) && (
           <div className="hiddencats">
-            <small>치워 둔 분류</small>
+            <small>삭제한 분류</small>
             {categories.filter((c) => c.hidden).map((c) => (
               <button key={c.id} className="navitem" onClick={() => p.onRestoreCategory(c.id)}
-                title="눌러서 도로 꺼냅니다">
-                {c.name || "(이름 없음)"}<span>되돌리기</span>
+                title="눌러서 복원합니다">
+                {c.name.trim() || "(이름 없음)"}<span>복원</span>
               </button>
             ))}
           </div>
@@ -509,6 +510,7 @@ export function Dashboard(p: Props) {
           byName={p.byName}
           onAdd={p.onAddLib}
           onRemove={p.onRemoveLib}
+          onRemoveMany={p.onRemoveLibMany}
           onRename={p.onRenameLib}
           onMove={p.onMoveLib}
         />

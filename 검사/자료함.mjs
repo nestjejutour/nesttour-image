@@ -56,17 +56,17 @@ await pg.locator(".lib").screenshot({ path: `${OUT}/자료함.png` });
 
 // 저장하기 — 고른 것만 원본 그대로
 console.log("전체 체크 처음:", await pg.locator(".allpick input").isChecked() ? "켜짐 ✓" : "꺼짐 ✗");
-console.log("저장 단추:", (await pg.getByRole("button", { name: /저장하기/ }).innerText()).trim());
+console.log("저장 단추:", (await pg.getByRole("button", { name: /^저장 / }).innerText()).trim());
+console.log("삭제 단추:", (await pg.getByRole("button", { name: /^삭제 / }).innerText()).trim());
 // 원본 못 담은 것은 고를 수 없어야 한다
-const 못고름 = await pg.locator(".libpick input[disabled]").count();
-console.log("고를 수 없는 것:", 못고름, "개 (원본 없음)");
+console.log("선택 수:", (await pg.locator(".골랐수").innerText()).trim());
 // 둘만 남기고 체크를 푼다
 await pg.locator(".allpick input").uncheck(); await pg.waitForTimeout(300);
 await pg.locator(".libcard").nth(0).locator(".libpick input").check();
 await pg.locator(".libcard").nth(1).locator(".libpick input").check(); await pg.waitForTimeout(300);
-console.log("둘만 고른 뒤:", (await pg.getByRole("button", { name: /저장하기/ }).innerText()).trim());
+console.log("둘만 고른 뒤:", (await pg.getByRole("button", { name: /^저장 / }).innerText()).trim(), "/", (await pg.locator(".골랐수").innerText()).trim());
 const 받음 = pg.waitForEvent("download", { timeout: 30000 });
-await pg.getByRole("button", { name: /저장하기/ }).click();
+await pg.getByRole("button", { name: /^저장 / }).click();
 const 파일 = await 받음;
 console.log("내려받은 것:", 파일.suggestedFilename());
 await 파일.saveAs(`${OUT}/${파일.suggestedFilename()}`);
@@ -74,7 +74,7 @@ await 파일.saveAs(`${OUT}/${파일.suggestedFilename()}`);
 // 하나만 고르면 원본 그대로
 await pg.locator(".libcard").nth(1).locator(".libpick input").uncheck(); await pg.waitForTimeout(300);
 const 받음2 = pg.waitForEvent("download", { timeout: 30000 });
-await pg.getByRole("button", { name: /저장하기/ }).click();
+await pg.getByRole("button", { name: /^저장 / }).click();
 const 파일2 = await 받음2;
 console.log("하나만:", 파일2.suggestedFilename());
 await pg.locator(".allpick input").check(); await pg.waitForTimeout(300);
@@ -83,7 +83,8 @@ await pg.locator(".allpick input").check(); await pg.waitForTimeout(300);
 await pg.locator(".libmore").first().click(); await pg.waitForTimeout(400);
 const 묶음 = await pg.locator(".movepick optgroup").evaluateAll((els) =>
   els.map((e) => `${e.getAttribute("label")}: ${[...e.children].map((o) => o.textContent).join(", ")}`));
-console.log("옮기기 묶음:", 묶음.join(" | ") || "(없음)");
+console.log("폴더 이동 묶음:", 묶음.join(" | ") || "(없음)");
+console.log("메뉴 글자:", (await pg.locator(".rowmenu").innerText()).replace(/\n+/g," / ").trim());
 await pg.screenshot({ path: `${OUT}/옮기기.png`, clip: { x: 250, y: 150, width: 820, height: 560 } });
 await pg.locator(".libhead b").click({ force: true }); await pg.waitForTimeout(400);
 
@@ -98,6 +99,14 @@ await pg.locator(".bigview").click({ position: { x: 10, y: 10 } }); await pg.wai
 await pg.locator(".libfind").fill("현수막-3"); await pg.waitForTimeout(500);
 console.log("찾기:", await pg.locator(".libcard").count(), "개 남음");
 await pg.locator(".libfind").fill(""); await pg.waitForTimeout(400);
+
+// 일괄 삭제 — 둘만 고르고 지운다
+pg.once("dialog", (d) => d.accept());
+await pg.locator(".allpick input").uncheck(); await pg.waitForTimeout(300);
+await pg.locator(".libcard").nth(0).locator(".libpick input").check();
+await pg.locator(".libcard").nth(1).locator(".libpick input").check(); await pg.waitForTimeout(300);
+await pg.getByRole("button", { name: /^삭제 / }).click(); await pg.waitForTimeout(1200);
+console.log("\n일괄 삭제 뒤 남은 자료:", await pg.locator(".libcard").count(), "개 (6 → 4 여야 한다)");
 
 // 저장 칸을 얼마나 먹나
 await pg.waitForTimeout(7000);

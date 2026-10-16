@@ -934,6 +934,10 @@ function Studio({
             }}
             onRemoveLib={(id: string) =>
               update((d) => ({ ...d, library: d.library.filter((x) => x.id !== id) }))}
+            onRemoveLibMany={(ids: string[]) => {
+              const 뺄것 = new Set(ids);
+              update((d) => ({ ...d, library: d.library.filter((x) => !뺄것.has(x.id)) }));
+            }}
             onRenameLib={(id: string, name: string) =>
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) }))}
             onMoveLib={(id: string, categoryId: string) =>
