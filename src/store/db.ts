@@ -1,4 +1,4 @@
-import type { Category, HistoryEntry, PageType, Project, Rule, StylePreset } from "../core/types";
+import type { Category, HistoryEntry, PageType, Person, Project, Rule, StylePreset, Trail } from "../core/types";
 import { BUILT_IN_STYLES } from "../core/style";
 import { BUILT_IN_PAGE_TYPES } from "../core/pageTypes";
 import { SEED_PROJECTS } from "./seed";
@@ -31,6 +31,12 @@ export interface DB {
   history: HistoryEntry[];
   /** "프로젝트id:페이지id" → 그 페이지에서 오간 대화 */
   chats: Record<string, ChatTurn[]>;
+  /** 쓰는 사람들 */
+  people: Person[];
+  /** 누가 언제 무엇을 손댔는가 */
+  trail: Trail[];
+  /** 직원에게 자기가 만든 것만 보일 것인가 (대표가 켠다) */
+  onlyMine?: boolean;
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
@@ -84,6 +90,13 @@ function seed(): DB {
     projects: SEED_PROJECTS,
     history: [],
     chats: {},
+    // 대표 한 사람으로 시작한다. 나머지는 대표가 창고에서 더한다.
+    people: [{
+      id: "대표", name: "박시영", pin: "0000", role: "대표",
+      createdAt: new Date().toISOString(),
+    }],
+    trail: [],
+    onlyMine: false,
   };
 }
 
@@ -109,6 +122,10 @@ export function load(): DB {
     projects: saved.projects?.length ? saved.projects : db.projects,
       history: saved.history ?? [],
       chats: saved.chats ?? {},
+      // 사람이 하나도 없으면 대표라도 있어야 들어올 수 있다
+      people: saved.people?.length ? saved.people : db.people,
+      trail: saved.trail ?? [],
+      onlyMine: saved.onlyMine ?? false,
     };
   } catch {
     return seed();
@@ -127,6 +144,9 @@ export function save(db: DB): void {
         projects: db.projects,
         history: db.history,
         chats: db.chats,
+        people: db.people,
+        trail: db.trail.slice(-600),   // 너무 쌓이면 저장 칸을 잡아먹는다
+        onlyMine: db.onlyMine,
       }),
     );
   } catch (e) {
@@ -199,5 +219,8 @@ export function merge(saved: Partial<DB>): DB {
     projects: saved.projects?.length ? saved.projects : db.projects,
     history: saved.history ?? [],
     chats: saved.chats ?? {},
+    people: saved.people?.length ? saved.people : db.people,
+    trail: saved.trail ?? [],
+    onlyMine: saved.onlyMine ?? false,
   };
 }

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "../store/db";
 import type { Backend } from "../store/backend";
-import { firebaseBackend, firebaseReady, logout, watchUser } from "../store/firebase";
+import { firebaseBackend, firebaseReady, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
-import type { Category, Content, DeckDraft, Doc, Draft, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
+import type { Category, Content, DeckDraft, Doc, Draft, HistoryEntry, Person, Project, RuleScope, Slide } from "../core/types";
 import { overrideWith, overridesFrom, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
 import { Editor } from "./Editor";
@@ -12,6 +12,7 @@ import { Dashboard } from "./Dashboard";
 import { Browse } from "./Browse";
 import { Tray, type TrayItem } from "./Tray";
 import { ChatDock } from "./ChatDock";
+import { SignIn } from "./SignIn";
 import type { Action } from "../ai/chat";
 import { interpret } from "../core/interpret";
 import { docsToText } from "../core/docs";
@@ -152,6 +153,51 @@ function Studio({
   saveErr: string;
   quiet: React.MutableRefObject<boolean>;
 }) {
+  /**
+   * 지금 쓰고 있는 사람.
+   *
+   * 누가 만들고 누가 고쳤는지 남기려고 둔다. 자물쇠가 아니다.
+   * 이 창을 닫았다 열어도 그대로 — 매번 암호를 다시 넣게 하면 아무도 안 쓴다.
+   */
+  const [나, set나] = useState<Person | null>(() => {
+    try {
+      const id = localStorage.getItem("mtmb-누구");
+      return db.people.find((x) => x.id === id) ?? null;
+    } catch { return null; }
+  });
+  const 들어옴 = (me: Person) => {
+    try { localStorage.setItem("mtmb-누구", me.id); } catch { /* 저장이 막혀도 이번 판은 쓴다 */ }
+    set나(me);
+  };
+  const 나감 = () => {
+    try { localStorage.removeItem("mtmb-누구"); } catch { /* 그냥 나간다 */ }
+    set나(null);
+  };
+
+  /**
+   * 누가 언제 무엇을 손댔는지 적는다.
+   *
+   * 한 번 고칠 때마다 한 줄씩 쌓으면 금세 수천 줄이 된다.
+   * 같은 사람이 같은 건을 이어서 손대면 10분 안에는 한 줄로 묶는다.
+   */
+  const 자취 = (projectId: string, projectTitle: string, what: string) =>
+    update((d) => {
+      const 지금 = new Date();
+      const 끝 = d.trail[d.trail.length - 1];
+      if (끝 && 끝.who === (나?.id ?? "?") && 끝.projectId === projectId && 끝.what === what
+          && 지금.getTime() - new Date(끝.at).getTime() < 10 * 60 * 1000) {
+        return { ...d, trail: [...d.trail.slice(0, -1), { ...끝, at: 지금.toISOString(), projectTitle }] };
+      }
+      return {
+        ...d,
+        trail: [...d.trail, {
+          id: uid(), at: 지금.toISOString(),
+          who: 나?.id ?? "?", whoName: 나?.name ?? "알 수 없음",
+          projectId, projectTitle, what,
+        }],
+      };
+    });
+
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
   const [browseId, setBrowseId] = useState<string | null>(null);
@@ -192,6 +238,18 @@ function Studio({
   const browsing = db.projects.find((p) => p.id === browseId) ?? null;
 
   /**
+   * 보관함에 보여 줄 것.
+   *
+   * 평소에는 다 같이 본다 — 지난 제안서를 베껴 쓰는 게 이 공장의 핵심이라
+   * 서로 못 보게 막으면 쓸모가 반으로 준다.
+   * 대표가 "직원은 자기 것만" 을 켜면 그때부터 갈라 보인다. 대표는 늘 전부 본다.
+   */
+  const 보이는제안서 =
+    나?.role === "대표" || !db.onlyMine
+      ? db.projects
+      : db.projects.filter((x) => !x.madeBy || x.madeBy === 나?.id);
+
+  /**
    * 지금 화면에 떠 있는 제안서.
    *
    * 편집 화면이든 열람 화면이든, 대표가 한 장을 보고 있으면
@@ -223,8 +281,15 @@ function Studio({
   );
 
   /* ── 창고에 쓰기 ── */
-  const putProject = (apply: (p: Project) => Project) =>
-    update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === viewId ? apply(x) : x)) }));
+  const putProject = (apply: (p: Project) => Project) => {
+    const 건 = db.projects.find((x) => x.id === viewId);
+    update((d) => ({
+      ...d,
+      projects: d.projects.map((x) =>
+        x.id === viewId ? { ...apply(x), editedByName: 나?.name ?? x.editedByName } : x),
+    }));
+    if (건) 자취(건.id, 건.title, "고침");
+  };
 
   /**
    * 백지 한 장으로 바로 시작.
@@ -250,12 +315,16 @@ function Studio({
       p = { ...p, docs: [...looseDocs.current, ...(p.docs ?? [])] };
       looseDocs.current = [];
     }
+    p = { ...p, madeBy: 나?.id, madeByName: 나?.name, editedByName: 나?.name };
     update((d) => ({ ...d, projects: [p, ...d.projects] }));
+    자취(p.id, p.title, "만듦");
     setCreating(null); setBrowseId(null); setOpenId(p.id); setLastEdited(p.id); setCur(0);
   };
 
   /** 제안서 지우기. 딸린 대화 기록도 같이 지운다. */
-  const deleteProject = (id: string) =>
+  const deleteProject = (id: string) => {
+    const 건 = db.projects.find((x) => x.id === id);
+    if (건) 자취(id, 건.title, "지움");
     update((d) => {
       const chats = { ...d.chats };
       for (const k of Object.keys(chats)) if (k.startsWith(`${id}:`)) delete chats[k];
@@ -266,6 +335,7 @@ function Studio({
         chats,
       };
     });
+  };
 
   /** 완료 ↔ 진행 중 바꾸기. 완료로 바꿀 때 그 시각을 찍는다. */
   const toggleStatus = (id: string) =>
@@ -661,7 +731,7 @@ function Studio({
       pageTypes={db.pageTypes}
       rules={activeRules}
       categories={db.categories}
-      allProjects={db.projects}
+      allProjects={보이는제안서}
       project={viewing}
       slide={activeSlide}
       pageType={activePageType}
@@ -694,9 +764,12 @@ function Studio({
 
   /* ── 화면 고르기 ── */
 
+  // 누구인지 밝히기 전에는 아무것도 안 보여 준다
+  if (!나) return <SignIn people={db.people} onIn={들어옴} />;
+
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -714,11 +787,11 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
-          allProjects={db.projects}
+          allProjects={보이는제안서}
           cur={Math.min(cur, Math.max(0, project.slides.length - 1))}
           onCur={setCur}
           onChange={putProject} onBack={() => setOpenId(null)}
@@ -749,7 +822,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -769,7 +842,7 @@ function Studio({
             onPickDeck={pickDeck}
             onCloseDecks={() => setDeckDrafts([])}
             categoryName={db.categories.find((c) => c.id === browsing.category)?.name ?? "미분류"}
-            allProjects={db.projects}
+            allProjects={보이는제안서}
             categories={db.categories}
             onPick={(id) => { setBrowseId(id); setCur(0); }}
           />
@@ -784,11 +857,11 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={who} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={나.name} onOut={나감} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
-            projects={db.projects} categories={db.categories}
+            projects={보이는제안서} categories={db.categories}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={(id) => { setBrowseId(id); setCur(0); }} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
             onBlank={startBlank}
@@ -805,16 +878,16 @@ function Studio({
         </div>
       )}
       {view === "기록" && <Log db={db} setDb={update} />}
-      {view === "창고" && <Store db={db} setDb={update} />}
+      {view === "창고" && <Store db={db} setDb={update} 나={나} />}
     </Shell>
   );
 }
 
 function Shell({
-  view, setView, onNew, bare, who, savedAt, saveErr, dock, busy, dockOpen, onDock, undo, children,
+  view, setView, onNew, bare, who, onOut, savedAt, saveErr, dock, busy, dockOpen, onDock, undo, children,
 }: {
   view: View; setView: (v: View) => void; onNew: () => void;
-  bare?: boolean; who?: string | null; savedAt?: Date | null; saveErr?: string;
+  bare?: boolean; who?: string | null; onOut?: () => void; savedAt?: Date | null; saveErr?: string;
   dock?: React.ReactNode; busy?: boolean;
   dockOpen?: boolean; onDock?: () => void; undo?: Undo; children: React.ReactNode;
 }) {
@@ -865,8 +938,8 @@ function Shell({
             {dockOpen ? "대화 닫기" : "AI 와 대화"}
           </button>
         )}
-        {who && <small className="who" title={who}>{who}</small>}
-        {who && <button className="btn sm" onClick={() => void logout()}>로그아웃</button>}
+        {who && <small className="who" title="지금 쓰고 있는 사람">{who}</small>}
+        {onOut && <button className="btn sm" onClick={onOut}>나가기</button>}
         {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}
       </div>
       {saveErr && (

@@ -1094,3 +1094,45 @@ ol.saylist li::before {
 .navrow.세부 .navitem.on { color: var(--ink); }
 .catedit.세부 { margin-left: 13px; }
 .catedit small { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+
+/* ── 들어오기 ── */
+.whopick {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 12px 0; justify-content: center;
+}
+.whopick .navitem { width: auto; padding: 7px 13px; }
+.pinbox {
+  width: 100%; text-align: center; letter-spacing: 9px;
+  font-size: 21px; padding: 11px; margin-bottom: 9px;
+  border: 1px solid var(--line); border-radius: 7px;
+}
+.gatenote { display: block; margin-top: 11px; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+
+/* ── 사람 · 손댄 기록 ── */
+.peoplelist { display: flex; flex-direction: column; gap: 7px; }
+.peoplelist .filerow b em.tag대표 {
+  font-style: normal; font-size: 11.5px; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 20px;
+  padding: 1px 7px; margin-left: 7px; vertical-align: 1px;
+}
+.pinmini {
+  width: 118px; text-align: center; letter-spacing: 3px;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+}
+.onlymine {
+  display: flex; gap: 9px; align-items: flex-start; margin-top: 16px;
+  padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px;
+  cursor: pointer;
+}
+.onlymine input { margin-top: 3px; flex-shrink: 0; }
+.onlymine b { display: block; font-size: 14.5px; }
+.onlymine small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.55; margin-top: 3px; }
+.trail { display: flex; flex-direction: column; }
+.trailrow {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 14px;
+}
+.trailrow .when { color: var(--muted); font-size: 12.5px; width: 86px; flex-shrink: 0; }
+.trailrow b { width: 72px; flex-shrink: 0; }
+.trailrow .what { color: var(--accent); width: 60px; flex-shrink: 0; font-size: 13px; }
+.trailrow .which { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
