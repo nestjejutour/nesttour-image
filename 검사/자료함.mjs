@@ -98,7 +98,17 @@ await pg.locator(".libshot").first().click(); await pg.waitForTimeout(800);
 console.log("한 장 화면:", await pg.locator(".한장").count() ? "열림 ✓" : "안 열림 ✗");
 console.log("머리말:", (await pg.locator(".한장머리").innerText()).replace(/\n/g," ").trim());
 console.log("항목:", (await pg.locator(".한장표 dt").allTextContents()).join(" | "));
-console.log("단추:", (await pg.locator(".한장옆 .btn").allTextContents()).join(" | "));
+console.log("단추:", (await pg.locator(".한장옆 .btn").allTextContents()).map(t=>t.trim()).join(" | "));
+// 큰 그림을 원본에서 다시 그렸는가 (작은 그림보다 커야 한다)
+await pg.waitForTimeout(2500);
+const 큰크기 = await pg.locator(".한장그림 img").evaluate((el) => ({ 가로: el.naturalWidth, 세로: el.naturalHeight }));
+console.log("큰 그림 크기:", `${큰크기.가로}×${큰크기.세로}`, 큰크기.가로 > 400 ? "← 원본에서 다시 그림 ✓" : "← 작은 그림 그대로 ✗");
+// PDF 로 저장
+const 받음3 = pg.waitForEvent("download", { timeout: 30000 });
+await pg.locator(".한장옆").getByRole("button", { name: "PDF로 저장" }).click();
+const 파일3 = await 받음3;
+await 파일3.saveAs(`${OUT}/pdf로저장.bin`);
+console.log("PDF로 저장:", "받음 ✓");
 // 메모를 적어 본다
 await pg.locator(".한장옆 textarea").fill("야외용 · 400x90");
 await pg.locator(".한장옆 textarea").blur(); await pg.waitForTimeout(500);

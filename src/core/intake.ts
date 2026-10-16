@@ -49,11 +49,20 @@ export async function readFile(file: File, id: string): Promise<IntakeFile> {
       return { ...base, dataUrl: await shrink(await asDataUrl(file)) };
     }
 
-    if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+    // .ai 는 "PDF 호환" 으로 저장했으면 속이 그대로 PDF 다. 같은 길로 읽는다.
+    if (/\.(pdf|ai)$/i.test(file.name) || file.type === "application/pdf") {
+      const ai = /\.ai$/i.test(file.name);
+      if (ai && !(await 피디에프인가(file))) {
+        return { ...base, kind: "못읽음",
+          note: "PDF 호환으로 저장된 일러스트 파일이 아닙니다 (저장할 때 'PDF 호환 파일 만들기' 를 켜 주십시오)" };
+      }
       const text = await pdfText(file);
       return text.trim()
         ? { ...base, text }
-        : { ...base, kind: "못읽음", note: "글자가 없는 PDF 입니다 (사진을 찍어 만든 PDF 일 수 있습니다)" };
+        : { ...base, kind: "못읽음",
+            note: ai
+              ? "일러스트 파일에서 글자를 꺼내지 못했습니다 (글자를 모양으로 바꿔 저장한 파일일 수 있습니다)"
+              : "글자가 없는 PDF 입니다 (사진을 찍어 만든 PDF 일 수 있습니다)" };
     }
 
     // 워드 · 파워포인트 · 엑셀 · 한글 — 속을 열어 글만 꺼낸다
@@ -73,6 +82,14 @@ export async function readFile(file: File, id: string): Promise<IntakeFile> {
   } catch (e: any) {
     return { ...base, kind: "못읽음", note: e?.message ?? "파일을 읽지 못했습니다" };
   }
+}
+
+/** 머리글자가 %PDF 인가 — .ai 가 PDF 호환으로 저장됐는지 가른다 */
+export async function 피디에프인가(file: Blob): Promise<boolean> {
+  try {
+    const 앞 = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+    return 앞[0] === 0x25 && 앞[1] === 0x50 && 앞[2] === 0x44 && 앞[3] === 0x46;   // %PDF
+  } catch { return false; }
 }
 
 /** PDF 에서 글자만 뽑는다 */

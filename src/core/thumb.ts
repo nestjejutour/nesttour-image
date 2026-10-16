@@ -17,10 +17,10 @@ const 품질 = 0.68;
 
 export type 미리보기 = { thumb?: string; w?: number; h?: number; 못뽑은까닭?: string };
 
-const 그려담기 = (c: HTMLCanvasElement) => c.toDataURL("image/jpeg", 품질);
+const 그려담기 = (c: HTMLCanvasElement) => c.toDataURL("image/jpeg", c.width > 800 ? 0.86 : 품질);
 
 /** 긴 변 기준으로 줄일 비율 */
-const 비율 = (w: number, h: number) => Math.min(1, 길이 / Math.max(w, h));
+const 비율 = (w: number, h: number, 길 = 길이) => Math.min(1, 길 / Math.max(w, h));
 
 export async function 미리보기뽑기(file: File): Promise<미리보기> {
   const 이름 = file.name.toLowerCase();
@@ -44,7 +44,7 @@ export async function 미리보기뽑기(file: File): Promise<미리보기> {
   }
 }
 
-async function 그림에서(file: File): Promise<미리보기> {
+async function 그림에서(file: File, 길 = 길이): Promise<미리보기> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((res, rej) => {
@@ -53,7 +53,7 @@ async function 그림에서(file: File): Promise<미리보기> {
       i.onerror = () => rej(new Error("그림을 열지 못했습니다"));
       i.src = url;
     });
-    const r = 비율(img.naturalWidth, img.naturalHeight);
+    const r = 비율(img.naturalWidth, img.naturalHeight, 길);
     const c = document.createElement("canvas");
     c.width = Math.max(1, Math.round(img.naturalWidth * r));
     c.height = Math.max(1, Math.round(img.naturalHeight * r));
@@ -67,7 +67,7 @@ async function 그림에서(file: File): Promise<미리보기> {
   }
 }
 
-async function 피디에프에서(file: File): Promise<미리보기> {
+async function 피디에프에서(file: File, 길 = 길이): Promise<미리보기> {
   const pdfjs = await import("pdfjs-dist");
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -77,7 +77,7 @@ async function 피디에프에서(file: File): Promise<미리보기> {
   const page = await doc.getPage(1);
 
   const 원래 = page.getViewport({ scale: 1 });
-  const r = 비율(원래.width, 원래.height);
+  const r = 비율(원래.width, 원래.height, 길);
   const view = page.getViewport({ scale: r });
 
   const c = document.createElement("canvas");
@@ -91,4 +91,26 @@ async function 피디에프에서(file: File): Promise<미리보기> {
   const out = { thumb: 그려담기(c), w: Math.round(원래.width), h: Math.round(원래.height) };
   try { await doc.destroy(); } catch { /* 닫다 실패해도 그림은 나왔다 */ }
   return out;
+}
+
+
+/**
+ * 원본에서 큰 그림을 뽑는다.
+ *
+ * 목록에 깔 작은 그림(360px)을 크게 늘리면 뭉개져서 볼 수가 없다.
+ * 원본을 품고 있으니 열어 볼 때 그 자리에서 크게 그린다.
+ * 저장 칸을 더 쓰지 않는 대신 몇백 밀리초가 든다 — 한 장 볼 때는 그만한 값이 있다.
+ */
+export async function 큰그림(blob: Blob, 이름: string, 긴변 = 1800): Promise<string | undefined> {
+  const 확장 = 이름.toLowerCase().slice(이름.lastIndexOf(".") + 1);
+  const f = new File([blob], 이름, { type: blob.type });
+  try {
+    if (["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(확장) || blob.type.startsWith("image/")) {
+      return (await 그림에서(f, 긴변)).thumb;
+    }
+    if (["pdf", "ai", "eps"].includes(확장)) {
+      return (await 피디에프에서(f, 긴변)).thumb;
+    }
+  } catch { /* 못 뽑으면 작은 그림으로 버틴다 */ }
+  return undefined;
 }

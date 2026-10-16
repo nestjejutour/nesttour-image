@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category, LibItem } from "../core/types";
-import { 미리보기뽑기 } from "../core/thumb";
+import { 미리보기뽑기, 큰그림 } from "../core/thumb";
+import { 피디에프인가 } from "../core/intake";
 import { getThumb, putThumb, delThumb, putFile, getFile, delFile, 쓰는자리 } from "../store/thumbs";
 import { uid } from "../store/db";
 import { 분류옵션 } from "./분류칸";
@@ -198,14 +199,20 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
   };
 
   /** 고른 것을 원본 그대로 내려받는다. 여러 개면 묶음(zip) 한 덩어리로 */
-  const 내려받기 = async () => {
+  const 내려받기 = async (피디에프로 = false) => {
     const 받을것 = 고른것.filter((x) => x.hasFile);
     if (!받을것.length) return;
     set내리는중("담는 중…");
     try {
+      /** .ai 를 PDF 로 바꿔 달라고 했으면 이름만 바꾼다 — 속이 이미 PDF 다 */
+      const 바꿔 = async (b: Blob, 이름: string): Promise<[Blob, string]> =>
+        피디에프로 && /\.ai$/i.test(이름) && (await 피디에프인가(b))
+          ? [new Blob([b], { type: "application/pdf" }), 이름.replace(/\.ai$/i, ".pdf")]
+          : [b, 이름];
+
       if (받을것.length === 1) {
         const b = await getFile(받을것[0].id);
-        if (b) 떨구기(b, 받을것[0].fileName);
+        if (b) { const [바뀐, 이름] = await 바꿔(b, 받을것[0].fileName); 떨구기(바뀐, 이름); }
       } else {
         const { zipSync } = await import("fflate");
         const 짐: Record<string, Uint8Array> = {};
@@ -215,12 +222,13 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
           const b = await getFile(받을것[i].id);
           if (!b) continue;
           // 같은 이름이 둘이면 뒤엣것이 앞엣것을 덮는다. 번호를 붙여 피한다.
-          let 이름 = 받을것[i].fileName;
+          const [바뀐, 첫이름] = await 바꿔(b, 받을것[i].fileName);
+          let 이름 = 첫이름;
           for (let n = 2; 쓴이름.has(이름); n++) {
-            이름 = 받을것[i].fileName.replace(/(\.[^.]+)?$/, (ext) => ` (${n})${ext}`);
+            이름 = 첫이름.replace(/(\.[^.]+)?$/, (ext) => ` (${n})${ext}`);
           }
           쓴이름.add(이름);
-          짐[이름] = new Uint8Array(await b.arrayBuffer());
+          짐[이름] = new Uint8Array(await 바뀐.arrayBuffer());
           await new Promise((r) => setTimeout(r, 0));
         }
         set내리는중("묶는 중…");
@@ -272,6 +280,13 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
               <span>전체</span>
             </label>
             <small className="골랐수">{고른것.length}개 선택</small>
+            {고른것.some((x) => x.hasFile && /\.ai$/i.test(x.fileName)) && (
+              <button className="btn sm" disabled={!!내리는중 || !받을수있는수}
+                title="고른 일러스트 파일을 PDF 로 바꿔 내려받습니다"
+                onClick={() => void 내려받기(true)}>
+                PDF로 저장
+              </button>
+            )}
             <button className="btn sm" disabled={!!내리는중 || !받을수있는수}
               title={받을수있는수
                 ? "선택한 자료의 원본 파일을 내 컴퓨터로 내려받습니다"
@@ -433,7 +448,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
               <div className="한장그림">
                 <button className="넘김" disabled={자리 <= 0}
                   onClick={() => 넘기기(-1)} aria-label="앞 자료">‹</button>
-                <Thumb id={크게.id} 없음={크게.noThumb} 큼 />
+                <큰보기 x={크게} />
                 <button className="넘김" disabled={자리 < 0 || 자리 >= 보일것.length - 1}
                   onClick={() => 넘기기(1)} aria-label="뒤 자료">›</button>
               </div>
@@ -477,8 +492,24 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
                       const b = await getFile(크게.id);
                       if (b) 떨구기(b, 크게.fileName);
                     }}>
-                    내 PC로 저장
+                    원본 저장
                   </button>
+                  {크게.hasFile && /\.ai$/i.test(크게.fileName) && (
+                    <button className="btn"
+                      title="일러스트 파일을 PDF 로 저장합니다 (PDF 호환으로 저장된 파일이면 그대로 열립니다)"
+                      onClick={async () => {
+                        const b = await getFile(크게.id);
+                        if (!b) return;
+                        if (!(await 피디에프인가(b))) {
+                          set탈난말("PDF 호환으로 저장된 파일이 아니라 PDF 로 바꿀 수 없습니다.");
+                          return;
+                        }
+                        떨구기(new Blob([b], { type: "application/pdf" }),
+                              크게.fileName.replace(/\.ai$/i, ".pdf"));
+                      }}>
+                      PDF로 저장
+                    </button>
+                  )}
                   <button className="btn danger"
                     onClick={() => {
                       void delThumb(크게.id); void delFile(크게.id);
@@ -566,6 +597,43 @@ function 떨구기(blob: Blob, 이름: string) {
   a.href = url; a.download = 이름;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/**
+ * 한 장 화면의 큰 그림.
+ *
+ * 목록에 깔린 작은 그림(360px)을 늘리면 뭉개진다.
+ * 원본을 품고 있으니 열어 볼 때 그 자리에서 크게 다시 그린다.
+ */
+function 큰보기({ x }: { x: LibItem }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [그리는중, set그리는중] = useState(false);
+
+  useEffect(() => {
+    let 살아있다 = true;
+    setSrc(null);
+    (async () => {
+      // 작은 그림이라도 먼저 띄워 둔다. 빈 화면보다 낫다.
+      const 작은 = await getThumb(x.id);
+      if (살아있다 && 작은) setSrc(작은);
+      if (!x.hasFile) return;
+      set그리는중(true);
+      const b = await getFile(x.id);
+      const 큰 = b ? await 큰그림(b, x.fileName) : undefined;
+      if (살아있다 && 큰) setSrc(큰);
+      if (살아있다) set그리는중(false);
+    })();
+    return () => { 살아있다 = false; };
+  }, [x.id, x.hasFile, x.fileName]);
+
+  if (x.noThumb && !src) return <span className="nothumb">{x.noThumb}</span>;
+  if (!src) return <span className="nothumb">그리는 중…</span>;
+  return (
+    <span className="큰그림칸">
+      <img src={src} alt="" className="big" />
+      {그리는중 && <small className="또렷하게">또렷하게 그리는 중…</small>}
+    </span>
+  );
 }
 
 /** 그림은 저장 칸(IndexedDB)에서 꺼내 온다 */
