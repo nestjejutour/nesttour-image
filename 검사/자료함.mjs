@@ -27,6 +27,11 @@ await pg.locator(".catnew.세부").press("Escape"); await pg.waitForTimeout(400)
 await pg.getByRole("button", { name: /개인/ }).first().click(); await pg.waitForTimeout(600);
 
 console.log("자료함 있나:", await pg.locator(".lib").count() ? "있음 ✓" : "없음 ✗");
+// 분류를 고르기 전에는 받지 않아야 한다 — 어디로 갔는지 모르게 되면 안 된다
+await pg.getByRole("button", { name: /^전체/ }).first().click(); await pg.waitForTimeout(500);
+console.log("전체일 때 놓는 자리:", (await pg.locator(".libdrop b").innerText()).trim());
+console.log("전체일 때 잠겼나:", (await pg.locator(".libdrop").getAttribute("class") || "").includes("잠김") ? "잠김 ✓" : "안 잠김 ✗");
+await pg.getByRole("button", { name: /개인/ }).first().click(); await pg.waitForTimeout(500);
 console.log("놓는 자리 안내:", (await pg.locator(".libdrop small").innerText()).trim().split(".")[0]);
 
 // 파일 넣기 — 진짜로 끌어다 놓는다

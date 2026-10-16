@@ -1322,3 +1322,13 @@ ol.saylist li::before {
 .정말칸 b { display: block; font-size: 14.5px; margin-bottom: 3px; }
 .정말칸 small { color: var(--muted); font-size: 13px; line-height: 1.55; }
 .libhead .없음 { color: var(--accent); font-weight: 600; }
+/* 파일 고르는 칸 — display:none 으로 숨기면 브라우저에 따라 파일이 안 꽂힌다.
+   보이지만 않게 자리를 지운다. */
+.숨은칸 {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.libdrop { display: block; cursor: pointer; }
+.libdrop:hover { border-color: var(--muted); }
+.libdrop.잠김 { cursor: not-allowed; opacity: 0.72; }
+.libdrop.잠김:hover { border-color: var(--line); }

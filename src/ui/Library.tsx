@@ -42,9 +42,15 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
   const [자리, set자리] = useState("");
   /** 삭제를 한 번 더 묻는 중 — 브라우저 창(confirm)은 틀 안에서 막히므로 화면 안에서 묻는다 */
   const [지울까, set지울까] = useState(false);
+  const [탈난말, set탈난말] = useState("");
 
-  /** 담을 곳 — 전체를 보고 있으면 첫 분류에 담는다 */
-  const 담을곳 = sel !== "all" ? sel : (categories[0]?.id ?? "");
+  /**
+   * 담을 곳.
+   *
+   * "전체" 를 보고 있을 때 첫 분류에 몰래 넣었는데, 그러면 어디로 갔는지 모른다.
+   * 분류를 고르기 전에는 받지 않는다.
+   */
+  const 담을곳 = sel !== "all" ? sel : "";
   const 담을곳이름 = categories.find((c) => c.id === 담을곳)?.name ?? "";
 
   const 보일것 = useMemo(() => {
@@ -73,7 +79,14 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
 
   /** 받은 파일들을 하나씩 담는다. 100개를 한꺼번에 돌리면 화면이 멈춘다 */
   const 받기 = async (files: File[]) => {
-    if (!files.length || !담을곳) return;
+    set탈난말("");
+    if (!files.length) return;
+    if (!담을곳) {
+      set탈난말("왼쪽에서 분류를 먼저 고르십시오. 어디에 담을지 정해야 합니다.");
+      return;
+    }
+    // 고르자마자 보여 준다. 큰 파일은 그림 뽑는 데 몇 초 걸려 멎은 줄 안다.
+    set담는중({ 끝난: 0, 전부: files.length, 지금: files[0].name });
     const 담긴: LibItem[] = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -105,10 +118,18 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       await new Promise((r) => setTimeout(r, 0));
     }
     set담는중(null);
+    if (!담긴.length) { set탈난말("담긴 것이 없습니다. 다시 시도해 주십시오."); return; }
     onAdd(담긴);
     set방금(담긴.length);
     setTimeout(() => set방금(null), 4000);
   };
+
+  /** 탈이 나도 조용히 넘어가면 안 된다 */
+  const 받기안전 = (files: File[]) =>
+    받기(files).catch((e: any) => {
+      set담는중(null);
+      set탈난말(e?.message ?? "자료를 담지 못했습니다");
+    });
 
   const 못뽑은수 = 보일것.filter((x) => x.noThumb).length;
   const 고른것 = 보일것.filter((x) => !뺀것.has(x.id));
@@ -214,24 +235,31 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         )}
         <label className="btn sm primary">
           + 파일 추가
-          <input type="file" multiple hidden
+          {/* display:none 으로 숨기면 파일이 안 꽂히는 브라우저가 있다. 자리만 지운다 */}
+          <input type="file" multiple className="숨은칸"
             onChange={(e) => {
               const fs = Array.from(e.target.files ?? []);
               e.target.value = "";
-              void 받기(fs);
+              void 받기안전(fs);
             }} />
         </label>
       </div>
 
-      <div
-        className={`libdrop ${끄는중 ? "들어옴" : ""}`}
+      <label
+        className={`libdrop ${끄는중 ? "들어옴" : ""} ${담을곳 ? "" : "잠김"}`}
         onDragOver={(e) => { e.preventDefault(); set끄는중(true); }}
         onDragLeave={() => set끄는중(false)}
         onDrop={(e) => {
           e.preventDefault(); set끄는중(false);
-          void 받기(Array.from(e.dataTransfer.files ?? []));
+          void 받기안전(Array.from(e.dataTransfer.files ?? []));
         }}
       >
+        <input type="file" multiple className="숨은칸" disabled={!담을곳}
+          onChange={(e) => {
+            const fs = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            void 받기안전(fs);
+          }} />
         {담는중 ? (
           <>
             <b>{담는중.끝난 + 1} / {담는중.전부} 담는 중</b>
@@ -240,9 +268,11 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
           </>
         ) : (
           <>
-            <b>여기에 파일을 끌어다 놓으세요</b>
+            <b>{담을곳 ? "여기에 파일을 끌어다 놓거나, 눌러서 고르십시오" : "왼쪽에서 분류를 먼저 고르십시오"}</b>
             <small>
-              {담을곳이름 ? `"${담을곳이름}" 에 들어갑니다. ` : ""}
+              {담을곳이름
+                ? `"${담을곳이름}" 에 들어갑니다. `
+                : "어디에 담을지 정해야 받을 수 있습니다. "}
               한 번에 여러 개, 폴더째 끌어다 놓아도 됩니다.
               일러스트(.ai)·PDF·사진에서 미리보기를 뽑습니다.
               <br />놓는 즉시 저장됩니다 — 따로 저장하실 것이 없습니다.
@@ -254,7 +284,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
             </small>
           </>
         )}
-      </div>
+      </label>
+      {탈난말 && <p className="gateerr">{탈난말}</p>}
 
       {보일것.length > 0 && (
         <div className="libgrid">

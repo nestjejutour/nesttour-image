@@ -68,7 +68,7 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
         </button>
         <label className="btn">
           백업 복원
-          <input type="file" accept="application/json,.json" hidden
+          <input type="file" accept="application/json,.json" className="숨은칸"
             onChange={(e) => {
               const f = e.target.files?.[0];
               e.target.value = "";
