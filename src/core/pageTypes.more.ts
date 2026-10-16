@@ -115,6 +115,32 @@ export const MORE_PAGE_TYPES: PageType[] = [
   },
 
   {
+    /**
+     * 인쇄물 한 장.
+     *
+     * 현수막처럼 "이미 다 만들어진 한 장" 을 담는 틀이다.
+     * 판 전체를 그림 하나로 덮고, 그 위에 글자를 얹을 수 있다.
+     * 판 크기는 건마다 다르므로(400×90cm 등) 자리는 reframe 이 늘려 준다.
+     */
+    id: "print-full",
+    name: "인쇄물 (전면)",
+    description: "판 전체를 그림 하나로 덮는다. 현수막·배너처럼 다 만들어진 한 장을 담을 때.",
+    group: "표지",
+    showPageNo: false,
+    builtIn: true,
+    createdAt: now,
+    slots: [
+      { key: "art", label: "바탕 그림", kind: "image" },
+      { key: "head", label: "덧붙일 글 (없어도 됨)", kind: "text" },
+    ],
+    sample: { head: "" },
+    elements: [
+      { type: "image", bind: "art", x: 0, y: 0, w: 10, h: 5.625, fit: "cover" },
+      { type: "text", bind: "head", x: 0.5, y: 0.5, w: 9, h: 0.8, token: "coverTitleBold", color: "white", valign: "middle" },
+    ],
+  },
+
+  {
     id: "cover-full",
     name: "표지 (사진 전면)",
     description: "사진을 가득 깔고 어두운 막 위에 흰 글씨. 사진이 좋을 때 가장 강하다.",

@@ -40,6 +40,9 @@ interface Props {
   onChangeKind: (id: string, kind: Category["kind"]) => void;
   /** 분류의 쓰임(문서·현수막) 바꾸기 */
   onChangeUse: (id: string, 용도: "문서" | "현수막") => void;
+  /** 완성본 파일을 작업물로 등록한다 (자료함이 아니라 위 칸으로) */
+  onRegister: (files: File[], categoryId: string) => void;
+  등록중?: { 끝난: number; 전부: number; 지금: string } | null;
   /** 치워 둔 분류 도로 꺼내기 */
   onRestoreCategory: (id: string) => void;
   /* ── 분류에 쌓아 두는 자료 ── */
@@ -549,6 +552,16 @@ export function Dashboard(p: Props) {
                 </p>
                 <span className="cnt">{쓰임(c) === "현수막" ? "작업물" : "제안서"} {list.length}건</span>
                 {쓰임(c) === "현수막" && <em className="refmark">인쇄물 · 규격으로 만듭니다</em>}
+                <div className="spacer" />
+                <label className="btn sm" title="완성된 파일을 작업물로 등록합니다">
+                  + 완성본 등록
+                  <input type="file" multiple className="숨은칸"
+                    onChange={(e) => {
+                      const fs = Array.from(e.target.files ?? []);
+                      e.target.value = "";
+                      p.onRegister(fs, c.id);
+                    }} />
+                </label>
                 {!expanded && list.length > PER_ROW && (
                   <button className="btn sm" onClick={() => setSel(c.id)}>
                     + 전체 보기 ({list.length})
@@ -573,34 +586,47 @@ export function Dashboard(p: Props) {
                   onDragLeave={() => set빈자리끌림(false)}
                   onDrop={(e) => {
                     e.preventDefault(); set빈자리끌림(false);
-                    void 놓은것펼치기(e.dataTransfer).then((fs) => 담기.current?.(fs));
+                    void 놓은것펼치기(e.dataTransfer).then((fs) => p.onRegister(fs, c.id));
                   }}
                 >
-                  <b>이 분류에는 아직 {쓰임(c) === "현수막" ? "작업물" : "제안서"}이 없습니다</b>
-                  <small>여러 개를 한 번에 넣으시려면 아래 자료함으로 가거나, 여기에 바로 끌어다 놓으십시오.</small>
-                  <div className="row" style={{ gap: 7, marginTop: 10 }}>
-                    <button className="btn sm primary" onClick={() => p.onNew(c.id)}>신규 등록</button>
-                    <button className="btn sm" onClick={() => p.onBlank(c.id)}>새로 만들기</button>
-                    <label className="btn sm">
-                      + 파일 여러 개
-                      <input type="file" multiple className="숨은칸"
-                        onChange={(e) => {
-                          const fs = Array.from(e.target.files ?? []);
-                          e.target.value = "";
-                          담기.current?.(fs);
-                        }} />
-                    </label>
-                    <label className="btn sm">
-                      + 폴더째
-                      <input type="file" multiple className="숨은칸"
-                        ref={(el) => { if (el) el.setAttribute("webkitdirectory", ""); }}
-                        onChange={(e) => {
-                          const fs = Array.from(e.target.files ?? []);
-                          e.target.value = "";
-                          담기.current?.(fs);
-                        }} />
-                    </label>
-                  </div>
+                  {p.등록중 ? (
+                    <>
+                      <b>{p.등록중.끝난 + 1} / {p.등록중.전부} 등록하는 중</b>
+                      <div className="libbar"><i style={{ width: `${((p.등록중.끝난 + 1) / p.등록중.전부) * 100}%` }} /></div>
+                      <small>{p.등록중.지금}</small>
+                    </>
+                  ) : (
+                    <>
+                      <b>이 분류에는 아직 {쓰임(c) === "현수막" ? "작업물" : "제안서"}이 없습니다</b>
+                      <small>
+                        완성된 파일을 여기에 끌어다 놓으면 한 건씩 등록됩니다.
+                        규격은 파일에서 읽어 내므로 적지 않으셔도 됩니다.
+                      </small>
+                      <div className="row" style={{ gap: 7, marginTop: 10 }}>
+                        <button className="btn sm primary" onClick={() => p.onNew(c.id)}>신규 등록</button>
+                        <button className="btn sm" onClick={() => p.onBlank(c.id)}>새로 만들기</button>
+                        <label className="btn sm">
+                          + 파일 여러 개
+                          <input type="file" multiple className="숨은칸"
+                            onChange={(e) => {
+                              const fs = Array.from(e.target.files ?? []);
+                              e.target.value = "";
+                              p.onRegister(fs, c.id);
+                            }} />
+                        </label>
+                        <label className="btn sm">
+                          + 폴더째
+                          <input type="file" multiple className="숨은칸"
+                            ref={(el) => { if (el) el.setAttribute("webkitdirectory", ""); }}
+                            onChange={(e) => {
+                              const fs = Array.from(e.target.files ?? []);
+                              e.target.value = "";
+                              p.onRegister(fs, c.id);
+                            }} />
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </section>

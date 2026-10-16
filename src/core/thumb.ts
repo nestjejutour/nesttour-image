@@ -32,16 +32,16 @@ const 그려담기 = (c: HTMLCanvasElement) => c.toDataURL("image/jpeg", c.width
 /** 긴 변 기준으로 줄일 비율 */
 const 비율 = (w: number, h: number, 길 = 길이) => Math.min(1, 길 / Math.max(w, h));
 
-export async function 미리보기뽑기(file: File): Promise<미리보기> {
+export async function 미리보기뽑기(file: File, 길 = 길이): Promise<미리보기> {
   const 이름 = file.name.toLowerCase();
   const 확장 = 이름.slice(이름.lastIndexOf(".") + 1);
 
   try {
     if (file.type.startsWith("image/") || ["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(확장)) {
-      return await 그림에서(file);
+      return await 그림에서(file, 길);
     }
     if (확장 === "pdf" || 확장 === "ai" || 확장 === "eps" || file.type === "application/pdf") {
-      return await 피디에프에서(file);
+      return await 피디에프에서(file, 길);
     }
     return { 못뽑은까닭: "그림을 뽑을 수 없는 형식입니다" };
   } catch (e: any) {

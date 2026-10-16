@@ -221,6 +221,8 @@ function Studio({
   const [고른분류, set고른분류] = useState("all");
   /** 인쇄물 규격을 묻는 중인 분류 */
   const [규격물을곳, set규격물을곳] = useState<string | null>(null);
+  /** 완성본을 작업물로 등록하는 중 */
+  const [담는중, set담는중] = useState<{ 끝난: number; 전부: number; 지금: string } | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [tray, setTray] = useState<TrayItem[]>([]);
   /** 선택 페이지 칸은 평소 접어 둔다. 화면을 넓게 쓰기 위함이다. */
@@ -387,6 +389,69 @@ function Studio({
     onNoteLib: (id: string, note: string) =>
       update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, note } : x)) })),
   };
+
+  /**
+   * 완성본 파일을 작업물로 등록한다.
+   *
+   * 현수막 .ai 한 장은 그 자체가 작업물이다. 자료함에 쌓아 둘 것이 아니라
+   * 위 칸에 한 건씩 서야 한다. 규격은 묻지 않는다 — 파일에서 읽어 낸다.
+   * 원본은 그 건의 자료로 함께 붙여 둔다. 인쇄용 저장이 그걸 보고 뽑는다.
+   */
+  const 완성본등록 = async (files: File[], categoryId: string) => {
+    const { 미리보기뽑기 } = await import("../core/thumb");
+    const { putFile } = await import("../store/thumbs");
+    const 찌꺼기 = /^(\.|~\$)|^(Thumbs\.db|desktop\.ini|\.DS_Store)$/i;
+    const 쓸것 = files.filter((f) => f.size > 0 && !찌꺼기.test(f.name));
+    if (!쓸것.length) return;
+
+    const 틀 = db.pageTypes.find((t) => t.id === "print-full") ?? db.pageTypes[0];
+    const 인치 = (mm: number) => Number((mm / 25.4).toFixed(3));
+    const 새것: Project[] = [];
+    const 붙일자료: LibItem[] = [];
+
+    set담는중({ 끝난: 0, 전부: 쓸것.length, 지금: 쓸것[0].name });
+    for (let i = 0; i < 쓸것.length; i++) {
+      const f = 쓸것[i];
+      set담는중({ 끝난: i, 전부: 쓸것.length, 지금: f.name });
+      // 화면에서 쓸 그림은 가볍게. 인쇄는 원본에서 다시 뽑는다.
+      const 그림 = await 미리보기뽑기(f, 1200);
+      const pid = uid();
+      const 자리 = 그림.mmW && 그림.mmH
+        ? overrideWith(overrideWith(undefined, "slide.widthIn", 인치(그림.mmW)), "slide.heightIn", 인치(그림.mmH))
+        : undefined;
+      새것.push({
+        ...newProject(f.name.replace(/\.[^.]+$/, ""), "", categoryId),
+        id: pid,
+        madeBy: 나?.id, madeByName: 나?.name, editedByName: 나?.name,
+        styleOverride: 자리,
+        assets: 그림.thumb ? { "원본그림": 그림.thumb } : {},
+        slides: [{ id: uid(), pageTypeId: 틀.id, content: 그림.thumb ? { art: "원본그림" } : {} }],
+      });
+      // 원본 파일은 그 건의 자료로
+      const aid = uid();
+      let 품었나 = false;
+      try { await putFile(aid, f); 품었나 = true; } catch { /* 자리가 모자라면 그림만 */ }
+      붙일자료.push({
+        id: aid, name: f.name.replace(/\.[^.]+$/, ""), categoryId, projectId: pid,
+        fileName: f.name, size: f.size,
+        w: 그림.w, h: 그림.h, mmW: 그림.mmW, mmH: 그림.mmH,
+        hasFile: 품었나, noFile: 품었나 ? undefined : "원본을 못 담았습니다",
+        noThumb: 그림.thumb ? undefined : (그림.못뽑은까닭 ?? "그림을 못 뽑았습니다"),
+        addedAt: new Date(Date.now() - i).toISOString(), byName: 나?.name,
+      });
+      if (그림.thumb) {
+        const { putThumb } = await import("../store/thumbs");
+        try { await putThumb(aid, 그림.thumb); } catch { /* 그림 없이 */ }
+      }
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    set담는중(null);
+    if (!새것.length) return;
+    update((d) => ({ ...d, projects: [...새것, ...d.projects], library: [...붙일자료, ...d.library] }));
+    자취(새것[0].id, 새것[0].title, `작업물 ${새것.length}건 등록`);
+  };
+
+  /** 완성본을 등록하는 중 */
 
   /** 신규 등록 — 인쇄물 분류면 규격부터 묻는다 */
   const 새로만들기 = (categoryId: string) =>
@@ -1007,6 +1072,8 @@ function Studio({
             onOpenTray={() => setTrayOpen(true)} trayCount={tray.length}
             onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
+            onRegister={(fs: File[], cat: string) => void 완성본등록(fs, cat)}
+            등록중={담는중}
             onReorderCategories={reorderCategories}
             onRestoreCategory={restoreCategory}
             library={db.library.filter((x) => !x.projectId && 분류범위.has(x.categoryId))}
