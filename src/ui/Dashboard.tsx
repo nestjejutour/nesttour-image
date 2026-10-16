@@ -41,6 +41,9 @@ interface Props {
   /** 치워 둔 분류 도로 꺼내기 */
   onRestoreCategory: (id: string) => void;
   /* ── 분류에 쌓아 두는 자료 ── */
+  /** 지금 고른 분류 ("all" 이면 전체) */
+  sel: string;
+  onSel: (id: string) => void;
   library: LibItem[];
   byName?: string;
   /** 대표인가 — 큰 분류를 지우거나 이름을 바꾸는 건 대표만 한다 */
@@ -62,7 +65,15 @@ const 최근몇개 = 10;
 
 export function Dashboard(p: Props) {
   const { projects, categories, style, pageTypes } = p;
-  const [sel, setSel] = useState<string>("all");
+  /**
+   * 고른 분류.
+   *
+   * 여기 안에 두면 새 제안서를 만들러 갔다 취소하고 돌아올 때
+   * 이 화면이 통째로 새로 서면서 "전체" 로 되돌아간다.
+   * 보던 자리를 잃지 않게 바깥(App)이 들고 있는다.
+   */
+  const sel = p.sel;
+  const setSel = p.onSel;
   const [mood, setMood] = useState<Mood | null>(null);
   const [q, setQ] = useState("");
   const [sortBy, setSortBy] = useState<"고침" | "만듦" | "완료" | "이름">("고침");
@@ -416,7 +427,7 @@ export function Dashboard(p: Props) {
           <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
             <button className="btn" onClick={() => p.onBlank(sel === "all" ? "proposal" : sel)}
               title="빈 표지 한 장으로 시작해 직접 작성합니다">
-              신규 작성
+              신규 등록
             </button>
             <button className="btn primary" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}
               title="자료를 등록하면 AI 가 페이지 구성을 작성합니다">
@@ -557,8 +568,8 @@ export function Dashboard(p: Props) {
                   <b>이 분류에는 아직 제안서가 없습니다</b>
                   <small>여러 개를 한 번에 넣으시려면 아래 자료함으로 가거나, 여기에 바로 끌어다 놓으십시오.</small>
                   <div className="row" style={{ gap: 7, marginTop: 10 }}>
-                    <button className="btn sm primary" onClick={() => p.onNew(c.id)}>+ 새 제안서</button>
-                    <button className="btn sm" onClick={() => p.onBlank(c.id)}>백지로 시작</button>
+                    <button className="btn sm primary" onClick={() => p.onNew(c.id)}>신규 등록</button>
+                    <button className="btn sm" onClick={() => p.onBlank(c.id)}>새로 만들기</button>
                     <label className="btn sm">
                       + 파일 여러 개
                       <input type="file" multiple className="숨은칸"

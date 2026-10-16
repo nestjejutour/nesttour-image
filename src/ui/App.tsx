@@ -216,6 +216,8 @@ function Studio({
   const [view, setView] = useState<View>("보관함");
   const [openId, setOpenId] = useState<string | null>(null);
   const [browseId, setBrowseId] = useState<string | null>(null);
+  /** 보관함에서 고른 분류. 화면을 오갈 때 잃지 않게 여기 둔다 */
+  const [고른분류, set고른분류] = useState("all");
   const [creating, setCreating] = useState<string | null>(null);
   const [tray, setTray] = useState<TrayItem[]>([]);
   /** 선택 페이지 칸은 평소 접어 둔다. 화면을 넓게 쓰기 위함이다. */
@@ -823,7 +825,7 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -841,7 +843,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -876,7 +878,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -911,11 +913,12 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating("proposal")} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+    <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
             projects={보이는제안서} categories={보이는분류}
+            sel={고른분류} onSel={set고른분류}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
             onBrowse={(id) => { setBrowseId(id); setCur(0); }} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
             onBlank={startBlank}
@@ -1041,7 +1044,7 @@ function Shell({
         )}
         {who && <small className="who" title="지금 쓰고 있는 사람">{who}</small>}
         {onOut && <button className="btn sm" onClick={onOut}>로그아웃</button>}
-        {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}
+        {!bare && <button className="btn primary" onClick={onNew}>신규 등록</button>}
       </div>
       {saveErr && (
         <div className="savebar">

@@ -116,7 +116,7 @@ export function NewProject(p: Props) {
 
   return (
     <div className="page" style={{ maxWidth: 740 }}>
-      <h1>새 제안서</h1>
+      <h1>제안서 등록</h1>
       <p className="lede">
         자료를 넣으면 AI 가 페이지 구성을 짭니다. 이때 켜둔 규칙 {brain.used.rules}개,
         지난 제안서 {brain.used.examples}건, 지난 지시 {brain.used.instructions}건을 전부 읽고 만듭니다.
@@ -128,7 +128,7 @@ export function NewProject(p: Props) {
           <b>자료 없이 직접 작성하시겠습니까?</b>
           <small>빈 표지 한 장으로 시작합니다. 제안서 이름만 입력하셔도 됩니다.</small>
         </div>
-        <button className="btn" onClick={startEmpty} disabled={busy}>신규 작성</button>
+        <button className="btn" onClick={startEmpty} disabled={busy}>새로 만들기</button>
       </div>
 
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
