@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Category, LibItem, PageType, Project, StylePreset } from "../core/types";
 import { Library } from "./Library";
+import { 분류옵션 } from "./분류칸";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { clientKind, moodsOf, type Mood } from "../core/mood";
@@ -602,15 +603,7 @@ function Card({
             <b>어느 분류로 옮길까요?</b>
             <select autoFocus defaultValue={pr.category}
               onChange={(e) => { onMove(e.target.value); set옮길까(false); }}>
-              {categories.filter((c) => !c.parentId && !c.hidden).map((c) => {
-                const 속 = categories.filter((k) => k.parentId === c.id && !k.hidden);
-                return 속.length ? (
-                  <optgroup key={c.id} label={c.name}>
-                    <option value={c.id}>{c.name} (바로 여기)</option>
-                    {속.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
-                  </optgroup>
-                ) : <option key={c.id} value={c.id}>{c.name}</option>;
-              })}
+              <분류옵션 categories={categories} />
             </select>
             <div className="row" style={{ marginTop: 7 }}>
               <button className="btn sm" onClick={() => set옮길까(false)}>취소</button>

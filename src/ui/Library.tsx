@@ -3,6 +3,7 @@ import type { Category, LibItem } from "../core/types";
 import { 미리보기뽑기 } from "../core/thumb";
 import { getThumb, putThumb, delThumb, putFile, getFile, delFile, 쓰는자리 } from "../store/thumbs";
 import { uid } from "../store/db";
+import { 분류옵션 } from "./분류칸";
 import { prettySize } from "../core/intake";
 
 /**
@@ -378,17 +379,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
                     <small>폴더 이동</small>
                     <select value={x.categoryId}
                       onChange={(e) => { onMove(x.id, e.target.value); set메뉴(null); }}>
-                      {categories.filter((c) => !c.parentId).map((c) => {
-                        const 속 = categories.filter((k) => k.parentId === c.id);
-                        return 속.length ? (
-                          <optgroup key={c.id} label={c.name}>
-                            <option value={c.id}>{c.name} (바로 여기)</option>
-                            {속.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
-                          </optgroup>
-                        ) : (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        );
-                      })}
+                      <분류옵션 categories={categories} />
                     </select>
                   </label>
                   <hr />
@@ -441,15 +432,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
                   <small>폴더</small>
                   <select value={크게.categoryId}
                     onChange={(e) => { onMove(크게.id, e.target.value); set크게({ ...크게, categoryId: e.target.value }); }}>
-                    {categories.filter((c) => !c.parentId).map((c) => {
-                      const 속 = categories.filter((k) => k.parentId === c.id);
-                      return 속.length ? (
-                        <optgroup key={c.id} label={c.name}>
-                          <option value={c.id}>{c.name} (바로 여기)</option>
-                          {속.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
-                        </optgroup>
-                      ) : <option key={c.id} value={c.id}>{c.name}</option>;
-                    })}
+                    <분류옵션 categories={categories} />
                   </select>
                 </label>
 

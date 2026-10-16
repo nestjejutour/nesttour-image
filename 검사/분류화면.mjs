@@ -56,8 +56,12 @@ await pg.getByRole("button", { name: /^제안서/ }).first().click(); await pg.w
 await pg.locator(".cardwrap").first().hover(); await pg.waitForTimeout(300);
 console.log("\n옮기기 단추:", await pg.locator(".cardmove").count() ? "있음 ✓" : "없음 ✗");
 await pg.locator(".cardmove").first().click(); await pg.waitForTimeout(400);
-console.log("고를 수 있는 곳:", (await pg.locator(".cardask select option").allTextContents()).join(" / "));
-await pg.locator(".cardask select").selectOption({ label: "현수막" }); await pg.waitForTimeout(900);
+const 줄들 = await pg.locator(".cardask select option").allTextContents();
+console.log("고를 수 있는 곳:");
+for (const x of 줄들) console.log("   |" + x);
+console.log("묶음(optgroup) 남았나:", await pg.locator(".cardask select optgroup").count() ? "남음 ✗" : "없음 ✓");
+console.log("'바로 여기' 남았나:", 줄들.some((x) => x.includes("바로 여기")) ? "남음 ✗" : "없음 ✓");
+await pg.locator(".cardask select").selectOption({ index: 줄들.findIndex((x) => x.trim() === "현수막") }); await pg.waitForTimeout(900);
 console.log("옮긴 뒤 제안서 분류:", await 꼴("제안서"));
 await pg.getByRole("button", { name: /현수막/ }).first().click(); await pg.waitForTimeout(700);
 console.log("옮긴 뒤 현수막 분류:", await 꼴("현수막"), "← 카드 1 이어야 한다");
