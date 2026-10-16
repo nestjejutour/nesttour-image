@@ -73,15 +73,43 @@ export function Drafts({
     if (!el) return;
     const 재기 = () => {
       const 여백 = 32, 사이 = 14;
-      const n = Math.min(줄.length, 4);
-      const w = (el.clientWidth - 여백 - 사이 * (n - 1)) / n;
-      if (w > 0) set칸폭(Math.max(200, Math.min(560, Math.floor(w))));
+      const 비 = 줄[0].style.slide.widthIn / Math.max(0.1, 줄[0].style.slide.heightIn);
+
+      /*
+        현수막은 400×70 처럼 납작하다. 제안서와 같이 넉 장을 나란히 세우면
+        한 칸이 손가락만 한 띠가 되어 디자인을 고를 수가 없다.
+        그래서 납작할수록 한 줄에 적게 세운다.
+      */
+      const 한줄 = 비 >= 3 ? 1 : 비 >= 2 ? 2 : Math.min(줄.length, 4);
+      const 가로로 = (el.clientWidth - 여백 - 사이 * (한줄 - 1)) / 한줄;
+
+      /*
+        세로도 본다. 한 줄에 하나씩 세우면 넉 장이 화면 밖으로 밀려난다.
+        나란히 놓고 비교하는 게 시안의 전부라, 밀려나면 뜻이 없다.
+        칸 높이는 창 바닥까지 남은 자리를 줄 수로 나눈 만큼으로 묶는다.
+      */
+      const 글자자리 = 92;   // 이름·설명·고르기 단추가 쓰는 세로
+      const 줄수 = Math.ceil(줄.length / 한줄);
+      const 남은세로 = window.innerHeight - el.getBoundingClientRect().top - 32;
+      const 칸높이 = 남은세로 / 줄수 - 사이 - 글자자리;
+
+      /*
+        납작한 것은 세로를 재지 않는다.
+        넉 장을 한 화면에 욱여넣으려 하면 칸이 다시 띠가 되고, 오른쪽은 텅 빈다.
+        차라리 한 장을 가로로 꽉 채워 크게 보여 주고 내려서 보게 한다 —
+        현수막은 크게 봐야 고를 수 있다.
+      */
+      const 세로로 = 비 >= 3 ? Infinity : 칸높이 > 48 ? 칸높이 * 비 : Infinity;
+
+      const 최대 = 비 >= 3 ? 1600 : 560;
+      const w = Math.min(가로로, 세로로);
+      if (w > 0) set칸폭(Math.max(200, Math.min(최대, Math.floor(w))));
     };
     재기();
     const ro = new ResizeObserver(재기);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [줄.length]);
+  }, [줄.length, 줄[0].style.slide.widthIn, 줄[0].style.slide.heightIn]);
 
   const 배율 = Number((칸폭 / (줄[0].style.slide.widthIn * 96)).toFixed(3));
 

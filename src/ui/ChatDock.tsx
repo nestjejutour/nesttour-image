@@ -165,6 +165,7 @@ function ClaudeTab(p: Props) {
   const [model, setModel] = useState("");
   const stopper = useRef<AbortController | null>(null);
   /** 인터넷 검색 — 꺼져 있다가, 켜면 그때 커넥터를 챙긴다 */
+  const boxRef = useRef<HTMLTextAreaElement | null>(null);
   const [web, setWeb] = useState<WebState | null>(null);
   const [webBusy, setWebBusy] = useState(false);
   const mic = useMic((add) => setDraft((d) => (d ? `${d} ${add}` : add).trim()));
@@ -501,7 +502,30 @@ function ClaudeTab(p: Props) {
         {web && !web.on && <small className="picerr">{whyNot(web)}</small>}
         {picErr && <small className="picerr">{picErr}</small>}
 
-        <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
+        {/*
+          현수막일 때만 뜨는 보기 명령어.
+
+          직원이 "뭐라고 적어야 하지" 에서 멈추면 이 기능은 안 쓰인다.
+          눌러서 글칸에 넣고 거기서 손봐 보내면 된다. 바로 보내지 않는 까닭은
+          대개 한 마디를 더 붙이고 싶어 하기 때문이다 — "유채꽃" 뒤에 "한라산도".
+        */}
+        {onPage && p.pageType?.자유판 && (
+          <div className="보기줄">
+            <small>이렇게 시켜 보십시오</small>
+            {["시안 3개 만들어줘", "유채꽃 넣어서 봄 느낌으로", "색을 바꿔서 다시",
+              "제목 더 크게", "글씨를 왼쪽으로 몰아줘"].map((t) => (
+              <button key={t} className="보기칩" type="button"
+                onClick={() => {
+                  setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t));
+                  boxRef.current?.focus();
+                }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <textarea ref={boxRef} value={draft} onChange={(e) => setDraft(e.target.value)}
           placeholder={onPage
             ? "이 페이지를 어떻게 고칠까요? (사진·자료는 끌어다 놓으세요)"
             : "무엇을 만들까요? 제안요청서를 끌어다 놓으셔도 됩니다"}

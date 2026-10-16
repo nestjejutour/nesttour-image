@@ -924,7 +924,14 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 /* 칸 너비는 그림 크기가 정한다 (칸 수는 JS 가 넣는다).
    줄마다 키가 저절로 맞아 세 장이 같은 크기로 선다 */
 .drafts-row {
-  flex: 1; display: grid; gap: 14px; align-content: flex-start;
+  /*
+    grid-auto-rows 를 적어 두는 까닭:
+    안 적으면 칸이 여러 줄로 설 때 줄마다 칸 높이를 똑같이 나눠 가진다.
+    현수막처럼 한 줄에 하나씩 서는 경우 칸이 눌려서 이름과 고르기 단추가 잘린다.
+    (제안서는 한 줄에 다 서서 이 일이 안 보였다)
+  */
+  flex: 1; display: grid; gap: 14px;
+  align-content: start; grid-auto-rows: max-content;
   padding: 16px; overflow: auto; background: var(--stage);
 }
 .draftcard {
@@ -1419,3 +1426,19 @@ ol.saylist li::before {
 }
 .browse-docs .lib { margin-top: 14px; padding-top: 0; border-top: 0; }
 .libhead .무슨칸 { color: var(--muted); }
+
+/*
+  보기 명령어 줄 — 현수막 화면의 대화창 위에 뜬다.
+
+  직원이 쓰는 기능이다. 빈 칸만 주면 뭐라고 적어야 할지 몰라서 멈춘다.
+  그래서 할 수 있는 말을 눌러 넣게 해 두었다.
+*/
+.보기줄 { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
+.보기줄 > small { color: var(--muted); font-size: 11px; margin-right: 2px; }
+.보기칩 {
+  border: 1px solid var(--line); background: var(--tint);
+  color: var(--ink); border-radius: 999px;
+  padding: 3px 9px; font-size: 11.5px; line-height: 1.5;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.보기칩:hover { border-color: var(--accent); color: var(--accent); }
