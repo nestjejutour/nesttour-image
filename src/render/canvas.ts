@@ -11,13 +11,26 @@ import type { DrawOp, StylePreset } from "../core/types";
 
 const DPI = 192; // 1인치 = 192px (2배). AI 가 글자를 읽을 수 있을 정도
 
+/**
+ * 한 변이 이보다 길어지면 안 된다.
+ *
+ * 400×70cm 현수막은 157인치다. 192dpi 로 그리면 가로 30,240px —
+ * 브라우저 캔버스 한계를 넘고, 떠낸 그림도 수십 MB 라 AI 가 받지 못한다.
+ * ("the file is over 20 MB" 가 여기서 났다)
+ * 큰 판은 배율을 낮춰 그린다. 글자를 읽는 데는 이 정도면 넉넉하다.
+ */
+const 긴변최대 = 2400;
+
 export async function renderToBlob(
   ops: DrawOp[],
   style: StylePreset,
-  as: { type?: string; quality?: number } = {},
+  as: { type?: string; quality?: number; dpi?: number } = {},
 ): Promise<Blob | null> {
-  const w = Math.round(style.slide.widthIn * DPI);
-  const h = Math.round(style.slide.heightIn * DPI);
+  // 판이 크면 배율을 낮춘다. 그래야 캔버스가 버티고 그림도 가벼워진다.
+  const 긴변인치 = Math.max(style.slide.widthIn, style.slide.heightIn);
+  const dpi = as.dpi ?? Math.min(DPI, 긴변최대 / Math.max(1, 긴변인치));
+  const w = Math.max(1, Math.round(style.slide.widthIn * dpi));
+  const h = Math.max(1, Math.round(style.slide.heightIn * dpi));
 
   const canvas = document.createElement("canvas");
   canvas.width = w;
@@ -46,10 +59,10 @@ export async function renderToBlob(
   );
 
   for (const op of ops) {
-    const x = op.x * DPI;
-    const y = op.y * DPI;
-    const bw = op.w * DPI;
-    const bh = op.h * DPI;
+    const x = op.x * dpi;
+    const y = op.y * dpi;
+    const bw = op.w * dpi;
+    const bh = op.h * dpi;
 
     if (op.kind === "rect") {
       if (op.fillHex) {
@@ -60,7 +73,7 @@ export async function renderToBlob(
       }
       if (op.strokeHex) {
         ctx.strokeStyle = op.strokeHex;
-        ctx.lineWidth = Math.max(1, ((op.strokeWeightPt ?? 0.75) / 72) * DPI);
+        ctx.lineWidth = Math.max(1, ((op.strokeWeightPt ?? 0.75) / 72) * dpi);
         ctx.strokeRect(x, y, bw, bh);
       }
       continue;
@@ -74,7 +87,7 @@ export async function renderToBlob(
     }
 
     // 글자
-    const sizePx = (op.sizePt / 72) * DPI;
+    const sizePx = (op.sizePt / 72) * dpi;
     ctx.font = `${op.bold ? "700" : "400"} ${sizePx}px ${family}`;
     ctx.fillStyle = op.colorHex;
     ctx.textBaseline = "top";

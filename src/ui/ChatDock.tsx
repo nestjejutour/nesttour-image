@@ -262,7 +262,8 @@ function ClaudeTab(p: Props) {
     const images: Blob[] = [];
     if (onPage) {
       try {
-        const shot = await renderToBlob(p.ops, p.style);
+        // PNG 는 사진이 깔린 판에서 수 MB 가 된다. 글자를 읽는 데는 JPEG 로 넉넉하다.
+        const shot = await renderToBlob(p.ops, p.style, { type: "image/jpeg", quality: 0.82 });
         if (shot) images.push(shot);
       } catch { /* 그림 없이 */ }
     }
