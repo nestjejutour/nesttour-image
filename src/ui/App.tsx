@@ -360,6 +360,34 @@ function Studio({
     });
   };
 
+  /**
+   * 자료를 다루는 손들.
+   *
+   * 분류의 자료함과 한 건의 자료함이 같은 손을 쓴다.
+   * 베껴 쓰면 한쪽만 고쳐지는 날이 온다.
+   */
+  const 자료손 = {
+    onAddLib: (xs: LibItem[]) => {
+      update((d) => ({ ...d, library: [...xs, ...d.library] }));
+      const 어디 = xs[0]?.projectId
+        ? (db.projects.find((x) => x.id === xs[0].projectId)?.title ?? "건별 자료")
+        : (db.categories.find((c) => c.id === xs[0]?.categoryId)?.name ?? "자료함");
+      자취(xs[0]?.projectId ?? "자료함", 어디, `자료 ${xs.length}개 넣음`);
+    },
+    onRemoveLib: (id: string) =>
+      update((d) => ({ ...d, library: d.library.filter((x) => x.id !== id) })),
+    onRemoveLibMany: (ids: string[]) => {
+      const 뺄것 = new Set(ids);
+      update((d) => ({ ...d, library: d.library.filter((x) => !뺄것.has(x.id)) }));
+    },
+    onRenameLib: (id: string, name: string) =>
+      update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) })),
+    onMoveLib: (id: string, categoryId: string) =>
+      update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, categoryId } : x)) })),
+    onNoteLib: (id: string, note: string) =>
+      update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, note } : x)) })),
+  };
+
   /** 신규 등록 — 인쇄물 분류면 규격부터 묻는다 */
   const 새로만들기 = (categoryId: string) =>
     쓰임(categoryId) === "현수막" ? set규격물을곳(categoryId) : setCreating(categoryId);
@@ -952,6 +980,9 @@ function Studio({
             allProjects={보이는제안서}
             categories={db.categories}
             onPick={(id) => { setBrowseId(id); setCur(0); }}
+            library={db.library}
+            byName={나.name}
+            {...자료손}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}
@@ -978,24 +1009,10 @@ function Studio({
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
             onReorderCategories={reorderCategories}
             onRestoreCategory={restoreCategory}
-            library={db.library.filter((x) => 분류범위.has(x.categoryId))}
+            library={db.library.filter((x) => !x.projectId && 분류범위.has(x.categoryId))}
             대표={나.role === "대표"}
             byName={나.name}
-            onAddLib={(xs: LibItem[]) => {
-              update((d) => ({ ...d, library: [...xs, ...d.library] }));
-              const 곳 = db.categories.find((c) => c.id === xs[0]?.categoryId)?.name ?? "자료함";
-              자취("자료함", 곳, `자료 ${xs.length}개 넣음`);
-            }}
-            onRemoveLib={(id: string) =>
-              update((d) => ({ ...d, library: d.library.filter((x) => x.id !== id) }))}
-            onRemoveLibMany={(ids: string[]) => {
-              const 뺄것 = new Set(ids);
-              update((d) => ({ ...d, library: d.library.filter((x) => !뺄것.has(x.id)) }));
-            }}
-            onRenameLib={(id: string, name: string) =>
-              update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) }))}
-            onMoveLib={(id: string, categoryId: string) =>
-              update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, categoryId } : x)) }))}
+            {...자료손}
             onChangeUse={(id: string, 용도: "문서" | "현수막") =>
               update((d) => ({ ...d, categories: d.categories.map((c) => (c.id === id ? { ...c, 용도 } : c)) }))}
             onMoveProject={(id: string, categoryId: string) => {
@@ -1003,8 +1020,6 @@ function Studio({
               update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === id ? { ...x, category: categoryId } : x)) }));
               if (건) 자취(id, 건.title, "분류 이동");
             }}
-            onNoteLib={(id: string, note: string) =>
-              update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, note } : x)) }))}
             onMakeFolders={(parentId: string, names: string[]) => {
               // 끌어다 놓은 폴더를 세부 분류로 만든다. 이미 있으면 그걸 쓴다.
               const 있는것 = db.categories.filter((c) => c.parentId === parentId);

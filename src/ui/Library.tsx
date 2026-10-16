@@ -19,6 +19,13 @@ import { prettySize } from "../core/intake";
 interface Props {
   /** 지금 고른 분류 ("all" 이면 전체) */
   sel: string;
+  /**
+   * 한 건에 딸린 자료함으로 쓸 때 그 건의 번호.
+   * 주면 그 건의 자료만 다루고, 담는 것도 그 건에 붙는다.
+   */
+  projectId?: string;
+  /** 머리말에 적을 말 */
+  제목?: string;
   categories: Category[];
   items: LibItem[];
   byName?: string;
@@ -38,7 +45,7 @@ interface Props {
 /** 전체 화면에 띄우는 최근 자료 수 */
 const 최근몇개 = 12;
 
-export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove, onMakeFolders, onNote, onReady }: Props) {
+export function Library({ sel, projectId, 제목, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove, onMakeFolders, onNote, onReady }: Props) {
   const [끄는중, set끄는중] = useState(false);
   const [담는중, set담는중] = useState<{ 끝난: number; 전부: number; 지금: string } | null>(null);
   const [찾기, set찾기] = useState("");
@@ -63,7 +70,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
    * "전체" 를 보고 있을 때 첫 분류에 몰래 넣었는데, 그러면 어디로 갔는지 모른다.
    * 분류를 고르기 전에는 받지 않는다.
    */
-  const 담을곳 = sel !== "all" ? sel : "";
+  const 담을곳 = projectId ? (sel !== "all" ? sel : "건") : (sel !== "all" ? sel : "");
   const 담을곳이름 = categories.find((c) => c.id === 담을곳)?.name ?? "";
 
   const 보일것 = useMemo(() => {
@@ -72,7 +79,10 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       : new Set([sel, ...categories.filter((c) => c.parentId === sel).map((c) => c.id)]);
     const q = 찾기.trim().toLowerCase();
     return items
-      .filter((x) => (범위 ? 범위.has(x.categoryId) : true))
+      // 한 건의 자료함이면 그 건의 것만, 분류의 자료함이면 건에 딸리지 않은 것만.
+      // 섞어 놓으면 분류 자료함이 건별 자료로 뒤덮인다.
+      .filter((x) => (projectId ? x.projectId === projectId : !x.projectId))
+      .filter((x) => (projectId ? true : 범위 ? 범위.has(x.categoryId) : true))
       .filter((x) => !q || x.name.toLowerCase().includes(q) || (x.tags ?? []).join(" ").toLowerCase().includes(q))
       .sort((a, b) => (a.addedAt < b.addedAt ? 1 : -1));
   }, [items, sel, categories, 찾기]);
@@ -124,7 +134,8 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       return 토막.length ? 토막[토막.length - 1] : "";
     };
     // 세부 분류 밑에 담고 있으면 더 깊이 못 판다. 그때는 꼬리표로만 남긴다.
-    const 세부가능 = !categories.find((c) => c.id === 담을곳)?.parentId;
+    // 한 건에 딸린 자료는 분류를 늘리지 않는다. 그 건 안에서 끝나는 자료다.
+    const 세부가능 = !projectId && !categories.find((c) => c.id === 담을곳)?.parentId;
     const 만들이름 = 세부가능
       ? [...new Set(files.map(세부분류이름).filter(Boolean))]
       : [];
@@ -148,6 +159,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         id,
         name: f.name.replace(/\.[^.]+$/, ""),
         categoryId: 폴더번호[세부분류이름(f)] ?? 담을곳,
+        projectId,
         fileName: f.name,
         size: f.size,
         w: 그림.w, h: 그림.h, mmW: 그림.mmW, mmH: 그림.mmH,
@@ -247,7 +259,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
   return (
     <div className="lib">
       <div className="libhead">
-        <b>자료</b>
+        <b>{제목 ?? "자료"}</b>
         <small>{보일것.length}개{못뽑은수 > 0 && ` · 그림 못 뽑음 ${못뽑은수}개`}</small>
         {방금 !== null && <small className="방금">{방금}개 담아 저장했습니다</small>}
         {만든폴더.length > 0 && (
@@ -346,10 +358,14 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
           <>
             <b>{담을곳 ? "여기에 파일을 끌어다 놓거나, 눌러서 고르십시오" : "왼쪽에서 분류를 먼저 고르십시오"}</b>
             <small>
-              {담을곳이름
-                ? `"${담을곳이름}" 에 들어갑니다. `
-                : "어디에 담을지 정해야 받을 수 있습니다. "}
-              폴더째 끌어다 놓으면 그 폴더가 세부 분류로 생기고 안의 파일이 담깁니다.
+              {projectId
+                ? "이 건의 자료로 담깁니다. "
+                : 담을곳이름
+                  ? `"${담을곳이름}" 에 들어갑니다. `
+                  : "어디에 담을지 정해야 받을 수 있습니다. "}
+              {projectId
+                ? "한 번에 여러 개, 폴더째 끌어다 놓아도 됩니다."
+                : "폴더째 끌어다 놓으면 그 폴더가 세부 분류로 생기고 안의 파일이 담깁니다."}
               일러스트(.ai)·PDF·사진에서 미리보기를 뽑습니다.
               <br />놓는 즉시 저장됩니다 — 따로 저장하실 것이 없습니다.
               {원본없는수 > 0 && (
@@ -401,13 +417,13 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
               {메뉴 === x.id && (
                 <div className="rowmenu" onPointerDown={(e) => e.stopPropagation()}>
                   <button onClick={() => { set고치는이름(x.id); set메뉴(null); }}>이름 변경</button>
-                  <label className="movepick">
+                  {!projectId && <label className="movepick">
                     <small>폴더 이동</small>
                     <select value={x.categoryId}
                       onChange={(e) => { onMove(x.id, e.target.value); set메뉴(null); }}>
                       <분류옵션 categories={categories} />
                     </select>
-                  </label>
+                  </label>}
                   <hr />
                   <button className="빨강"
                     onClick={() => { void delThumb(x.id); void delFile(x.id); onRemove(x.id); set메뉴(null); }}>

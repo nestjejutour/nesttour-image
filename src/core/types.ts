@@ -477,6 +477,13 @@ export interface LibItem {
   name: string;
   /** 어느 분류에 담겼는가 (세부 분류면 그 id) */
   categoryId: string;
+  /**
+   * 어느 건의 자료인가.
+   *
+   * 없으면 분류에 쌓아 둔 자료 (현수막 100장처럼 두루 쓰는 것),
+   * 있으면 그 제안서 한 건에 딸린 자료 (그 건의 원본·근거 자료).
+   */
+  projectId?: string;
   /** 원본 파일 이름 — 회사 자료함에서 찾을 때 쓴다 */
   fileName: string;
   /** 원본 크기 (바이트) */

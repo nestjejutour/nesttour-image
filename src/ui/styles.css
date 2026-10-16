@@ -1410,3 +1410,11 @@ ol.saylist li::before {
   padding: 4px 8px; border-radius: 20px;
 }
 .한장그림 .큰그림칸 img { max-width: 100%; max-height: 62vh; object-fit: contain; background: #fff; }
+/* 한 건을 열면 장들 아래에 그 건의 자료함이 선다 */
+.browse { overflow-y: auto; }
+.browse-stage { min-height: 42vh; }
+.browse-docs {
+  padding: 4px 18px 26px; border-top: 1px solid var(--line);
+  background: var(--bg); flex-shrink: 0;
+}
+.browse-docs .lib { margin-top: 14px; padding-top: 0; border-top: 0; }

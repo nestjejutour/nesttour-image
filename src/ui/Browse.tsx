@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Category, DeckDraft, Draft, PageType, Project, Slide, StylePreset } from "../core/types";
+import type { Category, DeckDraft, Draft, LibItem, PageType, Project, Slide, StylePreset } from "../core/types";
 import { GripH, usePanel } from "./panels";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { moodsOf } from "../core/mood";
 import { styleFor } from "../core/scope";
 import { Drafts } from "./Drafts";
+import { Library } from "./Library";
 import { DeckDrafts } from "./DeckDrafts";
 
 /**
@@ -47,6 +48,15 @@ interface Props {
   drafts: Draft[];
   onPickDraft: (d: Draft) => void;
   onCloseDrafts: () => void;
+  /** 이 건의 자료함 — 바깥이 들고 있는 자료 전부를 받아 여기서 걸러 쓴다 */
+  library: LibItem[];
+  byName?: string;
+  onAddLib: (xs: LibItem[]) => void;
+  onRemoveLib: (id: string) => void;
+  onRemoveLibMany: (ids: string[]) => void;
+  onRenameLib: (id: string, name: string) => void;
+  onMoveLib: (id: string, categoryId: string) => void;
+  onNoteLib: (id: string, note: string) => void;
   deckDrafts: DeckDraft[];
   onPickDeck: (d: DeckDraft) => void;
   onCloseDecks: () => void;
@@ -56,6 +66,7 @@ export function Browse({
   project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpenTray, onOpen, categoryName, allProjects, categories, onPick,
   cur, onCur, baseStyle, drafts, onPickDraft, onCloseDrafts,
   deckDrafts, onPickDeck, onCloseDecks,
+  library, byName, onAddLib, onRemoveLib, onRemoveLibMany, onRenameLib, onMoveLib, onNoteLib,
 }: Props) {
   const setCur = onCur;
   const [navOpen, setNavOpen] = useState(false);
@@ -224,6 +235,25 @@ export function Browse({
             <small>{i + 1}</small>
           </button>
         ))}
+      </div>
+
+      {/* 이 건에 딸린 자료 — 분류의 자료함과 섞이지 않는다 */}
+      <div className="browse-docs">
+        <Library
+          sel={project.category}
+          projectId={project.id}
+          제목="이 건의 자료"
+          categories={categories.filter((c) => !c.hidden)}
+          items={library}
+          byName={byName}
+          onAdd={onAddLib}
+          onRemove={onRemoveLib}
+          onRemoveMany={onRemoveLibMany}
+          onRename={onRenameLib}
+          onMove={onMoveLib}
+          onMakeFolders={() => ({})}
+          onNote={onNoteLib}
+        />
       </div>
     </div>
   );
