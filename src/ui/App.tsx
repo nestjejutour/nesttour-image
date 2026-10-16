@@ -3,7 +3,7 @@ import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "..
 import type { Backend } from "../store/backend";
 import { firebaseBackend, firebaseReady, logout, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
-import type { Category, Content, Doc, Draft, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
+import type { Category, Content, DeckDraft, Doc, Draft, HistoryEntry, Project, RuleScope, Slide } from "../core/types";
 import { overrideWith, overridesFrom, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
 import { Editor } from "./Editor";
@@ -165,6 +165,8 @@ function Studio({
   const looseDocs = useRef<Doc[]>([]);
   /** AI 가 내놓은 시안들 — 고르기 전까지 제안서는 그대로다 */
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  /** 제안서 한 벌을 통째로 바꾸는 시안 */
+  const [deckDrafts, setDeckDrafts] = useState<DeckDraft[]>([]);
   /** 마지막으로 열어 둔 제안서. 담은 장을 여기 이어 붙일 수 있다. */
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
@@ -485,6 +487,35 @@ function Studio({
       }
     }
 
+    // 전체 시안 — 제안서 한 벌을 통째로. 역시 고르기 전에는 안 들어간다.
+    const 벌 = as.find((a) => a.do === "전체시안") as Extract<Action, { do: "전체시안" }> | undefined;
+    if (벌?.options?.length && viewId) {
+      setDeckDrafts(
+        벌.options.slice(0, 3).map((o) => ({
+          id: uid(),
+          name: o.name || "전체 시안",
+          why: o.why,
+          styleOverride: (() => {
+            const ov = overridesFrom(o.style);
+            if (ov) delete ov.slide;   // 판 크기는 한 벌이 같아야 한다
+            return ov;
+          })(),
+          slides: (o.slides ?? [])
+            .filter((x) => known.has(x.pageTypeId))
+            .map((x) => ({
+              pageTypeId: x.pageTypeId,
+              content: x.content ?? {},
+              styleOverride: (() => {
+                const ov = overridesFrom(x.style);
+                if (ov) delete ov.slide;
+                return ov;
+              })(),
+            })),
+        })).map((d) => ({ ...d, slides: d.slides.length ? d.slides : undefined })),
+      );
+      return [];
+    }
+
     // 디자인 시안 — 넣지 않고 화면에 띄운다. 고르면 그때 들어간다.
     const 안 = as.find((a) => a.do === "시안") as Extract<Action, { do: "시안" }> | undefined;
     if (안?.options?.length && viewId) {
@@ -575,6 +606,27 @@ function Studio({
     setDrafts([]);
   };
 
+  /** 전체 시안 하나를 고른다 — 그제서야 제안서가 바뀐다 */
+  const pickDeck = (d: DeckDraft) => {
+    putProject((p) => ({
+      ...p,
+      // 판 크기 같은 기존 설정은 잃지 않고 그 위에 얹는다
+      styleOverride: d.styleOverride
+        ? { ...p.styleOverride, ...d.styleOverride,
+            slide: p.styleOverride?.slide,
+            color: { ...(p.styleOverride?.color ?? {}), ...(d.styleOverride.color ?? {}) },
+            type: { ...(p.styleOverride?.type ?? {}), ...(d.styleOverride.type ?? {}) } }
+        : p.styleOverride,
+      slides: d.slides?.length
+        ? d.slides.map((x) => ({ id: uid(), pageTypeId: x.pageTypeId, content: x.content,
+                                 styleOverride: x.styleOverride }))
+        : p.slides,
+      updatedAt: new Date().toISOString(),
+    }));
+    setDeckDrafts([]);
+    setCur(0);
+  };
+
   const setSlideContent = (next: Content) =>
     putProject((p) => ({
       ...p,
@@ -656,6 +708,9 @@ function Studio({
           drafts={drafts}
           onPickDraft={pickDraft}
           onCloseDrafts={() => setDrafts([])}
+          deckDrafts={deckDrafts}
+          onPickDeck={pickDeck}
+          onCloseDecks={() => setDeckDrafts([])}
           baseStyle={baseStyle}
           onSlideSize={(w, h) =>
             putProject((p) => ({
@@ -689,6 +744,9 @@ function Studio({
             drafts={drafts}
             onPickDraft={pickDraft}
             onCloseDrafts={() => setDrafts([])}
+            deckDrafts={deckDrafts}
+            onPickDeck={pickDeck}
+            onCloseDecks={() => setDeckDrafts([])}
             categoryName={db.categories.find((c) => c.id === browsing.category)?.name ?? "미분류"}
             allProjects={db.projects}
             categories={db.categories}

@@ -240,6 +240,22 @@ export interface Slide {
  * 아직 제안서에 들어가지 않은 "이렇게 하면 어떻겠습니까" 다.
  * 고르면 그때 페이지가 바뀐다.
  */
+/**
+ * 제안서 한 벌을 통째로 바꾸는 시안.
+ *
+ * "전체를 두 가지로 보여줘" — 한 장짜리 시안과 다른 점은 범위뿐이다.
+ * 역시 고르기 전에는 제안서가 바뀌지 않는다.
+ */
+export interface DeckDraft {
+  id: string;
+  name: string;
+  why?: string;
+  /** 제안서 전체에 걸리는 규격 (색·글자 크기·선) */
+  styleOverride?: StyleOverride;
+  /** 구성까지 바꾸는 안이면 장을 통째로. 없으면 지금 장을 그대로 두고 규격만 바뀐다 */
+  slides?: { pageTypeId: string; content: Content; styleOverride?: StyleOverride }[];
+}
+
 export interface Draft {
   id: string;
   /** 사람에게 보여 줄 이름 — "선 하나로 정리", "색 빼고 글자만" */

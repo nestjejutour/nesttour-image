@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Category, Content, Draft, PageType, Project, StylePreset, Todo } from "../core/types";
+import type { Category, Content, DeckDraft, Draft, PageType, Project, StylePreset, Todo } from "../core/types";
 import { collectTodos, interpret } from "../core/interpret";
 import { styleFor } from "../core/scope";
 import { setAt } from "../core/content";
@@ -13,6 +13,7 @@ import { SlotForm } from "./SlotForm";
 import { uid } from "../store/db";
 import { SourceDrawer } from "./SourceDrawer";
 import { Drafts } from "./Drafts";
+import { DeckDrafts } from "./DeckDrafts";
 import { Files } from "./Files";
 import type { Action } from "../ai/chat";
 import type { ChatTurn } from "../store/db";
@@ -50,6 +51,9 @@ interface Props {
   onSlideSize: (widthIn: number, heightIn: number) => void;
   /** AI 가 내놓은 시안들 (고르기 전까지 제안서는 그대로다) */
   drafts: Draft[];
+  deckDrafts: DeckDraft[];
+  onPickDeck: (d: DeckDraft) => void;
+  onCloseDecks: () => void;
   onPickDraft: (d: Draft) => void;
   onCloseDrafts: () => void;
   /** 덮어쓰기 전의 밑 규격 — 시안마다 다르게 그리려면 필요하다 */
@@ -57,7 +61,8 @@ interface Props {
 }
 
 export function Editor({ project, style, pageTypes, categories, allProjects, cur, onCur, onChange, onBack, aiSystem, onSaveRule, onHistory, onStyleChange, turnsOf, onTurns, toServer, onSlideSize,
-  drafts, onPickDraft, onCloseDrafts, baseStyle }: Props) {
+  drafts, onPickDraft, onCloseDrafts, baseStyle,
+  deckDrafts, onPickDeck, onCloseDecks }: Props) {
   const [zoom, setZoom] = useState(0.78);
   /** 폭에 맞춰 자동으로 줄인다. +/- 를 누르면 손맛을 지킨다. */
   const [autoFit, setAutoFit] = useState(true);
@@ -485,6 +490,15 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
 
         {/* ── 가운데: 미리보기 (회색 바탕 위에) ── */}
         {/* 시안이 와 있으면 작업 자리를 덮는다. 나란히 놓고 견주는 게 먼저다. */}
+        {deckDrafts.length > 0 && (
+          <DeckDrafts
+            deckDrafts={deckDrafts} project={project}
+            baseStyle={baseStyle} pageTypes={pageTypes}
+            onPick={onPickDeck} onClose={onCloseDecks}
+            onAgain={() => { onCloseDecks(); setMsg("대화창에 어디가 마음에 안 드는지 적어 주시면 다시 내놓습니다."); }}
+          />
+        )}
+
         {drafts.length > 0 && (
           <Drafts
             drafts={drafts} project={project} slideIndex={cur}

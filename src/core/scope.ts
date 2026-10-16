@@ -59,9 +59,13 @@ export function styleFor(base: StylePreset, ...layers: (StyleOverride | undefine
 }
 
 /** 길-값 묶음을 덮어쓰기 묶음으로 ("type.pageTitle.size": 22 …) */
-export function overridesFrom(pairs: Record<string, number | string> | undefined): StyleOverride | undefined {
-  if (!pairs) return undefined;
-  let o: StyleOverride | undefined;
+export function overridesFrom(
+  pairs: Record<string, number | string> | undefined,
+  /** 이미 있던 덮어쓰기 위에 얹을 때 (판 크기 같은 걸 잃지 않는다) */
+  base?: StyleOverride,
+): StyleOverride | undefined {
+  if (!pairs) return base;
+  let o: StyleOverride | undefined = base;
   for (const [path, value] of Object.entries(pairs)) o = overrideWith(o, path, value);
   return o;
 }

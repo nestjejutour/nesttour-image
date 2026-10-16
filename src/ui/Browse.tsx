@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Category, Draft, PageType, Project, Slide, StylePreset } from "../core/types";
+import type { Category, DeckDraft, Draft, PageType, Project, Slide, StylePreset } from "../core/types";
 import { GripH, usePanel } from "./panels";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
 import { moodsOf } from "../core/mood";
 import { styleFor } from "../core/scope";
 import { Drafts } from "./Drafts";
+import { DeckDrafts } from "./DeckDrafts";
 
 /**
  * 열람 — 지난 완성본을 한 장씩 넘겨 보는 화면.
@@ -46,11 +47,15 @@ interface Props {
   drafts: Draft[];
   onPickDraft: (d: Draft) => void;
   onCloseDrafts: () => void;
+  deckDrafts: DeckDraft[];
+  onPickDeck: (d: DeckDraft) => void;
+  onCloseDecks: () => void;
 }
 
 export function Browse({
   project, style, pageTypes, onClose, onUseAsBase, onTakePage, takenCount, onOpenTray, onOpen, categoryName, allProjects, categories, onPick,
   cur, onCur, baseStyle, drafts, onPickDraft, onCloseDrafts,
+  deckDrafts, onPickDeck, onCloseDecks,
 }: Props) {
   const setCur = onCur;
   const [navOpen, setNavOpen] = useState(false);
@@ -171,6 +176,15 @@ export function Browse({
               ))}
           </div>
         )}
+
+      {/* 전체 시안 — 한 벌씩 훑어보고 고른다 */}
+      {deckDrafts.length > 0 && (
+        <DeckDrafts
+          deckDrafts={deckDrafts} project={project}
+          baseStyle={baseStyle} pageTypes={pageTypes}
+          onPick={onPickDeck} onClose={onCloseDecks} onAgain={onCloseDecks}
+        />
+      )}
 
       {/* 시안이 오면 보던 자리에 바로 펼친다. 대화창은 가리지 않는다 */}
       {drafts.length > 0 && (

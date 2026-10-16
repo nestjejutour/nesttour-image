@@ -23,6 +23,12 @@ export type Action =
       name: string; why?: string; pageTypeId?: string;
       content: Content; style?: Record<string, number | string>;
     }[] }
+  /* 제안서 한 벌을 통째로 — 역시 고르기 전에는 안 바뀐다 */
+  | { do: "전체시안"; options: {
+      name: string; why?: string;
+      style?: Record<string, number | string>;
+      slides?: { pageTypeId: string; content: Content; style?: Record<string, number | string> }[];
+    }[] }
   /* 보관함에서 — 제안서 자체를 새로 만든다 */
   | { do: "새제안서"; title: string; client?: string; category?: string;
       slides: { pageTypeId: string; content: Content }[] };
@@ -181,6 +187,17 @@ ${deckBlock}
      · style: 이 한 장만의 규격. 예) {"type.pageTitle.size":20,"color.accent":"#2B2B2B"}
        색을 빼라고 하면 accent 를 ink 색과 같게 두면 된다.
      세 개는 서로 뚜렷이 달라야 한다. 비슷한 걸 세 개 내놓지 마라.
+{"do":"전체시안","options":[{"name":"...","why":"...","style":{...},"slides":[...]}]}
+   — 한 장이 아니라 제안서 한 벌을 두세 가지로 보여 줄 때.
+     "전체를 두 가지로", "제안서 통째로 다시", "전부 다른 느낌으로" → 이것이다.
+     대표가 화면에서 안마다 전체 장을 훑어보고 고른다. 고른 것만 들어간다.
+     보관함에 새 제안서를 만들지 마라. 보던 제안서가 그 자리에서 바뀐다.
+     · style: 제안서 전체 규격. 예) {"color.accent":"#2B2B2B","type.pageTitle.size":20}
+     · slides: 구성까지 바꿀 때만 넣는다. 지금 ${totalSlides}장의 글과 숫자를
+       그대로 옮겨 담아라. 빼거나 합칠 거면 왜 그랬는지 why 에 적어라.
+       넣지 않으면 장은 그대로 두고 규격만 바뀐다 — 색만 빼 달라는 말에는 이게 맞다.
+     · 글을 지어내지 마라. 숫자는 절대 바꾸지 마라.
+     두세 가지는 서로 뚜렷이 달라야 한다.
 {"do":"규칙제안","text":"...","scope":"스타일"}
    — 지시가 "앞으로도 이렇게"로 들릴 때만. 매번 제안하지 마라.
      scope: "공통"=어떤 문서든 / "스타일"=이 브랜드만 / "분류"=이 문서 종류만 / "제안서"=이 건만.
@@ -192,7 +209,9 @@ ${deckBlock}
 {"say":"대표에게 할 말 한두 문장","actions":[ ... ]}
 
 - say 는 한국어로 짧고 단정하게. 인사말·사과 없이 무엇을 바꿨는지만.
-- 디자인을 바꿔 달라는 말에는 "시안" 으로 답하라. 바로 고쳐 버리지 마라.
+- 디자인을 바꿔 달라는 말에는 시안으로 답하라. 바로 고쳐 버리지 마라.
+  한 장 얘기면 "시안", 제안서 한 벌 얘기면 "전체시안" 이다.
+  "이 페이지", "이 장" → 시안 / "전체", "제안서 통째로", "전부" → 전체시안.
   시안은 화면에 그림으로 바로 보인다. "보여드릴 수 없다" 고 말하지 마라.
 - 고칠 게 없거나 질문이면 actions 를 빈 배열로 두고 say 에만 답하라.
 - 추측해서 숫자를 지어내지 마라. 모르면 그 칸은 "" 로 두고 say 에서 물어라.
