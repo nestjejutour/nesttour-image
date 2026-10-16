@@ -123,6 +123,31 @@ input, textarea, select { font-family: var(--font); font-size: 15.5px; }
 }
 .stage-inner { box-shadow: 0 6px 28px rgba(0,0,0,0.22); }
 
+/*
+  납작한 판(현수막·배너) 전용 자리 배치.
+
+  제안서는 16:9 라 가운데 네모가 알맞다. 현수막은 다르다 — 가로가 생명이다.
+  양옆 칸이 600px 을 먹으면 가운데가 손바닥만 해지고, 거기 400cm 를 넣으니
+  3% 가 된다. 글자도 그림도 안 보이는데 그걸 보면서 디자인을 하라는 셈이다.
+
+  그래서 미리보기를 한 줄 통째로 쓰게 하고(가로 두 배), 양옆 칸을 그 밑으로 내린다.
+  세로는 42vh 로 묶는다 — 납작한 판에 세로를 더 줘 봐야 회색만 넓어진다.
+*/
+.editor.납작 { flex-wrap: wrap; align-content: flex-start; }
+.editor.납작 .stage {
+  flex: 1 1 100%; order: 1;
+  max-height: 46vh; min-height: 200px;
+  border-bottom: 1px solid var(--line);
+}
+.editor.납작 .pane-left {
+  order: 2; width: 220px;
+  max-height: 54vh;
+}
+.editor.납작 .pane-right {
+  order: 3; flex: 1 1 auto; width: auto; min-width: 320px;
+  max-height: 54vh;
+}
+
 .pagechip {
   display: block; width: 100%; text-align: left;
   border: 1px solid var(--line); background: #fff; border-radius: 8px;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { localBackend, merge, newProject, uid, type ChatTurn, type DB } from "../store/db";
+import { localBackend, merge, newProject, save as 바로저장, uid, type ChatTurn, type DB } from "../store/db";
 import type { Backend } from "../store/backend";
 import { firebaseBackend, firebaseReady, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
@@ -82,6 +82,14 @@ export function App() {
   const [user, setUser] = useState<{ uid: string; email?: string | null } | null>(null);
   const [ready, setReady] = useState(!backend.needsLogin);
   const lastSaved = useRef("");
+  /** 창을 닫는 순간 참조할 지금의 자료 — 이벤트 함수는 그때의 db 를 못 본다 */
+  const dbNow = useRef<DB | null>(null);
+  /**
+   * 아직 저장 안 된 것이 있는가.
+   * lastSaved 는 묶음을 걸자마자 찍힌다 — 저장이 끝났다는 뜻이 아니다.
+   * 그래서 "밀린 게 있다" 를 따로 들고 있어야 나갈 때 털어 넣을 수 있다.
+   */
+  const 밀림 = useRef(false);
   /** 마지막으로 저장된 때 — 버튼이 없으니 보여줘야 안심이 된다 */
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   /** 저장이 막혔을 때. 조용히 넘기면 작업한 게 사라진다. */
@@ -112,16 +120,19 @@ export function App() {
 
   // 자료 저장 (바뀐 게 있을 때만)
   useEffect(() => {
+    dbNow.current = db;
     if (!db) return;
     const json = JSON.stringify(db);
     if (json === lastSaved.current) return;
     lastSaved.current = json;
+    밀림.current = true;
     const t = setTimeout(async () => {
       // 사진은 따로 올린다. Firestore 는 문서 하나가 1MB 한도라 사진을 못 담는다.
       const lifted = await liftAssets(db);
       if (lifted) { quiet.current = true; setDb(lifted); return; }   // 주소로 바뀐 상태로 다시 저장된다
       try {
         await backend.save(db);
+        밀림.current = false;
         setSavedAt(new Date());
         setSaveErr("");
       } catch (e: any) {
@@ -130,6 +141,32 @@ export function App() {
     }, 600);
     return () => clearTimeout(t);
   }, [db]);
+
+  /*
+    창을 닫거나 새로고침할 때 밀린 저장을 털어 넣는다.
+
+    저장은 0.6초 묶어서 한 번에 한다 — 글자 한 자 칠 때마다 저장하면 느려진다.
+    그런데 그 0.6초 사이에 새로고침하거나 탭을 닫으면 방금 한 일이 날아간다.
+    직원이 분류 하나 만들고 바로 새로고침하면 그 분류가 없다. 날아간 줄도 모른다.
+
+    pagehide 는 탭을 닫을 때, visibilitychange 는 다른 창으로 넘어갈 때 온다.
+    localStorage 쓰기는 그 자리에서 끝나니(비동기가 아니다) 여기서 해도 늦지 않는다.
+  */
+  useEffect(() => {
+    const 지금저장 = () => {
+      const 지금 = dbNow.current;
+      if (!지금 || !밀림.current) return;
+      try { 바로저장(지금); 밀림.current = false; }
+      catch { /* 자리가 꽉 찼으면 어차피 못 한다 */ }
+    };
+    const 숨을때 = () => { if (document.visibilityState === "hidden") 지금저장(); };
+    window.addEventListener("pagehide", 지금저장);
+    document.addEventListener("visibilitychange", 숨을때);
+    return () => {
+      window.removeEventListener("pagehide", 지금저장);
+      document.removeEventListener("visibilitychange", 숨을때);
+    };
+  }, []);
 
   if (!ready) return <Gate loading />;
   if (backend.needsLogin && !user) return <Gate />;

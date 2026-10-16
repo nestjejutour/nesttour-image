@@ -79,7 +79,12 @@ function SlotField({
             <img
               src={src}
               alt=""
-              style={{ width: 54, height: 36, objectFit: "cover", borderRadius: 4, border: "1px solid var(--line)" }}
+              /*
+                cover 로 잘라 보여 주면 현수막처럼 납작한 그림은 가운데 토막만 보인다.
+                뭐가 들었는지 알아보라고 띄우는 것이니 통째로 보여 준다.
+              */
+              style={{ width: 96, height: 40, objectFit: "contain", borderRadius: 4,
+                       border: "1px solid var(--line)", background: "var(--tint)" }}
             />
           )}
           <label className="btn sm grow" style={{ textAlign: "center" }}>

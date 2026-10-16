@@ -87,6 +87,17 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
   /** 현수막·배너처럼 판 크기가 자유로운 것인가. 이쪽은 인쇄용 저장이 본 일이다 */
   const 인쇄물인가 = project.slides.some((s2) => typeOf(s2.pageTypeId)?.자유판);
 
+  /**
+   * 판이 납작한가 (가로가 세로의 2.5배 넘게).
+   *
+   * 400×70cm 는 5.7배다. 양옆 칸(220 + 376)에 대화창까지 자리를 먹으면
+   * 가운데가 525px 밖에 안 남아 현수막이 3% 로 뜬다 — 손톱만 하다.
+   * 보면서 일을 할 수가 없다. 이럴 때는 미리보기를 가로로 눕히고
+   * 양옆 칸을 그 아래로 내린다.
+   */
+  const 납작한가 =
+    style.slide.widthIn / Math.max(0.1, style.slide.heightIn) >= 2.5;
+
   /** 규격을 바꾸는 창이 열려 있는가 */
   const [규격바꾸기, set규격바꾸기] = useState(false);
 
@@ -472,7 +483,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
         </button>
       </div>
 
-      <div className="editor">
+      <div className={`editor${납작한가 ? " 납작" : ""}`}>
         {/* ── 파일함 — 이 건에 딸린 원본·자료를 건별로 모아 둔다 ── */}
         {filesOpen && (
           <Files project={project} onChange={onChange} toServer={toServer}

@@ -243,10 +243,13 @@ export function Dashboard(p: Props) {
       <div className="dash-nav">
         <p className="sec" style={{ marginTop: 0 }}>
           분류
-          {p.대표 && (
-            <button className="secadd" title="분류 추가"
-              onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
-          )}
+          {/*
+            분류 만들기는 직원도 할 수 있다.
+            만드는 것은 아무것도 망가뜨리지 않는다 — 지우는 것이 위험한 것이다.
+            직원이 "현수막" 분류 하나를 못 만들어서 일을 시작도 못 하면 안 된다.
+          */}
+          <button className="secadd" title="분류 추가"
+            onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
         </p>
         <button className={`navitem ${sel === "all" ? "on" : ""}`} onClick={() => setSel("all")}>
           <span className="twist 빈" aria-hidden /><b>전체</b>
@@ -330,7 +333,8 @@ export function Dashboard(p: Props) {
                     onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); set메뉴(null);
                                      set접은것((t) => { const n = new Set(t); n.delete(c.id); return n; }); }}>+</button>
                 )}
-                {(p.대표 || !!c.parentId) && (
+                {/* 메뉴는 누구나 연다 — 안에서 지우기만 대표 몫으로 갈라 둔다 */}
+                {true && (
                   <button className="rowbtn" title="더 보기"
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => set메뉴(메뉴 === c.id ? null : c.id)}>⋯</button>
@@ -352,9 +356,16 @@ export function Dashboard(p: Props) {
                     {c.용도 === "현수막" ? "문서 분류로" : "인쇄물(현수막) 분류로"}
                   </button>
                 )}
-                <button className="빨강" onClick={() => { p.onDeleteCategory(c.id); set메뉴(null); }}>
-                  삭제{모두수(c.id) > 0 && <small>{모두수(c.id)}건은 다른 분류로 이동</small>}
-                </button>
+                {/*
+                  지우기는 대표만. 직원이 실수로 "제안서" 를 지우면
+                  그 안의 50건이 한꺼번에 다른 분류로 쏟아진다.
+                  만드는 것과 지우는 것은 무게가 다르다.
+                */}
+                {(p.대표 || !!c.parentId) && (
+                  <button className="빨강" onClick={() => { p.onDeleteCategory(c.id); set메뉴(null); }}>
+                    삭제{모두수(c.id) > 0 && <small>{모두수(c.id)}건은 다른 분류로 이동</small>}
+                  </button>
+                )}
               </div>
             )}
 
