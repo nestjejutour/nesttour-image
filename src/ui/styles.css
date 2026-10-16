@@ -1167,5 +1167,19 @@ ol.saylist li::before {
 .catnew.세부 { margin-left: 13px; width: calc(100% - 13px); }
 .kindpick { font-size: 13px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; }
 /* + 가 건수를 가리지 않게 자리를 비워 둔다 */
-.navrow > .navitem { padding-right: 28px; }
-.navrow.세부 > .navitem { padding-right: 12px; }
+.navrow > .navitem { padding-right: 52px; }
+.navrow.세부 > .navitem { padding-right: 30px; }
+/* 건수를 오른쪽 끝으로 미는 규칙(.navitem span)에 손잡이까지 걸려
+   이름이 오른쪽으로 밀려 있었다. 손잡이는 맨 왼쪽에 둔다. */
+.navitem .grip { margin-left: 0; opacity: 1; }
+/* 줄 끝의 작은 단추들 — 고치기(⋯) 와 세부 분류 넣기(+) */
+.rowtools {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 1px;
+}
+.rowtools .addsub { position: static; transform: none; }
+.btn.sm.danger { color: var(--accent); border-color: var(--accent); }
+.hiddencats { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.hiddencats > small { display: block; color: var(--muted); font-size: 12.5px; margin-bottom: 5px; }
+.hiddencats .navitem { color: var(--muted); font-size: 14.5px; }
+.hiddencats .navitem span { color: var(--accent); opacity: 1; font-size: 12.5px; }

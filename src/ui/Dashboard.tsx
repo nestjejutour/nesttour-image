@@ -36,6 +36,8 @@ interface Props {
   onReorderCategories: (ids: string[]) => void;
   /** 갈래 바꾸기 (우리 결과물 ↔ 참고 자료) */
   onChangeKind: (id: string, kind: Category["kind"]) => void;
+  /** 치워 둔 분류 도로 꺼내기 */
+  onRestoreCategory: (id: string) => void;
 }
 
 const PER_ROW = 5;
@@ -118,7 +120,7 @@ export function Dashboard(p: Props) {
   const 줄세우기 = () => {
     const 아래 = (부모: string | undefined) =>
       [...categories]
-        .filter((c) => (c.parentId ?? undefined) === 부모)
+        .filter((c) => !c.hidden && (c.parentId ?? undefined) === 부모)
         .sort((a, b) => a.order - b.order);
     const 줄: Category[] = [];
     for (const 큰 of 아래(undefined)) {
@@ -126,7 +128,7 @@ export function Dashboard(p: Props) {
       for (const 세부 of 아래(큰.id)) 줄.push(세부);
     }
     // 부모를 잃은 것이 있으면 맨 뒤에라도 보여 준다. 숨어서 사라지면 안 된다
-    for (const c of categories) if (!줄.some((x) => x.id === c.id)) 줄.push(c);
+    for (const c of categories) if (!c.hidden && !줄.some((x) => x.id === c.id)) 줄.push(c);
     return 줄;
   };
   const cats = 줄세우기();
@@ -250,13 +252,18 @@ export function Dashboard(p: Props) {
                       <option value="참고 자료">참고 자료</option>
                     </select>
                   )}
-                  {!c.builtIn && inCat(c.id).length === 0 && (
-                    <button className="btn sm" onClick={() => { p.onDeleteCategory(c.id); setEditId(null); }}>
-                      삭제
-                    </button>
-                  )}
+                  <button className="btn sm danger"
+                    title={inCat(c.id).length
+                      ? `안에 든 ${inCat(c.id).length}건은 다른 분류로 옮깁니다`
+                      : "이 분류를 지웁니다"}
+                    onClick={() => { p.onDeleteCategory(c.id); setEditId(null); }}>
+                    지우기
+                  </button>
                   <button className="btn sm" onClick={() => setEditId(null)}>닫기</button>
                 </div>
+                {inCat(c.id).length > 0 && (
+                  <small>지우면 안에 든 {inCat(c.id).length}건은 다른 분류로 옮겨집니다. 사라지지 않습니다.</small>
+                )}
               </div>
             ) : (
               <button
@@ -266,16 +273,22 @@ export function Dashboard(p: Props) {
                 title="끌어서 차례를 바꿉니다. 두 번 누르면 이름을 고치고 위·아래로 옮깁니다"
               >
                 <span className="grip" aria-hidden>⠿</span>
-                {c.name}
+                {c.name || "(이름 없음)"}
                 {c.kind === "참고 자료" && <em>참고</em>}
                 <span>{inCat(c.id).length}</span>
               </button>
             )}
 
             {/* 줄 위에서 바로 세부 분류를 넣는다 (단추 안에 단추를 넣을 수 없어 옆에 띄운다) */}
-            {!c.parentId && editId !== c.id && 세부넣기 !== c.id && (
-              <button className="addsub" title={`${c.name} 안에 세부 분류 넣기`}
-                onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); }}>+</button>
+            {editId !== c.id && 세부넣기 !== c.id && (
+              <span className="rowtools">
+                <button className="addsub" title="이름 고치기 · 자리 옮기기 · 지우기"
+                  onClick={() => { setEditId(c.id); set세부넣기(null); }}>⋯</button>
+                {!c.parentId && (
+                  <button className="addsub" title={`${c.name} 안에 세부 분류 넣기`}
+                    onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); }}>+</button>
+                )}
+              </span>
             )}
 
             {/* 세부 분류 넣기 */}
@@ -317,6 +330,18 @@ export function Dashboard(p: Props) {
               if (e.key === "Escape") { setNewName(""); setAdding(false); }
             }}
           />
+        )}
+
+        {categories.some((c) => c.hidden) && (
+          <div className="hiddencats">
+            <small>치워 둔 분류</small>
+            {categories.filter((c) => c.hidden).map((c) => (
+              <button key={c.id} className="navitem" onClick={() => p.onRestoreCategory(c.id)}
+                title="눌러서 도로 꺼냅니다">
+                {c.name || "(이름 없음)"}<span>되돌리기</span>
+              </button>
+            ))}
+          </div>
         )}
 
         {allMoods.length > 0 && (

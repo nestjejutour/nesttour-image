@@ -6,4 +6,4 @@
  * 지금 열려 있는 게 어느 판인지 한눈에 맞춰 보기 위함이다.
  * (브라우저가 예전 판을 들고 있으면 새로고침하면 된다)
  */
-export const VERSION = "45";
+export const VERSION = "46";

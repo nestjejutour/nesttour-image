@@ -461,12 +461,31 @@ function Studio({
       categories: d.categories.map((c) => (c.id === id && name.trim() ? { ...c, name: name.trim() } : c)),
     }));
 
-  /** 큰 분류를 지우면 그 아래 세부 분류도 함께 지운다 (떠돌이가 생기면 안 된다) */
+  /**
+   * 분류 지우기.
+   *
+   * · 큰 분류를 지우면 그 아래 세부 분류도 함께 (떠돌이가 생기면 안 된다)
+   * · 안에 든 제안서는 "기타" 로 옮긴다. 분류를 지웠다고 일을 잃으면 안 된다.
+   * · 기본으로 깔리는 분류는 지워도 코드에서 되살아나므로 "치워 둠" 으로 표시한다.
+   */
   const deleteCategory = (id: string) =>
-    update((d) => ({
-      ...d,
-      categories: d.categories.filter((c) => c.id !== id && c.parentId !== id),
-    }));
+    update((d) => {
+      const 치울것 = new Set([id, ...d.categories.filter((c) => c.parentId === id).map((c) => c.id)]);
+      const 옮길곳 = d.categories.find((c) => c.id === "etc" && !치울것.has(c.id))?.id
+        ?? d.categories.find((c) => !치울것.has(c.id) && !c.parentId)?.id
+        ?? "etc";
+      return {
+        ...d,
+        projects: d.projects.map((p) => (치울것.has(p.category) ? { ...p, category: 옮길곳 } : p)),
+        categories: d.categories
+          .filter((c) => !(치울것.has(c.id) && !c.builtIn))
+          .map((c) => (치울것.has(c.id) ? { ...c, hidden: true } : c)),
+      };
+    });
+
+  /** 치워 둔 분류를 도로 꺼낸다 */
+  const restoreCategory = (id: string) =>
+    update((d) => ({ ...d, categories: d.categories.map((c) => (c.id === id ? { ...c, hidden: false } : c)) }));
 
   /* ── 담은 선반 ── */
   const takePage = (s: Slide, from: Project) => {
@@ -884,6 +903,7 @@ function Studio({
             onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
             onReorderCategories={reorderCategories}
+            onRestoreCategory={restoreCategory}
             onChangeKind={(id, kind) =>
               update((d) => ({ ...d, categories: d.categories.map((c) =>
                 c.id === id ? { ...c, kind } : (c.parentId === id ? { ...c, kind } : c)) }))}
