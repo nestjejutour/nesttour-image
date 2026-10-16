@@ -145,10 +145,10 @@ async function fromHwp(buf: ArrayBuffer): Promise<Extracted> {
   const props = hv.getUint32(36, true);
   const compressed = (props & 0x01) !== 0;
   if ((props & 0x02) !== 0) {
-    return { text: "", note: "암호가 걸린 한글 파일입니다. 암호를 풀고 다시 올려 주세요." };
+    return { text: "", note: "암호가 걸린 한글 파일입니다. 암호를 풀고 다시 올려 주십시오." };
   }
   if ((props & 0x04) !== 0) {
-    return { text: "", note: "배포용(읽기 전용)으로 만든 한글 파일이라 글을 꺼낼 수 없습니다. 원본이나 PDF 로 올려 주세요." };
+    return { text: "", note: "배포용(읽기 전용)으로 만든 한글 파일이라 글을 꺼낼 수 없습니다. 원본이나 PDF 로 올려 주십시오." };
   }
 
   // 본문은 Section0, Section1 … 으로 나뉘어 있다
@@ -217,7 +217,7 @@ export async function readOffice(buf: ArrayBuffer, name: string): Promise<Extrac
     if (/\.hwp$/i.test(name)) return fromHwp(buf);
     return {
       text: "",
-      note: "옛 방식(97~2003)으로 저장된 파일입니다. 지금 쓰는 형식(.docx · .pptx · .xlsx)이나 PDF 로 저장해 올려 주세요.",
+      note: "옛 방식(97~2003)으로 저장된 파일입니다. 지금 쓰는 형식(.docx · .pptx · .xlsx)이나 PDF 로 저장해 올려 주십시오.",
     };
   }
 

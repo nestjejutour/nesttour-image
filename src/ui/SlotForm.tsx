@@ -1,6 +1,7 @@
 import type { Content, Slot } from "../core/types";
 import { uid } from "../store/db";
 import { readShrunk } from "../core/image";
+import { 벡터인가, 벡터주소 } from "../core/vec";
 
 /**
  * 오른쪽 입력폼.
@@ -59,10 +60,20 @@ function SlotField({
 
   // ---- 사진 ----
   if (slot.kind === "image") {
-    const src = typeof value === "string" ? (assets[value] ?? value) : undefined;
+    // AI 가 그린 그림은 값 자체가 그림(SVG)이다. 주소로 바꿔야 <img> 가 그린다.
+    // 안 바꾸면 깨진 그림 아이콘이 뜬다 — 그림은 멀쩡히 들어가 있는데도.
+    const 그린것 = 벡터인가(value);
+    const src = 그린것
+      ? 벡터주소(value as string)
+      : typeof value === "string" ? (assets[value] ?? value) : undefined;
     return (
       <div className="field">
         {label}
+        {그린것 && (
+          <small className="hint" style={{ marginBottom: 4 }}>
+            AI 가 그린 그림입니다. 대화창에서 말로 고치실 수 있습니다.
+          </small>
+        )}
         <div className="row">
           {src && (
             <img
@@ -72,7 +83,7 @@ function SlotField({
             />
           )}
           <label className="btn sm grow" style={{ textAlign: "center" }}>
-            {src ? "사진 변경" : "사진 선택"}
+            {그린것 ? "사진으로 교체" : src ? "사진 변경" : "사진 선택"}
             <input
               type="file"
               accept="image/*"

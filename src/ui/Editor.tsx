@@ -614,7 +614,7 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
           ) : (
             <div style={{ color: "#fff", textAlign: "center" }}>
               <p style={{ fontSize: 18, marginBottom: 6 }}>아직 페이지가 없습니다</p>
-              <p style={{ fontSize: 15.5, opacity: 0.8 }}>왼쪽에서 “페이지 추가”를 눌러 주세요</p>
+              <p style={{ fontSize: 15.5, opacity: 0.8 }}>왼쪽에서 “페이지 추가”를 눌러 주십시오</p>
             </div>
           )}
         </div>
@@ -636,9 +636,9 @@ export function Editor({ project, style, pageTypes, categories, allProjects, cur
                   onClick={() => onCur(Math.min(project.slides.length - 1, cur + 1))}
                   disabled={cur === project.slides.length - 1}>▶</button>
                 <span className="fdiv" />
-                <button className="btn sm" title="이 페이지를 앞으로 옮기기"
+                <button className="btn sm" title="이 페이지를 앞으로 이동"
                   onClick={() => movePage(cur, -1)} disabled={cur === 0}>순서 ↑</button>
-                <button className="btn sm" title="이 페이지를 뒤로 옮기기"
+                <button className="btn sm" title="이 페이지를 뒤로 이동"
                   onClick={() => movePage(cur, 1)}
                   disabled={cur === project.slides.length - 1}>순서 ↓</button>
                 <button className="btn sm" onClick={() => removePage(cur)}>삭제</button>
@@ -684,7 +684,9 @@ function firstText(c: Record<string, any>): string {
     if (typeof v !== "string") continue;
     const t = v.trim();
     if (!t) continue;
-    if (t.startsWith("data:") || /\.(png|jpe?g|webp|svg|gif)$/i.test(t)) continue;
+    // 사진 주소도, AI 가 그린 그림(SVG)도 사람이 읽을 글이 아니다.
+    // 안 거르면 페이지 목록에 <svg xmlns="http://www… 가 그대로 뜬다.
+    if (t.startsWith("data:") || t.startsWith("<svg") || /\.(png|jpe?g|webp|svg|gif)$/i.test(t)) continue;
     return t.slice(0, 22);
   }
   return "";

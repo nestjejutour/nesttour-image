@@ -72,7 +72,7 @@ export function NewProject(p: Props) {
     const pics = files.filter((f) => f.dataUrl);
 
     if (!material && !pics.length) {
-      setErr("자료를 넣거나 내용을 한두 줄 적어 주세요. 파일을 끌어다 놓으셔도 됩니다.");
+      setErr("자료를 넣거나 내용을 한두 줄 적어 주십시오. 파일을 끌어다 놓으셔도 됩니다.");
       return;
     }
     setBusy(true); setErr("");
@@ -90,7 +90,7 @@ export function NewProject(p: Props) {
     setBusy(false);
 
     if (!r.ok || !r.data?.slides?.length) {
-      setErr(r.error ?? "초안을 만들지 못했습니다. 다시 시도해 주세요.");
+      setErr(r.error ?? "초안을 만들지 못했습니다. 다시 시도해 주십시오.");
       return;
     }
 
@@ -100,7 +100,7 @@ export function NewProject(p: Props) {
       .map((s) => ({ id: uid(), pageTypeId: s.pageTypeId, content: s.content ?? {} }));
 
     if (!slides.length) {
-      setErr("AI 가 쓸 수 없는 페이지 타입을 골랐습니다. 다시 시도해 주세요.");
+      setErr("AI 가 쓸 수 없는 페이지 타입을 골랐습니다. 다시 시도해 주십시오.");
       return;
     }
 
@@ -151,7 +151,7 @@ export function NewProject(p: Props) {
 
       {/* ── 자료 넣는 공간 ── */}
       <div className="field">
-        <label>자료 넣기 <span className="hint">— 끌어다 놓거나 눌러서 고르세요. 여러 개 괜찮습니다</span></label>
+        <label>자료 넣기 <span className="hint">— 끌어다 놓거나 눌러서 고르십시오. 여러 개 괜찮습니다</span></label>
         <div
           className={`dropzone ${over ? "over" : ""}`}
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}
@@ -159,7 +159,7 @@ export function NewProject(p: Props) {
           onDrop={(e) => { e.preventDefault(); setOver(false); take(e.dataTransfer.files); }}
           onClick={() => pick.current?.click()}
         >
-          <b>여기에 파일을 끌어다 놓으세요</b>
+          <b>여기에 파일을 끌어다 놓으십시오</b>
           <small>PDF · 사진 · 텍스트 — 눌러서 고르셔도 됩니다</small>
           <small className="cant">한글 · 워드 · 파워포인트 · 엑셀 · PDF 를 그대로 읽습니다</small>
           <input ref={pick} type="file" multiple style={{ display: "none" }}
@@ -191,9 +191,9 @@ export function NewProject(p: Props) {
       </div>
 
       <div className="field">
-        <label>따로 요청할 것 <span className="hint">— 없으면 비워 두세요</span></label>
+        <label>따로 요청할 것 <span className="hint">— 없으면 비워 두십시오</span></label>
         <input value={hint} onChange={(e) => setHint(e.target.value)}
-          placeholder="예: 10장 안으로, 숫자 임팩트 장을 꼭 넣어 주세요" />
+          placeholder="예: 10장 안으로, 숫자 임팩트 장을 꼭 넣어 주십시오" />
       </div>
 
       {err && <div className="warn"><b>{err}</b></div>}

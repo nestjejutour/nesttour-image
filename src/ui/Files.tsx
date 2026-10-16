@@ -73,7 +73,7 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
         onDrop={(e) => { e.preventDefault(); void add(e.dataTransfer.files); }}
       >
         <b>+ 파일 넣기</b>
-        <small>끌어다 놓거나 눌러서 고르세요 · {folder} 칸에 들어갑니다</small>
+        <small>끌어다 놓거나 눌러서 고르십시오 · {folder} 칸에 들어갑니다</small>
         <input type="file" multiple style={{ display: "none" }}
           onChange={(e) => {
             // 목록을 먼저 복사한다. 입력칸을 비우면 목록도 같이 비어 버린다.
@@ -90,8 +90,8 @@ export function Files({ project, onChange, toServer, onClose }: Props) {
         <p className="chat-hint">
           {folder} 칸이 비어 있습니다.
           {folder === "원본"
-            ? " 받은 제안요청서, 내보낸 PPT·PDF 를 여기 넣어 두세요."
-            : " 만들 때 참고한 자료를 여기 넣어 두세요."}
+            ? " 받은 제안요청서, 내보낸 PPT·PDF 를 여기 넣어 두십시오."
+            : " 만들 때 참고한 자료를 여기 넣어 두십시오."}
         </p>
       )}
 

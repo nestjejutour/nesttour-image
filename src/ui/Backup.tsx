@@ -36,7 +36,7 @@ export function Backup({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => voi
     try {
       const 들온것 = await 들여오기(f);
       setDb(() => 들온것);
-      set끝난말("들여왔습니다. 화면이 바뀐 것을 확인해 주세요.");
+      set끝난말("들여왔습니다. 화면이 바뀐 것을 확인해 주십시오.");
     } catch (e: any) {
       set탈난말(e?.message ?? "들여오지 못했습니다");
     }

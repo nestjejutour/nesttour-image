@@ -1146,7 +1146,7 @@ function Shell({
       <div className="topbar">
         <div className="brand">
           <span>디자인 스튜디오</span>
-          <small className="ver" title="지금 열려 있는 판. 버튼이 안 보이면 새로고침해 주세요">판 {VERSION}</small>
+          <small className="ver" title="지금 열려 있는 판. 버튼이 안 보이면 새로고침해 주십시오">판 {VERSION}</small>
         </div>
         {undo && (
           /* 한 번 누를 때마다 한 단계씩. 왼쪽은 뒤로, 오른쪽은 앞으로. */

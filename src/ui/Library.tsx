@@ -369,7 +369,7 @@ export function Library({ sel, projectId, 제목, categories, items, byName, onA
               {projectId
                 ? "한 번에 여러 개, 폴더째 끌어다 놓아도 됩니다."
                 : "폴더째 끌어다 놓으면 그 폴더가 세부 분류로 생기고 안의 파일이 담깁니다."}
-              일러스트(.ai)·PDF·사진에서 미리보기를 뽑습니다.
+              {" "}일러스트(.ai)·PDF·사진에서 미리보기를 뽑습니다.
               <br />놓는 즉시 저장됩니다 — 따로 저장하실 것이 없습니다.
               {원본없는수 > 0 && (
                 <><br /><b className="없음">

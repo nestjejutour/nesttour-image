@@ -227,8 +227,8 @@ function ClaudeTab(p: Props) {
   const send = async () => {
     const hasFile = pics.length > 0 || docs.length > 0;
     const text = draft.trim()
-      || (pics.length && !docs.length ? "이 사진을 넣어 주세요." : "")
-      || (docs.length ? "이 자료를 읽고 무엇을 할 수 있는지 알려 주세요." : "");
+      || (pics.length && !docs.length ? "이 사진을 넣어 주십시오." : "")
+      || (docs.length ? "이 자료를 읽고 무엇을 할 수 있는지 알려 주십시오." : "");
     if (!text || busy) return;
 
     // 올린 사진은 제안서 자산으로 먼저 등록한다. 그래야 AI 가 칸에 넣을 수 있다.
@@ -343,7 +343,7 @@ function ClaudeTab(p: Props) {
       <div className="dock-where">
         {onPage
           ? <>지금 보는 <b>{p.slideIndex + 1}번째 페이지</b> · {p.pageType!.name}<span className="eye">화면을 보고 답합니다</span></>
-          : <>보관함 · 제안서 <b>{p.allProjects.length}건</b><span className="eye">무엇이든 물어보세요</span></>}
+          : <>보관함 · 제안서 <b>{p.allProjects.length}건</b><span className="eye">무엇이든 물어보십시오</span></>}
         {model && <span className="whomodel" title="방금 답한 모델입니다">{modelName(model)}</span>}
       </div>
 
@@ -473,7 +473,7 @@ function ClaudeTab(p: Props) {
               <span className="pic" key={x.key}>
                 <img src={x.dataUrl} alt="" />
                 <button onClick={() => setPics((s2) => s2.filter((y) => y.key !== x.key))}
-                  title="이 사진 빼기">×</button>
+                  title="이 사진 삭제">×</button>
               </span>
             ))}
           </div>
@@ -485,7 +485,7 @@ function ClaudeTab(p: Props) {
                 {d.name}
                 <small>{d.text ? `글 ${d.text.length.toLocaleString()}자` : (d.note ?? "못 읽음")}</small>
                 <button onClick={() => setDocs((s2) => s2.filter((y) => y.id !== d.id))}
-                  title="이 자료 빼기">×</button>
+                  title="이 자료 삭제">×</button>
               </span>
             ))}
           </div>
@@ -527,7 +527,7 @@ function ClaudeTab(p: Props) {
 
         <textarea ref={boxRef} value={draft} onChange={(e) => setDraft(e.target.value)}
           placeholder={onPage
-            ? "이 페이지를 어떻게 고칠까요? (사진·자료는 끌어다 놓으세요)"
+            ? "이 페이지를 어떻게 고칠까요? (사진·자료는 끌어다 놓으십시오)"
             : "무엇을 만들까요? 제안요청서를 끌어다 놓으셔도 됩니다"}
           onPaste={(e) => {
             const files = Array.from(e.clipboardData.files);
@@ -539,12 +539,12 @@ function ClaudeTab(p: Props) {
         <div className="toolrow">
           {mic.can && (
             <button className={`btn sm ${mic.듣는중 ? "accent" : ""}`} onClick={mic.toggle}
-              title={mic.듣는중 ? "말이 끝나면 눌러 주세요" : "말로 적습니다"}>
+              title={mic.듣는중 ? "말이 끝나면 눌러 주십시오" : "말로 적습니다"}>
               {mic.듣는중 ? "● 듣는 중" : "🎤 말하기"}
             </button>
           )}
           <button className={`btn sm ${web?.on ? "accent" : ""}`} disabled={webBusy}
-            title="지금의 사실(시세 · 최근 소식 · 경쟁사)이 필요할 때 켜 주세요"
+            title="지금의 사실(시세 · 최근 소식 · 경쟁사)이 필요할 때 켜 주십시오"
             onClick={async () => {
               if (web?.on) { setWeb(null); return; }
               setWebBusy(true);
@@ -685,7 +685,7 @@ function CopyTab(p: Props) {
 
       <div className="dock-box">
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
-          placeholder={onPage ? "문구를 어떻게 다듬을까요?" : "제안서를 열어 주세요"}
+          placeholder={onPage ? "문구를 어떻게 다듬을까요?" : "제안서를 열어 주십시오"}
           disabled={!onPage}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
         <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !onPage}>보내기</button>

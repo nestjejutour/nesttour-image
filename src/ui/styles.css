@@ -1,6 +1,11 @@
 :root {
   --ink: #1d1d1f;
-  --muted: #86868b;
+  /*
+    바탕 흰색과의 밝기 차가 3.62 였다. 읽기 기준은 4.5 다.
+    "판 71" · "저장됨" · 분류 이름 · 설명줄이 전부 이 색이라, 화면 곳곳이 흐렸다.
+    #6e6e73 으로 한 단 내리면 5.0 이 된다. 회색인 것은 그대로다.
+  */
+  --muted: #6e6e73;
   --line: #e5e5e7;
   --bg: #ffffff;
   --panel: #fafafa;
@@ -9,6 +14,15 @@
   --tint: #f6f6f7;
   --tint-warm: #fff0ef;
   --accent: #ff6d6a;
+  /*
+    코랄은 승인된 규격 색이라 그대로 둔다. 다만 흰 바탕에 코랄 글자를 얹으면
+    밝기 차가 2.75 밖에 안 된다 — 제목도 단추 글자도 흐릿하게 보인다.
+    그래서 "칠하는 코랄" 과 "글자로 쓰는 코랄" 을 갈라 둔다.
+    글자용은 한 단 진한 코랄(4.6). 같은 색으로 읽히되 또렷하다.
+  */
+  --accent-글: #c9403d;
+  /* 같은 까닭으로 초록도 갈라 둔다 — 칠할 때는 #2f9e44, 글자로 쓸 때는 이쪽(4.9) */
+  --풀색-글: #1e7a34;
   --todo: #e03131;
   --radius: 10px;
   --font: "Pretendard", "Noto Sans KR", "맑은 고딕", "Malgun Gothic", system-ui, sans-serif;
@@ -39,7 +53,7 @@ input, textarea, select { font-family: var(--font); font-size: 15.5px; }
   flex-shrink: 0; background: var(--bg);
 }
 .brand { font-weight: 700; font-size: 18px; letter-spacing: -0.2px; }
-.brand span { color: var(--accent); }
+.brand span { color: var(--accent-글); }
 .tabs { display: flex; gap: 2px; }
 .tab {
   border: 0; background: transparent; color: var(--muted);
@@ -56,7 +70,12 @@ input, textarea, select { font-family: var(--font); font-size: 15.5px; }
 .btn:hover { background: var(--panel); }
 .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
 .btn.primary:hover { opacity: 0.85; }
-.btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+/*
+  코랄 단추의 글자를 흰색에서 먹색으로 바꿨다.
+  흰 글자는 코랄 위에서 밝기 차가 2.75 로, 눌러야 할 단추가 가장 안 읽혔다.
+  먹색이면 5.6 이다. 규격 색(코랄)은 손대지 않고 글자만 바꾼 것이다.
+*/
+.btn.accent { background: var(--accent); color: var(--ink); border-color: var(--accent); font-weight: 600; }
 .btn.sm { padding: 4px 9px; font-size: 14.5px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -257,14 +276,14 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .rowhead { display: flex; align-items: center; gap: 9px; margin: 22px 0 10px; }
 .rowhead .cnt { font-size: 14px; color: var(--muted); }
 .refmark {
-  font-style: normal; font-size: 12px; color: var(--accent);
+  font-style: normal; font-size: 12px; color: var(--accent-글);
   border: 1px solid var(--accent); border-radius: 20px; padding: 1px 6px; margin-left: 6px;
 }
 
 .strip { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; }
 .strip .card { width: 234px; flex-shrink: 0; }
 
-.card .cta { display: block; font-size: 14px; color: var(--accent); margin-top: 7px; }
+.card .cta { display: block; font-size: 14px; color: var(--accent-글); margin-top: 7px; }
 .card .meta .chips { margin-top: 6px; }
 .card .meta .chip { margin-left: 0; }
 
@@ -339,7 +358,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .chat .sec { display: flex; align-items: center; gap: 7px; }
 .chat .eye {
   font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none;
-  color: var(--accent); border: 1px solid var(--accent);
+  color: var(--accent-글); border: 1px solid var(--accent);
   border-radius: 20px; padding: 1px 7px;
 }
 
@@ -440,7 +459,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 .diagbox.ok { border-color: #2f9e44; }
 .diagbox > b { display: block; font-size: 15px; margin-bottom: 7px; color: var(--todo); }
-.diagbox.ok > b { color: #2f9e44; }
+.diagbox.ok > b { color: var(--풀색-글); }
 .diagbox p { margin: 0 0 4px; font-size: 14px; line-height: 1.55; color: var(--ink); }
 
 /* ═══════════ 좁은 화면에서 채팅이 안 보이던 문제 ═══════════
@@ -569,10 +588,10 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 }
 .dock-where b { color: var(--ink); }
 .dock-where .eye {
-  display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--accent);
+  display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--accent-글);
   border: 1px solid var(--accent); border-radius: 20px; padding: 0 6px; margin-left: 6px;
 }
-.dock-where .eye.gpt { color: #2f9e44; border-color: #2f9e44; }
+.dock-where .eye.gpt { color: var(--풀색-글); border-color: #2f9e44; }
 
 .dock-log { flex: 1; overflow-y: auto; padding: 13px; background: var(--panel); min-height: 0; }
 .dock-box {
@@ -663,7 +682,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   border-bottom: 1px solid var(--line); background: var(--panel);
 }
 .col-name small { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 12.5px; }
-.col-name.gpt { color: #2f9e44; }
+.col-name.gpt { color: var(--풀색-글); }
 .dock.split .dock-where { padding: 7px 12px; font-size: 13px; }
 .dock.split .dock-log { padding: 11px; }
 .dock.split .dock-box textarea { min-height: 54px; }
@@ -749,8 +768,8 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   border-top: 1px solid var(--line);
 }
 .card .whenrow b { font-size: 11px; border-radius: 20px; padding: 1px 7px; margin-right: 5px; }
-.card .whenrow .done { color: #2f9e44; border: 1px solid #2f9e44; }
-.card .whenrow .doing { color: var(--accent); border: 1px solid var(--accent); }
+.card .whenrow .done { color: var(--풀색-글); border: 1px solid #2f9e44; }
+.card .whenrow .doing { color: var(--accent-글); border: 1px solid var(--accent); }
 .cards { align-items: stretch; }
 .strip .card { height: auto; }
 /* 완료/진행중 딱지가 한 줄을 다 먹지 않게 */
@@ -761,8 +780,8 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
   font-size: 11px; border-radius: 20px; padding: 2px 9px; margin-right: 5px;
   background: #fff; cursor: pointer; line-height: 1.4;
 }
-.statustag.done { color: #2f9e44; border: 1px solid #2f9e44; }
-.statustag.doing { color: var(--accent); border: 1px solid var(--accent); }
+.statustag.done { color: var(--풀색-글); border: 1px solid #2f9e44; }
+.statustag.doing { color: var(--accent-글); border: 1px solid var(--accent); }
 .statustag:hover { background: currentColor; }
 .statustag.done:hover, .statustag.doing:hover { color: #fff; }
 .statustag.done:hover { background: #2f9e44; }
@@ -1058,7 +1077,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .say > * { margin: 0 0 7px; }
 .say > *:last-child { margin-bottom: 0; }
 .say p { line-height: 1.62; }
-.say .q { font-style: normal; color: var(--accent); font-weight: 700; }
+.say .q { font-style: normal; color: var(--accent-글); font-weight: 700; }
 .sayhead {
   font-size: 13.5px; margin: 11px 0 5px; letter-spacing: -0.2px;
   padding-bottom: 4px; border-bottom: 1px solid var(--line);
@@ -1077,7 +1096,7 @@ ul.saylist li::before {
 ol.saylist li { counter-increment: 번; padding-left: 21px; }
 ol.saylist li::before {
   content: counter(번); position: absolute; left: 0; top: 1px;
-  font-size: 11.5px; font-weight: 700; color: var(--accent);
+  font-size: 11.5px; font-weight: 700; color: var(--accent-글);
   width: 15px; text-align: center;
 }
 
@@ -1110,7 +1129,7 @@ ol.saylist li::before {
 /* ── 사람 · 손댄 기록 ── */
 .peoplelist { display: flex; flex-direction: column; gap: 7px; }
 .peoplelist .filerow b em.tag대표 {
-  font-style: normal; font-size: 11.5px; color: var(--accent);
+  font-style: normal; font-size: 11.5px; color: var(--accent-글);
   border: 1px solid var(--accent); border-radius: 20px;
   padding: 1px 7px; margin-left: 7px; vertical-align: 1px;
 }
@@ -1133,7 +1152,7 @@ ol.saylist li::before {
 }
 .trailrow .when { color: var(--muted); font-size: 12.5px; width: 86px; flex-shrink: 0; }
 .trailrow b { width: 72px; flex-shrink: 0; }
-.trailrow .what { color: var(--accent); width: 60px; flex-shrink: 0; font-size: 13px; }
+.trailrow .what { color: var(--accent-글); width: 60px; flex-shrink: 0; font-size: 13px; }
 .trailrow .which { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pinfield { display: flex; flex-direction: column; gap: 4px; }
 .pinfield small { color: var(--muted); font-size: 12.5px; }
@@ -1151,7 +1170,7 @@ ol.saylist li::before {
   color: var(--muted); font-size: 17px; line-height: 1;
   width: 22px; height: 22px; border-radius: 5px; padding: 0;
 }
-.secadd:hover { color: var(--accent); background: var(--tint); }
+.secadd:hover { color: var(--accent-글); background: var(--tint); }
 .catnew {
   width: 100%; margin: 3px 0 4px; padding: 7px 9px;
   border: 1px solid var(--accent); border-radius: 6px; font-size: 14.5px;
@@ -1164,11 +1183,11 @@ ol.saylist li::before {
 /* 건수를 오른쪽 끝으로 미는 규칙(.navitem span)에 손잡이까지 걸려
    이름이 오른쪽으로 밀려 있었다. 손잡이는 맨 왼쪽에 둔다. */
 
-.btn.sm.danger { color: var(--accent); border-color: var(--accent); }
+.btn.sm.danger { color: var(--accent-글); border-color: var(--accent); }
 .hiddencats { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
 .hiddencats > small { display: block; color: var(--muted); font-size: 12.5px; margin-bottom: 5px; }
 .hiddencats .navitem { color: var(--muted); font-size: 14.5px; }
-.hiddencats .navitem span { color: var(--accent); opacity: 1; font-size: 12.5px; }
+.hiddencats .navitem span { color: var(--accent-글); opacity: 1; font-size: 12.5px; }
 
 
 /* ── 분류 나무 — 요즘 쓰는 옆 목록 ── */
@@ -1210,7 +1229,7 @@ ol.saylist li::before {
   padding: 7px 10px; border-radius: 6px; font-size: 14px; color: var(--ink); cursor: pointer;
 }
 .rowmenu button:hover { background: var(--tint); }
-.rowmenu button.빨강 { color: var(--accent); }
+.rowmenu button.빨강 { color: var(--accent-글); }
 .rowmenu button small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
 
 .catrename {
@@ -1295,7 +1314,7 @@ ol.saylist li::before {
 }
 .rowmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
 .libhead .방금 {
-  color: var(--accent); font-weight: 600;
+  color: var(--accent-글); font-weight: 600;
   animation: 스르륵 .25s ease-out;
 }
 @keyframes 스르륵 { from { opacity: 0; transform: translateY(-3px); } }
@@ -1316,19 +1335,19 @@ ol.saylist li::before {
 }
 .libpick input { width: 16px; height: 16px; cursor: pointer; }
 .libcard.골랐음 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.libname small b.없음 { color: var(--accent); font-weight: 600; }
-.libdrop b.없음 { display: inline; color: var(--accent); }
+.libname small b.없음 { color: var(--accent-글); font-weight: 600; }
+.libdrop b.없음 { display: inline; color: var(--accent-글); }
 .libhead .골랐수 { color: var(--ink); font-weight: 600; }
 /* 한 번 더 묻기 — 브라우저 창(confirm)은 틀 안에서 막히므로 화면 안에서 묻는다 */
 .정말 { display: inline-flex; align-items: center; gap: 6px; }
-.정말 b { font-size: 13.5px; color: var(--accent); }
+.정말 b { font-size: 13.5px; color: var(--accent-글); }
 .정말칸 {
   margin-top: 12px; padding: 11px 13px; border: 1px solid var(--accent);
   border-radius: 8px; background: var(--tint-warm);
 }
 .정말칸 b { display: block; font-size: 14.5px; margin-bottom: 3px; }
 .정말칸 small { color: var(--muted); font-size: 13px; line-height: 1.55; }
-.libhead .없음 { color: var(--accent); font-weight: 600; }
+.libhead .없음 { color: var(--accent-글); font-weight: 600; }
 /* 파일 고르는 칸 — display:none 으로 숨기면 브라우저에 따라 파일이 안 꽂힌다.
    보이지만 않게 자리를 지운다. */
 .숨은칸 {
@@ -1399,14 +1418,14 @@ ol.saylist li::before {
   transition: opacity .12s;
 }
 .cardwrap:hover .cardmove { opacity: 1; }
-.cardmove:hover { color: var(--accent); }
+.cardmove:hover { color: var(--accent-글); }
 .cardask select {
   width: 100%; margin-top: 6px; padding: 6px 8px; font-size: 13.5px;
   border: 1px solid var(--line); border-radius: 6px;
 }
 /* 전체 화면에서 카드가 어느 분류 것인지 */
 .card .meta small b.어디 {
-  color: var(--accent); font-weight: 600; margin-right: 6px;
+  color: var(--accent-글); font-weight: 600; margin-right: 6px;
 }
 .빈자리 small { display: block; margin-top: 5px; font-size: 13px; line-height: 1.55; }
 .빈자리.들어옴 { border-color: var(--accent); background: var(--tint-warm); }
@@ -1441,4 +1460,4 @@ ol.saylist li::before {
   padding: 3px 9px; font-size: 11.5px; line-height: 1.5;
   cursor: pointer; white-space: nowrap; font-family: inherit;
 }
-.보기칩:hover { border-color: var(--accent); color: var(--accent); }
+.보기칩:hover { border-color: var(--accent); color: var(--accent-글); }

@@ -34,7 +34,7 @@ export function SignIn({
 
   const 로그인 = () => {
     const n = 이름.trim();
-    if (!n) { set틀림("이름을 적어 주세요."); return; }
+    if (!n) { set틀림("이름을 적어 주십시오."); return; }
     const 자리 = 암호 === 대표암호 ? "대표" : 암호 === 직원암호 ? "직원" : null;
     if (!자리) { set틀림("암호가 다릅니다."); set암호(""); return; }
     try {

@@ -53,11 +53,11 @@ export function whyNot(s: Extract<WebState, { on: false }>): string {
     case "없음":
       return "이 화면에서는 인터넷 검색을 쓸 수 없습니다.";
     case "안붙임":
-      return `claude.ai 설정 → 커넥터에서 "${SEARCH_SERVER}" 를 추가해 주세요. 무료이고 로그인도 필요 없습니다.`;
+      return `claude.ai 설정 → 커넥터에서 "${SEARCH_SERVER}" 를 추가해 주십시오. 무료이고 로그인도 필요 없습니다.`;
     case "다시연결":
-      return `claude.ai 설정 → 커넥터에서 "${SEARCH_SERVER}" 를 다시 연결해 주세요.`;
+      return `claude.ai 설정 → 커넥터에서 "${SEARCH_SERVER}" 를 다시 연결해 주십시오.`;
     case "거절":
-      return "검색 사용을 허용하지 않으셨습니다. 다시 켜시려면 한 번 더 눌러 주세요.";
+      return "검색 사용을 허용하지 않으셨습니다. 다시 켜시려면 한 번 더 눌러 주십시오.";
     default:
       return s.message ?? "검색을 준비하지 못했습니다.";
   }

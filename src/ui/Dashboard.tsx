@@ -244,7 +244,7 @@ export function Dashboard(p: Props) {
         <p className="sec" style={{ marginTop: 0 }}>
           분류
           {p.대표 && (
-            <button className="secadd" title="분류 하나 더 만들기"
+            <button className="secadd" title="분류 추가"
               onClick={() => { setAdding(true); set세부넣기(null); }}>+</button>
           )}
         </p>
@@ -326,7 +326,7 @@ export function Dashboard(p: Props) {
             {고치는이름 !== c.id && (
               <span className="rowtools">
                 {!c.parentId && (
-                  <button className="rowbtn" title="세부 분류 넣기"
+                  <button className="rowbtn" title="세부 분류 추가"
                     onClick={() => { set세부넣기(c.id); set세부이름(""); setAdding(false); set메뉴(null);
                                      set접은것((t) => { const n = new Set(t); n.delete(c.id); return n; }); }}>+</button>
                 )}
@@ -717,7 +717,7 @@ function Card({
             </div>
           </div>
         ) : (
-          <button className="cardmove" title="다른 분류로 옮기기"
+          <button className="cardmove" title="다른 분류로 이동"
             onClick={(e) => { e.stopPropagation(); set옮길까(true); }}>⇄</button>
         )
       )}

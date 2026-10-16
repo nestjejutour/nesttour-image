@@ -77,7 +77,7 @@ export async function ask<T>(o: AskOptions): Promise<AiResult<T>> {
   if (!raw.ok) return { ok: false, error: raw.error };
 
   const data = extractJson<T>(raw.text!);
-  if (!data) return { ok: false, error: "AI 가 보낸 답을 알아볼 수 없습니다. 다시 말씀해 주세요.", text: raw.text };
+  if (!data) return { ok: false, error: "AI 가 보낸 답을 알아볼 수 없습니다. 다시 말씀해 주십시오.", text: raw.text };
   return { ok: true, data, text: raw.text, model: raw.model };
 }
 
@@ -124,9 +124,9 @@ async function viaClaude(
   } catch (e: any) {
     if (e?.code === "cancelled") return { ok: false, error: "" };
     if (e?.code === "not_granted") return { ok: false, error: "AI 사용을 허용해 주셔야 작동합니다." };
-    if (e?.code === "rate_limited") return { ok: false, error: "잠시 뒤에 다시 말씀해 주세요." };
-    if (e?.code === "refused") return { ok: false, error: "이 요청은 답할 수 없다고 합니다. 다르게 말씀해 주세요." };
-    if (e?.code === "prompt_too_large") return { ok: false, error: "한 번에 보낸 자료가 너무 많습니다. 나눠서 말씀해 주세요." };
+    if (e?.code === "rate_limited") return { ok: false, error: "잠시 뒤에 다시 말씀해 주십시오." };
+    if (e?.code === "refused") return { ok: false, error: "이 요청은 답할 수 없다고 합니다. 다르게 말씀해 주십시오." };
+    if (e?.code === "prompt_too_large") return { ok: false, error: "한 번에 보낸 자료가 너무 많습니다. 나눠서 말씀해 주십시오." };
     return { ok: false, error: e?.message ?? "AI 호출에 실패했습니다." };
   }
 }
@@ -149,7 +149,7 @@ async function viaFunctions(o: AskOptions): Promise<{ ok: boolean; text?: string
       body: JSON.stringify({ system: o.system, messages: o.messages, imagesBase64 }),
     });
   } catch {
-    return { ok: false, error: "AI 창구에 닿지 못했습니다. 잠시 뒤 다시 시도해 주세요." };
+    return { ok: false, error: "AI 창구에 닿지 못했습니다. 잠시 뒤 다시 시도해 주십시오." };
   }
   const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
   if (!r.ok || p.error) return { ok: false, error: p.error ?? "AI 호출 실패" };
@@ -173,8 +173,8 @@ async function viaLocalServer(o: AskOptions): Promise<{ ok: boolean; text?: stri
     return {
       ok: false,
       error: hasClaude()
-        ? "AI 를 부르지 못했습니다. 잠시 뒤 다시 시도해 주세요."
-        : "AI 서버에 닿지 못했습니다. 내 PC 에서 돌릴 때는 .env.local 에 열쇠를 넣고 다시 켜 주세요.",
+        ? "AI 를 부르지 못했습니다. 잠시 뒤 다시 시도해 주십시오."
+        : "AI 서버에 닿지 못했습니다. 내 PC 에서 돌릴 때는 .env.local 에 열쇠를 넣고 다시 켜 주십시오.",
     };
   }
   const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
@@ -292,7 +292,7 @@ export async function askCopy<T>(o: { system: string; messages: Turn[] }): Promi
   try {
     r = await fetch(url, { method: "POST", headers, body: JSON.stringify(o) });
   } catch {
-    return { ok: false, error: "ChatGPT 창구에 닿지 못했습니다. 프로그램을 다시 켜 보세요." };
+    return { ok: false, error: "ChatGPT 창구에 닿지 못했습니다. 프로그램을 다시 켜 보십시오." };
   }
   const p = await r.json().catch(() => ({ error: "응답을 읽을 수 없습니다" }));
   if (!r.ok || p.error) return { ok: false, error: p.error ?? "ChatGPT 호출 실패" };

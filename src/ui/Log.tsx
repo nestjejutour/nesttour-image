@@ -95,7 +95,7 @@ export function Log({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void }
                 <small style={{ color: "var(--muted)" }}>{nameOf(pid)}</small>
                 {turns.map((t, i) => (
                   <div key={i} style={{ fontSize: 15, lineHeight: 1.6, marginTop: 4 }}>
-                    <b style={{ color: t.role === "user" ? "var(--ink)" : "var(--accent)" }}>
+                    <b style={{ color: t.role === "user" ? "var(--ink)" : "var(--accent-글)" }}>
                       {t.role === "user" ? "대표" : "AI"}
                     </b>{" "}
                     {t.text}

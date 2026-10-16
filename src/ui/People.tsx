@@ -25,7 +25,7 @@ export function People({
   const 자리바꾸기 = (id: string, role: "대표" | "직원") =>
     setDb((d) => ({ ...d, people: d.people.map((x) => (x.id === id ? { ...x, role } : x)) }));
 
-  const 빼기 = (id: string) =>
+  const 명단삭제 = (id: string) =>
     setDb((d) => ({ ...d, people: d.people.filter((x) => x.id !== id) }));
 
   const 때 = (iso: string) => {
@@ -69,7 +69,7 @@ export function People({
                   onClick={() => 자리바꾸기(x.id, x.role === "대표" ? "직원" : "대표")}>
                   {x.role === "대표" ? "직원으로" : "대표로"}
                 </button>
-                <button className="btn sm" onClick={() => 빼기(x.id)}>빼기</button>
+                <button className="btn sm" onClick={() => 명단삭제(x.id)}>삭제</button>
               </div>
             )}
           </div>

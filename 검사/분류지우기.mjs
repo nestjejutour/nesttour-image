@@ -21,17 +21,21 @@ const 목록 = async () => {
 console.log("처음:", (await 목록()).join(" | "));
 
 // ① 비어 있는 기본 분류 지우기 (기획서)
-await pg.locator(".navrow").nth(3).locator(".addsub").first().click(); await pg.waitForTimeout(400);
-console.log("고치는 칸에 지우기:", await pg.getByRole("button", { name: "지우기" }).count() ? "있음 ✓" : "없음 ✗");
-await pg.getByRole("button", { name: "지우기" }).click(); await pg.waitForTimeout(700);
+const 메뉴열기 = async (n) => {
+  const 줄 = pg.locator(".navrow").nth(n);
+  await 줄.hover(); await pg.waitForTimeout(250);
+  await 줄.locator(".rowbtn").last().click(); await pg.waitForTimeout(400);
+};
+await 메뉴열기(3);
+console.log("줄 메뉴에 삭제:", await pg.locator(".rowmenu").getByRole("button", { name: "삭제" }).count() ? "있음 ✓" : "없음 ✗");
+await pg.locator(".rowmenu").getByRole("button", { name: "삭제" }).click(); await pg.waitForTimeout(700);
 console.log("지운 뒤:", (await 목록()).join(" | "));
 console.log("치워 둔 칸:", (await pg.locator(".hiddencats .navitem").allTextContents()).map(t=>t.replace(/\s+/g," ").trim()).join(" | "));
 
 // ② 제안서(1건 들어 있음) 지우기 → 그 1건은 살아남아야 한다
 const 건수 = await pg.evaluate(() => JSON.parse(localStorage.getItem("mtmb-studio-v1")||"{}").projects?.length ?? "?");
-await pg.locator(".navrow").nth(0).locator(".addsub").first().click(); await pg.waitForTimeout(400);
-console.log("\n안내 문구:", (await pg.locator(".catedit small").innerText()).trim());
-await pg.getByRole("button", { name: "지우기" }).click(); await pg.waitForTimeout(800);
+await 메뉴열기(0);
+await pg.locator(".rowmenu").getByRole("button", { name: "삭제" }).click(); await pg.waitForTimeout(800);
 console.log("지운 뒤:", (await 목록()).join(" | "));
 await pg.waitForTimeout(6500);
 const 건수후 = await pg.evaluate(() => JSON.parse(localStorage.getItem("mtmb-studio-v1")||"{}").projects?.length ?? "?");

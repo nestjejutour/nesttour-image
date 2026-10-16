@@ -50,7 +50,7 @@ console.log("이름 바꾼 뒤:", (await 목록())[0]);
 // 지우기
 await pg.locator(".navrow").nth(0).hover();
 await pg.locator(".navrow").nth(0).locator(".rowbtn").last().click(); await pg.waitForTimeout(400);
-await pg.getByRole("button", { name: /지우기/ }).click(); await pg.waitForTimeout(700);
+await pg.getByRole("button", { name: "삭제" }).click(); await pg.waitForTimeout(700);
 console.log("지운 뒤:", (await 목록()).join(" | "));
 console.log("치워 둔 칸:", (await pg.locator(".hiddencats .navitem").allTextContents()).map(t=>t.replace(/\s+/g," ").trim()).join(" | "));
 await pg.locator(".dash-nav").screenshot({ path: `${OUT}/분류나무.png` });

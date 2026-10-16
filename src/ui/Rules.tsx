@@ -177,7 +177,7 @@ export function Rules({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void
         </select>
         {options.length > 0 && (
           <select value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
-            <option value="">— 고르세요 —</option>
+            <option value="">— 고르십시오 —</option>
             {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
         )}
