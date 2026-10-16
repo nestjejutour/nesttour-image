@@ -150,7 +150,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
         categoryId: 폴더번호[세부분류이름(f)] ?? 담을곳,
         fileName: f.name,
         size: f.size,
-        w: 그림.w, h: 그림.h,
+        w: 그림.w, h: 그림.h, mmW: 그림.mmW, mmH: 그림.mmH,
         noThumb: 그림.thumb ? undefined : (그림.못뽑은까닭 ?? "그림을 못 뽑았습니다"),
         hasFile: 품었나,
         noFile: 품었나 ? undefined : 못품은까닭,
@@ -390,7 +390,7 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
                   <b>{x.name}</b>
                   <small>
                     {prettySize(x.size)}
-                    {x.w && x.h ? ` · ${x.w}×${x.h}` : ""}
+                    {규격(x) ? ` · ${규격(x)}` : ""}
                     {!x.hasFile && <b className="없음"> · 원본 없음</b>}
                   </small>
                 </div>
@@ -478,8 +478,9 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
 
                 <dl className="한장표">
                   <dt>원본 파일</dt><dd>{크게.fileName}</dd>
-                  <dt>크기</dt><dd>{prettySize(크게.size)}</dd>
-                  {크게.w && <><dt>치수</dt><dd>{크게.w} × {크게.h}</dd></>}
+                  <dt>파일 크기</dt><dd>{prettySize(크게.size)}</dd>
+                  {규격(크게) && <><dt>인쇄 규격</dt><dd><b>{규격(크게)}</b></dd></>}
+                  {크게.w && !크게.mmW && <><dt>픽셀</dt><dd>{크게.w} × {크게.h}</dd></>}
                   <dt>담은 날</dt><dd>{new Date(크게.addedAt).toLocaleString("ko-KR")}</dd>
                   {크게.byName && <><dt>담은 사람</dt><dd>{크게.byName}</dd></>}
                   {크게.tags?.length && <><dt>원래 폴더</dt><dd>{크게.tags.join(" / ")}</dd></>}
@@ -588,6 +589,23 @@ export async function 놓은것펼치기(dt: DataTransfer): Promise<File[]> {
 
   for (const e of 입구) await 훑기(e, "");
   return 모은것;
+}
+
+/**
+ * 사람이 읽는 규격.
+ *
+ * 현수막은 "400×90cm" 가 곧 주문 규격이다. 포인트 숫자를 보여 줘 봐야 못 쓴다.
+ * 그림 파일은 인쇄 치수를 알 수 없으므로 픽셀로 적는다.
+ */
+function 규격(x: LibItem): string {
+  if (x.mmW && x.mmH) {
+    const cm = (mm: number) => {
+      const v = mm / 10;
+      return Number.isInteger(v) ? String(v) : v.toFixed(1);
+    };
+    return `${cm(x.mmW)} × ${cm(x.mmH)} cm`;
+  }
+  return x.w && x.h ? `${x.w} × ${x.h} px` : "";
 }
 
 /** 파일 하나를 내려받게 떨군다 */

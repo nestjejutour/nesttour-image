@@ -38,6 +38,8 @@ interface Props {
   onReorderCategories: (ids: string[]) => void;
   /** 갈래 바꾸기 (우리 결과물 ↔ 참고 자료) */
   onChangeKind: (id: string, kind: Category["kind"]) => void;
+  /** 분류의 쓰임(문서·현수막) 바꾸기 */
+  onChangeUse: (id: string, 용도: "문서" | "현수막") => void;
   /** 치워 둔 분류 도로 꺼내기 */
   onRestoreCategory: (id: string) => void;
   /* ── 분류에 쌓아 두는 자료 ── */
@@ -178,6 +180,9 @@ export function Dashboard(p: Props) {
     return 줄;
   };
   const cats = 줄세우기();
+  /** 이 분류가 무엇을 만드는 곳인가 (세부 분류는 큰 분류를 따른다) */
+  const 쓰임 = (c: Category): "문서" | "현수막" =>
+    (c.parentId ? categories.find((k) => k.id === c.parentId)?.용도 : c.용도) ?? c.용도 ?? "문서";
 
   // 바깥을 누르면 작은 메뉴가 닫힌다. 요즘 메뉴는 다 그렇게 닫힌다.
   useEffect(() => {
@@ -337,6 +342,11 @@ export function Dashboard(p: Props) {
                 {!c.parentId && (
                   <button onClick={() => { p.onChangeKind(c.id, c.kind === "참고 자료" ? "우리 결과물" : "참고 자료"); set메뉴(null); }}>
                     {c.kind === "참고 자료" ? "우리 결과물로" : "참고 자료로"}
+                  </button>
+                )}
+                {!c.parentId && (
+                  <button onClick={() => { p.onChangeUse(c.id, c.용도 === "현수막" ? "문서" : "현수막"); set메뉴(null); }}>
+                    {c.용도 === "현수막" ? "문서 분류로" : "인쇄물(현수막) 분류로"}
                   </button>
                 )}
                 <button className="빨강" onClick={() => { p.onDeleteCategory(c.id); set메뉴(null); }}>
@@ -537,7 +547,8 @@ export function Dashboard(p: Props) {
                   {c.name}
                   {c.kind === "참고 자료" && <em className="refmark">참고 자료</em>}
                 </p>
-                <span className="cnt">제안서 {list.length}건</span>
+                <span className="cnt">{쓰임(c) === "현수막" ? "작업물" : "제안서"} {list.length}건</span>
+                {쓰임(c) === "현수막" && <em className="refmark">인쇄물 · 규격으로 만듭니다</em>}
                 {!expanded && list.length > PER_ROW && (
                   <button className="btn sm" onClick={() => setSel(c.id)}>
                     + 전체 보기 ({list.length})
@@ -565,7 +576,7 @@ export function Dashboard(p: Props) {
                     void 놓은것펼치기(e.dataTransfer).then((fs) => 담기.current?.(fs));
                   }}
                 >
-                  <b>이 분류에는 아직 제안서가 없습니다</b>
+                  <b>이 분류에는 아직 {쓰임(c) === "현수막" ? "작업물" : "제안서"}이 없습니다</b>
                   <small>여러 개를 한 번에 넣으시려면 아래 자료함으로 가거나, 여기에 바로 끌어다 놓으십시오.</small>
                   <div className="row" style={{ gap: 7, marginTop: 10 }}>
                     <button className="btn sm primary" onClick={() => p.onNew(c.id)}>신규 등록</button>

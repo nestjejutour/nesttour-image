@@ -13,6 +13,7 @@ import { Browse } from "./Browse";
 import { Tray, type TrayItem } from "./Tray";
 import { ChatDock } from "./ChatDock";
 import { SignIn } from "./SignIn";
+import { 규격묻기 } from "./규격묻기";
 import type { Action } from "../ai/chat";
 import { interpret } from "../core/interpret";
 import { docsToText } from "../core/docs";
@@ -218,6 +219,8 @@ function Studio({
   const [browseId, setBrowseId] = useState<string | null>(null);
   /** 보관함에서 고른 분류. 화면을 오갈 때 잃지 않게 여기 둔다 */
   const [고른분류, set고른분류] = useState("all");
+  /** 인쇄물 규격을 묻는 중인 분류 */
+  const [규격물을곳, set규격물을곳] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [tray, setTray] = useState<TrayItem[]>([]);
   /** 선택 페이지 칸은 평소 접어 둔다. 화면을 넓게 쓰기 위함이다. */
@@ -329,7 +332,41 @@ function Studio({
    * 페이지를 아예 0장으로 두면 회색 빈 화면만 보여 막막하다.
    * 그래서 표지 한 장을 "빈 채로" 깔아 둔다. 채울 칸이 바로 보인다.
    */
+  /**
+   * 이 분류가 무엇을 만드는 곳인가.
+   * 세부 분류는 큰 분류를 따른다 — "현수막 > 개인" 도 현수막이다.
+   */
+  const 쓰임 = (id: string): "문서" | "현수막" => {
+    const c = db.categories.find((x) => x.id === id);
+    if (!c) return "문서";
+    const 큰 = c.parentId ? db.categories.find((x) => x.id === c.parentId) : c;
+    return 큰?.용도 ?? "문서";
+  };
+
+  /** 규격을 받아 그 크기의 작업물을 만든다 */
+  const 인쇄물만들기 = (categoryId: string, mmW: number, mmH: number, 이름: string) => {
+    const cover = db.pageTypes.find((t) => t.group === "표지") ?? db.pageTypes[0];
+    const 인치 = (mm: number) => Number((mm / 25.4).toFixed(3));
+    const 자 = (mm: number) => (Number.isInteger(mm / 10) ? mm / 10 : (mm / 10).toFixed(1));
+    set규격물을곳(null);
+    addProject({
+      ...newProject(이름 || `현수막 ${자(mmW)}×${자(mmH)}cm`, "", categoryId),
+      // 판 크기를 이 건만의 규격으로 박아 둔다. 인쇄용 저장이 이걸 보고 크기를 잡는다.
+      styleOverride: overrideWith(
+        overrideWith(undefined, "slide.widthIn", 인치(mmW)),
+        "slide.heightIn", 인치(mmH),
+      ),
+      slides: cover ? [{ id: uid(), pageTypeId: cover.id, content: {} }] : [],
+    });
+  };
+
+  /** 신규 등록 — 인쇄물 분류면 규격부터 묻는다 */
+  const 새로만들기 = (categoryId: string) =>
+    쓰임(categoryId) === "현수막" ? set규격물을곳(categoryId) : setCreating(categoryId);
+
   const startBlank = (categoryId = "proposal") => {
+    // 인쇄물은 장 수보다 치수가 먼저다. 크기를 모르면 시작할 수가 없다.
+    if (쓰임(categoryId) === "현수막") { set규격물을곳(categoryId); return; }
     const cover = db.pageTypes.find((t) => t.group === "표지") ?? db.pageTypes[0];
     addProject({
       ...newProject("새 제안서", "", categoryId),
@@ -823,9 +860,23 @@ function Studio({
   const 볼수있는탭: View[] = 나.role === "대표" ? ["보관함", "기록", "창고"] : ["보관함"];
   if (!볼수있는탭.includes(view)) setView("보관함");
 
+  if (규격물을곳) {
+    const c = db.categories.find((x) => x.id === 규격물을곳);
+    return (
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+        <규격묻기
+          분류이름={c?.name ?? "인쇄물"}
+          기본W={c?.기본mmW} 기본H={c?.기본mmH}
+          onOk={(w, h, 이름) => 인쇄물만들기(규격물을곳, w, h, 이름)}
+          onCancel={() => set규격물을곳(null)}
+        />
+      </Shell>
+    );
+  }
+
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -843,7 +894,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -878,7 +929,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -913,14 +964,14 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => setCreating(고른분류 === "all" ? "proposal" : 고른분류)} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+    <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
             projects={보이는제안서} categories={보이는분류}
             sel={고른분류} onSel={set고른분류}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}
-            onBrowse={(id) => { setBrowseId(id); setCur(0); }} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => setCreating(cat)}
+            onBrowse={(id) => { setBrowseId(id); setCur(0); }} onOpen={(id) => { setOpenId(id); setLastEdited(id); setCur(0); }} onNew={(cat) => 새로만들기(cat)}
             onBlank={startBlank}
             onOpenTray={() => setTrayOpen(true)} trayCount={tray.length}
             onDelete={deleteProject} onToggleStatus={toggleStatus}
@@ -945,6 +996,8 @@ function Studio({
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id && name.trim() ? { ...x, name: name.trim() } : x)) }))}
             onMoveLib={(id: string, categoryId: string) =>
               update((d) => ({ ...d, library: d.library.map((x) => (x.id === id ? { ...x, categoryId } : x)) }))}
+            onChangeUse={(id: string, 용도: "문서" | "현수막") =>
+              update((d) => ({ ...d, categories: d.categories.map((c) => (c.id === id ? { ...c, 용도 } : c)) }))}
             onMoveProject={(id: string, categoryId: string) => {
               const 건 = db.projects.find((x) => x.id === id);
               update((d) => ({ ...d, projects: d.projects.map((x) => (x.id === id ? { ...x, category: categoryId } : x)) }));

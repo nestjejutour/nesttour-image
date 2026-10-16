@@ -282,6 +282,17 @@ export interface Category {
   id: string;
   name: string;
   kind: "우리 결과물" | "참고 자료";
+  /**
+   * 무엇을 만드는 분류인가.
+   *
+   * "문서"  — 제안서·기획서·회사소개서. 16:9 한 벌로 넘겨 보는 것.
+   * "현수막" — 인쇄물. 장 수보다 치수(cm)가 먼저다.
+   * 없으면 문서로 본다.
+   */
+  용도?: "문서" | "현수막";
+  /** 현수막 분류의 기본 규격 (mm). 신규 등록할 때 이 값이 먼저 채워진다 */
+  기본mmW?: number;
+  기본mmH?: number;
   /** 진열대에서 보이는 순서 */
   order: number;
   builtIn?: boolean;
@@ -470,9 +481,12 @@ export interface LibItem {
   fileName: string;
   /** 원본 크기 (바이트) */
   size: number;
-  /** 원본 가로·세로 (아는 경우) */
+  /** 원본 가로·세로 (그림은 픽셀, PDF·일러스트는 포인트) */
   w?: number;
   h?: number;
+  /** 실제 인쇄 치수 (mm). 현수막은 이게 곧 주문 규격이다 */
+  mmW?: number;
+  mmH?: number;
   /** 미리보기를 못 뽑았으면 그 까닭 */
   noThumb?: string;
   /** 원본 파일을 품고 있는가 (자리가 모자라면 못 품는다) */

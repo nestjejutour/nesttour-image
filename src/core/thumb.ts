@@ -15,7 +15,17 @@
 const 길이 = 360;
 const 품질 = 0.68;
 
-export type 미리보기 = { thumb?: string; w?: number; h?: number; 못뽑은까닭?: string };
+export type 미리보기 = {
+  thumb?: string;
+  /** 원본 크기 — 그림은 픽셀, PDF·일러스트는 포인트 */
+  w?: number; h?: number;
+  /** 실제 인쇄 치수 (mm). PDF·일러스트에서만 나온다 */
+  mmW?: number; mmH?: number;
+  못뽑은까닭?: string;
+};
+
+/** 포인트(1/72인치)를 밀리미터로 */
+export const ptToMm = (pt: number) => (pt / 72) * 25.4;
 
 const 그려담기 = (c: HTMLCanvasElement) => c.toDataURL("image/jpeg", c.width > 800 ? 0.86 : 품질);
 
@@ -88,7 +98,13 @@ async function 피디에프에서(file: File, 길 = 길이): Promise<미리보�
   ctx.fillRect(0, 0, c.width, c.height);
   await page.render({ canvasContext: ctx, viewport: view, canvas: c } as any).promise;
 
-  const out = { thumb: 그려담기(c), w: Math.round(원래.width), h: Math.round(원래.height) };
+  // PDF 의 한 점(pt)은 1/72인치다. 그러니 이 숫자가 곧 인쇄 치수다 —
+  // 11339pt × 2551pt 는 400cm × 90cm 짜리 현수막이다.
+  const out = {
+    thumb: 그려담기(c),
+    w: Math.round(원래.width), h: Math.round(원래.height),
+    mmW: Math.round(ptToMm(원래.width)), mmH: Math.round(ptToMm(원래.height)),
+  };
   try { await doc.destroy(); } catch { /* 닫다 실패해도 그림은 나왔다 */ }
   return out;
 }
