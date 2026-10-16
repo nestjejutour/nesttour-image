@@ -47,9 +47,31 @@ await pg.locator(".libdrop").evaluate((el, 짐) => {
 await pg.waitForFunction(() => document.querySelectorAll(".libcard").length >= 2, null, { timeout: 40000 });
 await pg.waitForTimeout(900);
 console.log(await 꼴("현수막(자료2)"));
-console.log("빈자리 단추:", (await pg.locator(".빈자리 .btn").allTextContents()).join(" | "));
+console.log("빈자리 단추:", (await pg.locator(".빈자리 .btn").allTextContents()).map(t=>t.trim()).join(" | "));
 console.log("옆줄 숫자:", (await pg.locator(".navrow .navitem").allTextContents()).map(t=>t.replace(/\n/g," ").trim()).join(" | "));
 await pg.screenshot({ path: `${OUT}/분류화면.png`, clip: { x: 0, y: 60, width: 1300, height: 900 } });
+
+// 빈 제안서 자리에 바로 끌어다 놓는다
+await pg.getByRole("button", { name: /^기획서/ }).first().click(); await pg.waitForTimeout(700);
+console.log("\n기획서(빈) 자료 수:", await pg.locator(".libcard").count());
+await pg.locator(".빈자리").evaluate((el, 짐) => {
+  const dt = new DataTransfer();
+  for (const f of 짐) {
+    const bin = atob(f.b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    dt.items.add(new File([u8], f.name, { type: "application/octet-stream" }));
+  }
+  el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+}, 짐);
+await pg.waitForFunction(() => document.querySelectorAll(".libcard").length >= 2, null, { timeout: 40000 });
+await pg.waitForTimeout(900);
+console.log("빈 제안서 자리에 놓은 뒤 자료:", await pg.locator(".libcard").count(), "개 ← 2 여야 한다");
+console.log("어느 분류로:", await pg.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("mtmb-studio-v1") || "{}");
+  const 이름 = (id) => (d.categories || []).find((c) => c.id === id)?.name ?? id;
+  return [...new Set((d.library || []).map((x) => 이름(x.categoryId)))].join(",");
+}));
 
 // 제안서를 현수막으로 옮긴다
 await pg.getByRole("button", { name: /^제안서/ }).first().click(); await pg.waitForTimeout(700);

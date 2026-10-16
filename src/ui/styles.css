@@ -1401,3 +1401,5 @@ ol.saylist li::before {
 .card .meta small b.어디 {
   color: var(--accent); font-weight: 600; margin-right: 6px;
 }
+.빈자리 small { display: block; margin-top: 5px; font-size: 13px; line-height: 1.55; }
+.빈자리.들어옴 { border-color: var(--accent); background: var(--tint-warm); }

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category, LibItem, PageType, Project, StylePreset } from "../core/types";
-import { Library } from "./Library";
+import { Library, 놓은것펼치기 } from "./Library";
 import { 분류옵션 } from "./분류칸";
 import { interpret } from "../core/interpret";
 import { SlideView } from "../render/html";
@@ -182,6 +182,9 @@ export function Dashboard(p: Props) {
 
   /* ── 분류 차례 바꾸기 ── */
   /** 지금 끌고 있는 분류 / 그 위에 올라가 있는 분류 */
+  /** 자료함이 건네준 "담는 손" — 빈 제안서 자리에서도 쓴다 */
+  const 담기 = useRef<((files: File[]) => void) | null>(null);
+  const [빈자리끌림, set빈자리끌림] = useState(false);
   const [끄는것, set끄는것] = useState<string | null>(null);
   /** 세부 분류를 넣는 중인 큰 분류 */
   const [세부넣기, set세부넣기] = useState<string | null>(null);
@@ -542,11 +545,39 @@ export function Dashboard(p: Props) {
                   ))}
                 </div>
               ) : (
-                <div className="빈자리">
+                <div
+                  className={`빈자리 ${빈자리끌림 ? "들어옴" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); set빈자리끌림(true); }}
+                  onDragLeave={() => set빈자리끌림(false)}
+                  onDrop={(e) => {
+                    e.preventDefault(); set빈자리끌림(false);
+                    void 놓은것펼치기(e.dataTransfer).then((fs) => 담기.current?.(fs));
+                  }}
+                >
                   <b>이 분류에는 아직 제안서가 없습니다</b>
-                  <div className="row" style={{ gap: 7, marginTop: 9 }}>
+                  <small>여러 개를 한 번에 넣으시려면 아래 자료함으로 가거나, 여기에 바로 끌어다 놓으십시오.</small>
+                  <div className="row" style={{ gap: 7, marginTop: 10 }}>
                     <button className="btn sm primary" onClick={() => p.onNew(c.id)}>+ 새 제안서</button>
                     <button className="btn sm" onClick={() => p.onBlank(c.id)}>백지로 시작</button>
+                    <label className="btn sm">
+                      + 파일 여러 개
+                      <input type="file" multiple className="숨은칸"
+                        onChange={(e) => {
+                          const fs = Array.from(e.target.files ?? []);
+                          e.target.value = "";
+                          담기.current?.(fs);
+                        }} />
+                    </label>
+                    <label className="btn sm">
+                      + 폴더째
+                      <input type="file" multiple className="숨은칸"
+                        ref={(el) => { if (el) el.setAttribute("webkitdirectory", ""); }}
+                        onChange={(e) => {
+                          const fs = Array.from(e.target.files ?? []);
+                          e.target.value = "";
+                          담기.current?.(fs);
+                        }} />
+                    </label>
                   </div>
                 </div>
               )}
@@ -567,6 +598,7 @@ export function Dashboard(p: Props) {
           onMove={p.onMoveLib}
           onMakeFolders={p.onMakeFolders}
           onNote={p.onNoteLib}
+          onReady={(fn) => { 담기.current = fn; }}
         />
       </div>
     </div>

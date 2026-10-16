@@ -30,12 +30,14 @@ interface Props {
   onMakeFolders: (parentId: string, names: string[]) => Record<string, string>;
   /** 메모 적기 */
   onNote: (id: string, note: string) => void;
+  /** 바깥에서도 자료를 넣을 수 있게 담는 손을 건네준다 */
+  onReady?: (담기: (files: File[]) => void) => void;
 }
 
 /** 전체 화면에 띄우는 최근 자료 수 */
 const 최근몇개 = 12;
 
-export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove, onMakeFolders, onNote }: Props) {
+export function Library({ sel, categories, items, byName, onAdd, onRemove, onRemoveMany, onRename, onMove, onMakeFolders, onNote, onReady }: Props) {
   const [끄는중, set끄는중] = useState(false);
   const [담는중, set담는중] = useState<{ 끝난: number; 전부: number; 지금: string } | null>(null);
   const [찾기, set찾기] = useState("");
@@ -73,6 +75,9 @@ export function Library({ sel, categories, items, byName, onAdd, onRemove, onRem
       .filter((x) => !q || x.name.toLowerCase().includes(q) || (x.tags ?? []).join(" ").toLowerCase().includes(q))
       .sort((a, b) => (a.addedAt < b.addedAt ? 1 : -1));
   }, [items, sel, categories, 찾기]);
+
+  // 빈 제안서 자리에서도 같은 손으로 담는다. 길이 둘이면 코드도 둘이 되면 안 된다.
+  useEffect(() => { onReady?.(받기안전); });
 
   useEffect(() => {
     void 쓰는자리().then((r) => {
@@ -520,7 +525,7 @@ function 속한폴더(f: File): string[] {
  * 폴더를 끌어다 놓으면 dataTransfer.files 는 비어 있다.
  * 폴더는 webkitGetAsEntry 로 하나씩 펼쳐야 파일이 나온다.
  */
-async function 놓은것펼치기(dt: DataTransfer): Promise<File[]> {
+export async function 놓은것펼치기(dt: DataTransfer): Promise<File[]> {
   const 입구 = Array.from(dt.items ?? [])
     .map((it) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null))
     .filter(Boolean) as any[];
