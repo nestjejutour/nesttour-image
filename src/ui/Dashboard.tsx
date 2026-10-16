@@ -208,7 +208,6 @@ export function Dashboard(p: Props) {
   };
 
   const shown = sel === "all" ? cats.filter((c) => inCat(c.id).length > 0) : cats.filter((c) => c.id === sel);
-  void shown;
   const expanded = sel !== "all" || !!mood || !!q.trim();
 
   return (
@@ -485,7 +484,9 @@ export function Dashboard(p: Props) {
 
         {shown.map((c) => {
           const list = inCat(c.id);
-          if (!list.length) return null;
+          // "전체" 를 볼 때는 빈 분류를 접어 두지만,
+          // 한 분류를 골라 들어왔으면 비어 있어도 자리를 보여 준다.
+          if (!list.length && sel === "all") return null;
           const visible = expanded ? list : list.slice(0, PER_ROW);
           return (
             <section key={c.id}>
@@ -494,21 +495,31 @@ export function Dashboard(p: Props) {
                   {c.name}
                   {c.kind === "참고 자료" && <em className="refmark">참고 자료</em>}
                 </p>
-                <span className="cnt">{list.length}건</span>
+                <span className="cnt">제안서 {list.length}건</span>
                 {!expanded && list.length > PER_ROW && (
                   <button className="btn sm" onClick={() => setSel(c.id)}>
                     + 전체 보기 ({list.length})
                   </button>
                 )}
               </div>
-              <div className={expanded ? "cards" : "strip"}>
-                {visible.map((pr) => (
-                  <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
-                    moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)}
-                    onDelete={() => p.onDelete(pr.id)}
-                  onToggleStatus={() => p.onToggleStatus(pr.id)} />
-                ))}
-              </div>
+              {list.length ? (
+                <div className={expanded ? "cards" : "strip"}>
+                  {visible.map((pr) => (
+                    <Card key={pr.id} pr={pr} {...{ style, pageTypes }}
+                      moods={moodsFor.get(pr.id) ?? []} onClick={() => p.onBrowse(pr.id)}
+                      onDelete={() => p.onDelete(pr.id)}
+                    onToggleStatus={() => p.onToggleStatus(pr.id)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="빈자리">
+                  <b>이 분류에는 아직 제안서가 없습니다</b>
+                  <div className="row" style={{ gap: 7, marginTop: 9 }}>
+                    <button className="btn sm primary" onClick={() => p.onNew(c.id)}>+ 새 제안서</button>
+                    <button className="btn sm" onClick={() => p.onBlank(c.id)}>백지로 시작</button>
+                  </div>
+                </div>
+              )}
             </section>
           );
         })}
