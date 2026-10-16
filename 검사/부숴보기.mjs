@@ -96,7 +96,9 @@ const 겹침 = await pg.evaluate(() => {
   const d = JSON.parse(localStorage.getItem("mtmb-studio-v1") || "{}");
   return (d.categories || []).filter((c) => c.name === "똑같은이름").length;
 });
-적(겹침 <= 1, "같은 이름 분류가 둘 생기지 않는다", `${겹침}개`);
+// 대표님이 "그냥둬" 라 하신 것. 막지 않기로 정했으니 탈로 세지 않는다 —
+// 다만 숫자는 남겨 둔다. 나중에 막기로 하면 여기부터 보면 된다.
+console.log(`  · 같은 이름 분류: ${겹침}개 (막지 않기로 함)`);
 
 /* ⑤ 새로고침 한가운데 — 저장 전에 끊기면 */
 await pg.locator(".secadd").click(); await pg.waitForTimeout(250);
