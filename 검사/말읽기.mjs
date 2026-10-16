@@ -4,7 +4,9 @@ const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" })
 const pg = await b.newPage({ viewport: { width: 1800, height: 1050 }, deviceScaleFactor: 1.2 });
 pg.on("pageerror", e => console.log("✗ 페이지오류:", e.message));
 
-const 긴말 = `원본은 그대로 두고, 분위기가 다른 두 안을 새로 만들었습니다.
+const 긴말 = `'판로'를 더 익숙한 '판매'로 바꿨습니다(온라인 판매 확대 제안). 다른 후보는 '온라인 판매처 확대', '온라인 판매 채널 확대'인데, 뒤의 것은 제목이 길어져 두 줄이 될 수 있습니다.
+
+원본은 그대로 두고, 분위기가 다른 두 안을 새로 만들었습니다.
 
 정정: 앞에서 원본 글을 볼 수 없다고 말씀드렸는데, 잘못 말씀드렸습니다.
 
