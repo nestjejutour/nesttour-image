@@ -1135,3 +1135,13 @@ ol.saylist li::before {
 .trailrow .which { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pinfield { display: flex; flex-direction: column; gap: 4px; }
 .pinfield small { color: var(--muted); font-size: 12.5px; }
+/* 줄 끝의 작은 + — 그 분류 안에 세부 분류를 넣는다 */
+.addsub {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 21px; height: 21px; padding: 0; line-height: 1;
+  border: 1px solid var(--line); border-radius: 5px; background: #fff;
+  color: var(--muted); font-size: 14px; cursor: pointer;
+  opacity: 0; transition: opacity .12s;
+}
+.navrow:hover .addsub { opacity: 1; }
+.addsub:hover { color: var(--accent); border-color: var(--accent); }

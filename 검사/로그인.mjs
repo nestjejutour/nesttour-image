@@ -15,12 +15,12 @@ console.log("미리 깔린 이름:", await pg.locator(".whopick").count() ? "있
 // 틀린 암호
 await pg.locator(".namebox").fill("박시영");
 await pg.locator(".pinbox").fill("9999");
-await pg.getByRole("button", { name: "들어가기" }).click(); await pg.waitForTimeout(400);
+await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(400);
 console.log("틀린 암호:", (await pg.locator(".gateerr").innerText()).trim());
 
 // 대표 암호 2230
 await pg.locator(".pinbox").fill("2230");
-await pg.getByRole("button", { name: "들어가기" }).click(); await pg.waitForTimeout(1500);
+await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1500);
 console.log("대표로 들어옴:", (await pg.locator(".who").innerText()).trim());
 await pg.getByRole("button", { name: "창고" }).click(); await pg.waitForTimeout(700);
 await pg.getByRole("button", { name: /^사람/ }).click(); await pg.waitForTimeout(600);
@@ -29,13 +29,13 @@ console.log("암호 칸 보임:", await pg.locator(".pinfield").count(), "개");
 await pg.locator(".page").screenshot({ path: `${OUT}/사람.png` });
 
 // 나갔다가 — 이름이 그대로 떠 있는가
-await pg.getByRole("button", { name: "나가기" }).click(); await pg.waitForTimeout(900);
+await pg.getByRole("button", { name: "로그아웃" }).click(); await pg.waitForTimeout(900);
 console.log("이름 자동으로 떠 있나:", await pg.locator(".namebox").inputValue() === "박시영" ? "예 ✓" : "아니오 ✗");
 
 // 직원 암호 2012 — 처음 보는 이름
 await pg.locator(".namebox").fill("김디자");
 await pg.locator(".pinbox").fill("2012");
-await pg.getByRole("button", { name: "들어가기" }).click(); await pg.waitForTimeout(1500);
+await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1500);
 console.log("직원으로 들어옴:", (await pg.locator(".who").innerText()).trim());
 await pg.getByRole("button", { name: "창고" }).click(); await pg.waitForTimeout(600);
 await pg.getByRole("button", { name: /^사람/ }).click(); await pg.waitForTimeout(600);

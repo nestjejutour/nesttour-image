@@ -954,7 +954,7 @@ function Shell({
           </button>
         )}
         {who && <small className="who" title="지금 쓰고 있는 사람">{who}</small>}
-        {onOut && <button className="btn sm" onClick={onOut}>나가기</button>}
+        {onOut && <button className="btn sm" onClick={onOut}>로그아웃</button>}
         {!bare && <button className="btn primary" onClick={onNew}>+ 새 제안서</button>}
       </div>
       {saveErr && (

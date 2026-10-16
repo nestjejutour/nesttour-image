@@ -27,7 +27,7 @@ export function SignIn({
   const [암호, set암호] = useState("");
   const [틀림, set틀림] = useState("");
 
-  const 들어가기 = () => {
+  const 로그인 = () => {
     const n = 이름.trim();
     if (!n) { set틀림("이름을 적어 주세요."); return; }
     const 자리 = 암호 === 대표암호 ? "대표" : 암호 === 직원암호 ? "직원" : null;
@@ -46,22 +46,24 @@ export function SignIn({
         <input
           className="namebox"
           placeholder="이름"
+          enterKeyHint="next"
           value={이름}
           autoFocus={!이름}
           onChange={(e) => { set이름(e.target.value); set틀림(""); }}
-          onKeyDown={(e) => { if (e.key === "Enter") 들어가기(); }}
+          onKeyDown={(e) => { if (e.key === "Enter") 로그인(); }}
         />
         <input
           className="pinbox"
           type="password"
           placeholder="암호"
+          enterKeyHint="go"
           value={암호}
           autoFocus={!!이름}
           onChange={(e) => { set암호(e.target.value); set틀림(""); }}
-          onKeyDown={(e) => { if (e.key === "Enter") 들어가기(); }}
+          onKeyDown={(e) => { if (e.key === "Enter") 로그인(); }}
         />
-        <button className="btn primary" style={{ width: "100%" }} onClick={들어가기}>
-          들어가기
+        <button className="btn primary" style={{ width: "100%" }} onClick={로그인}>
+          로그인
         </button>
         {틀림 && <p className="gateerr">{틀림}</p>}
         <small className="gatenote">
