@@ -44,7 +44,7 @@ export function DeckDrafts({
 
   /** 지금 것을 0번으로 두고 한 줄로 세운다 */
   const 안들 = [
-    { 번호: 0, 이름: "지금 이대로", why: project.title, draft: null as DeckDraft | null,
+    { 번호: 0, 이름: "원안", why: project.title, draft: null as DeckDraft | null,
       slides: project.slides as 장[], 규격: styleFor(baseStyle, project.styleOverride) },
     ...deckDrafts.map((d, i) => ({
       번호: i + 1, 이름: `${i + 1}안`, why: d.why || d.name, draft: d,
@@ -90,7 +90,7 @@ export function DeckDrafts({
               <button className="btn sm" onClick={() => setBig({ 안: x.번호, 장: 0 })}>크게 보기</button>
               {x.draft
                 ? <button className="btn sm accent" onClick={() => onPick(x.draft!)}>{x.번호}안으로</button>
-                : <small className="tag">지금 제안서</small>}
+                : <small className="tag">적용 중</small>}
             </div>
             <div className="deckstrip">
               {x.slides.map((s, i) => {

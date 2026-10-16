@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Category, Content, Doc, DrawOp, PageType, Project, Rule, Slide, StylePreset } from "../core/types";
 import { ask, askCopy, diagnose, type Diagnosis, type Turn } from "../ai/client";
 import { chatSystem, librarySystem, needsOk, type Action, type Reply } from "../ai/chat";
+import { Say } from "./Say";
 import { copySystem, pullCopy, pushCopy, type CopyField } from "../ai/copy";
 import { renderToBlob } from "../render/canvas";
 import { interpret } from "../core/interpret";
@@ -370,7 +371,7 @@ function ClaudeTab(p: Props) {
 
         {p.turns.map((m, i) => (
           <div key={i} className={`bubble ${m.role}`}>
-            <p>{m.text}</p>
+            <Say text={m.text} />
 
             {/* 만든 결과를 바로 보여 준다. 열어 보지 않고도 고를 수 있어야 한다. */}
             {m.made?.map((id) => {
@@ -430,7 +431,7 @@ function ClaudeTab(p: Props) {
         {busy && (
           <div className="bubble assistant">
             {live
-              ? <p>{live}<span className="caret" /></p>
+              ? <><Say text={live} /><span className="caret" /></>
               : <p className="thinking">
                   <span className="spin" aria-hidden />
                   {web?.on ? "찾아보는 중" : onPage ? "화면을 보고 생각하는 중" : "읽는 중"}
@@ -488,7 +489,14 @@ function ClaudeTab(p: Props) {
           </div>
         )}
         {reading && <small className="picerr" style={{ color: "var(--muted)" }}>{reading}</small>}
-        {mic.오류 && <small className="picerr">{mic.오류}</small>}
+        {mic.오류 && (
+          <div className="picerr">
+            {mic.오류}
+            {mic.틀에막힘 && (
+              <button className="btn sm" style={{ marginLeft: 8 }} onClick={mic.새탭}>새 탭에서 열기</button>
+            )}
+          </div>
+        )}
         {web && !web.on && <small className="picerr">{whyNot(web)}</small>}
         {picErr && <small className="picerr">{picErr}</small>}
 

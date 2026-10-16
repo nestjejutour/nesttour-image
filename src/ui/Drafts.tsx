@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFit } from "./fitzoom";
 import type { Draft, PageType, Project, StylePreset } from "../core/types";
 import { interpret } from "../core/interpret";
@@ -32,6 +32,15 @@ interface Props {
 export function Drafts({
   drafts, project, slideIndex, baseStyle, pageTypes, onPick, onClose, onAgain,
 }: Props) {
+  /**
+   * 칸 너비.
+   *
+   * 안이 몇 개든 한 줄에 나란히 서야 견주어 볼 수 있다.
+   * 그러니 배율을 먼저 정하고 칸을 맞추는 게 아니라,
+   * 자리를 재서 나눠 가진 뒤 거기에 배율을 맞춘다.
+   */
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [칸폭, set칸폭] = useState(400);
   /** 크게 볼 것 — 0 은 지금 것, 1 부터가 1안 */
   const [big, setBig] = useState<number | null>(null);
 
@@ -51,13 +60,30 @@ export function Drafts({
 
   /** 지금 것을 0번으로 두고 한 줄로 세운다 — 크게 보기에서 좌우로 넘기기 위함 */
   const 줄 = [
-    { 번호: 0, 이름: "지금 이대로", why: "", draft: null as Draft | null,
+    { 번호: 0, 이름: "원안", why: "", draft: null as Draft | null,
       ...draw(now.pageTypeId, now.content, now.styleOverride) },
     ...drafts.map((d, i) => ({
       번호: i + 1, 이름: `${i + 1}안`, why: d.why || d.name, draft: d,
       ...draw(d.pageTypeId, d.content, d.styleOverride),
     })),
   ];
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const 재기 = () => {
+      const 여백 = 32, 사이 = 14;
+      const n = Math.min(줄.length, 4);
+      const w = (el.clientWidth - 여백 - 사이 * (n - 1)) / n;
+      if (w > 0) set칸폭(Math.max(200, Math.min(560, Math.floor(w))));
+    };
+    재기();
+    const ro = new ResizeObserver(재기);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [줄.length]);
+
+  const 배율 = Number((칸폭 / (줄[0].style.slide.widthIn * 96)).toFixed(3));
 
   const 큰것 = big !== null ? 줄[big] : null;
   const [bigRef, bigZoom] = useFit(
@@ -75,11 +101,13 @@ export function Drafts({
         <button className="btn sm" onClick={onClose}>닫기</button>
       </div>
 
-      <div className="drafts-row">
+      {/* 칸 너비는 그림이 정한다. 설명 글 길이로 카드가 늘어나면 안 된다 */}
+      <div className="drafts-row" ref={rowRef}
+        style={{ gridTemplateColumns: `repeat(auto-fill, ${칸폭}px)` }}>
         {줄.map((x) => (
           <div className={`draftcard ${x.draft ? "" : "now"}`} key={x.번호}>
             <button className="shot" title="누르면 크게 보입니다" onClick={() => setBig(x.번호)}>
-              <SlideView ops={x.ops} style={x.style} zoom={0.42} />
+              <SlideView ops={x.ops} style={x.style} zoom={배율} />
               <span className="zoomtag">크게 보기</span>
             </button>
             <div className="draftinfo">
@@ -87,7 +115,7 @@ export function Drafts({
               <small>{x.why || x.틀이름}</small>
               {x.draft
                 ? <button className="btn sm accent" onClick={() => onPick(x.draft!)}>{x.번호}안으로</button>
-                : <small className="tag">지금 페이지</small>}
+                : <small className="tag">적용 중</small>}
             </div>
           </div>
         ))}
