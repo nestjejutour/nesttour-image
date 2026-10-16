@@ -1096,16 +1096,13 @@ ol.saylist li::before {
 .catedit small { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
 
 /* ── 들어오기 ── */
-.whopick {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin: 12px 0; justify-content: center;
-}
-.whopick .navitem { width: auto; padding: 7px 13px; }
-.pinbox {
-  width: 100%; text-align: center; letter-spacing: 9px;
-  font-size: 21px; padding: 11px; margin-bottom: 9px;
+.namebox, .pinbox {
+  width: 100%; text-align: center; font-size: 17px;
+  padding: 11px; margin-bottom: 8px;
   border: 1px solid var(--line); border-radius: 7px;
 }
+.pinbox { letter-spacing: 7px; }
+.pinbox::placeholder { letter-spacing: 0; }
 .gatenote { display: block; margin-top: 11px; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
 
 /* ── 사람 · 손댄 기록 ── */
@@ -1136,3 +1133,5 @@ ol.saylist li::before {
 .trailrow b { width: 72px; flex-shrink: 0; }
 .trailrow .what { color: var(--accent); width: 60px; flex-shrink: 0; font-size: 13px; }
 .trailrow .which { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinfield { display: flex; flex-direction: column; gap: 4px; }
+.pinfield small { color: var(--muted); font-size: 12.5px; }

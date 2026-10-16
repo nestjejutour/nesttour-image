@@ -165,7 +165,22 @@ function Studio({
       return db.people.find((x) => x.id === id) ?? null;
     } catch { return null; }
   });
-  const 들어옴 = (me: Person) => {
+  /**
+   * 들어온다.
+   *
+   * 이름은 직접 적는다. 처음 보는 이름이면 그 자리에서 사람 목록에 올린다 —
+   * 미리 등록해 두게 하면 그걸 하러 대표를 찾아야 한다.
+   * 자리는 어느 암호를 넣었느냐로 갈린다.
+   */
+  const 들어옴 = (name: string, role: "대표" | "직원") => {
+    const 이미 = db.people.find((x) => x.name === name);
+    const me: Person = 이미
+      ? { ...이미, role, lastIn: new Date().toISOString() }
+      : { id: uid(), name, role, createdAt: new Date().toISOString(), lastIn: new Date().toISOString() };
+    update((d) => ({
+      ...d,
+      people: 이미 ? d.people.map((x) => (x.id === me.id ? me : x)) : [...d.people, me],
+    }));
     try { localStorage.setItem("mtmb-누구", me.id); } catch { /* 저장이 막혀도 이번 판은 쓴다 */ }
     set나(me);
   };
@@ -765,7 +780,7 @@ function Studio({
   /* ── 화면 고르기 ── */
 
   // 누구인지 밝히기 전에는 아무것도 안 보여 준다
-  if (!나) return <SignIn people={db.people} onIn={들어옴} />;
+  if (!나) return <SignIn 대표암호={db.대표암호} 직원암호={db.직원암호} onIn={들어옴} />;
 
   if (creating !== null) {
     return (
@@ -897,7 +912,7 @@ function Shell({
       {busy && <div className="working" title="AI 가 일하는 중입니다" />}
       <div className="topbar">
         <div className="brand">
-          MTMB <span>디자인 스튜디오</span>
+          <span>디자인 스튜디오</span>
           <small className="ver" title="지금 열려 있는 판. 버튼이 안 보이면 새로고침해 주세요">판 {VERSION}</small>
         </div>
         {undo && (

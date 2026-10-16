@@ -1,55 +1,63 @@
 import { useState } from "react";
-import type { Person } from "../core/types";
 
 /**
  * 들어오기
  *
- * 이름을 고르고 네 글자 암호를 넣는다.
+ * 이름을 적고 암호를 넣는다.
+ * 암호가 자리를 가른다 — 대표 암호로 들어오면 대표, 직원 암호로 들어오면 직원.
  *
  * 밝혀 둘 것: 이건 자물쇠가 아니라 이름표다.
  * 암호는 이 브라우저 안에 그대로 적혀 있어서, 마음먹으면 들여다볼 수 있다.
  * 누가 만들고 누가 고쳤는지 남기려는 것이지 자료를 잠그려는 것이 아니다.
  */
-export function SignIn({ people, onIn }: { people: Person[]; onIn: (p: Person) => void }) {
-  const [고른이, set고른이] = useState<string>(people[0]?.id ?? "");
+
+/** 지난번에 적은 이름을 기억해 둔다 */
+const 이름칸 = "mtmb-지난이름";
+
+export function SignIn({
+  대표암호, 직원암호, onIn,
+}: {
+  대표암호: string;
+  직원암호: string;
+  onIn: (name: string, role: "대표" | "직원") => void;
+}) {
+  const [이름, set이름] = useState(() => {
+    try { return localStorage.getItem(이름칸) ?? ""; } catch { return ""; }
+  });
   const [암호, set암호] = useState("");
   const [틀림, set틀림] = useState("");
 
   const 들어가기 = () => {
-    const me = people.find((x) => x.id === 고른이);
-    if (!me) { set틀림("이름을 골라 주세요."); return; }
-    if (암호 !== me.pin) { set틀림("암호가 다릅니다."); set암호(""); return; }
-    onIn(me);
+    const n = 이름.trim();
+    if (!n) { set틀림("이름을 적어 주세요."); return; }
+    const 자리 = 암호 === 대표암호 ? "대표" : 암호 === 직원암호 ? "직원" : null;
+    if (!자리) { set틀림("암호가 다릅니다."); set암호(""); return; }
+    try { localStorage.setItem(이름칸, n); } catch { /* 기억 못 해도 들어가는 데는 지장 없다 */ }
+    onIn(n, 자리);
   };
 
   return (
     <div className="gate">
       <div className="gatebox">
-        <div className="brand" style={{ fontSize: 20, marginBottom: 10 }}>
-          MTMB <span>디자인 스튜디오</span>
-        </div>
-        <p>이름을 고르고 네 글자 암호를 넣어 주세요.</p>
-
-        <div className="whopick">
-          {people.map((x) => (
-            <button key={x.id}
-              className={`navitem ${고른이 === x.id ? "on" : ""}`}
-              onClick={() => { set고른이(x.id); set암호(""); set틀림(""); }}>
-              {x.name}
-              {x.role === "대표" && <em>대표</em>}
-            </button>
-          ))}
+        <div className="brand" style={{ fontSize: 20, marginBottom: 12 }}>
+          <span>디자인 스튜디오</span>
         </div>
 
         <input
+          className="namebox"
+          placeholder="이름"
+          value={이름}
+          autoFocus={!이름}
+          onChange={(e) => { set이름(e.target.value); set틀림(""); }}
+          onKeyDown={(e) => { if (e.key === "Enter") 들어가기(); }}
+        />
+        <input
           className="pinbox"
           type="password"
-          inputMode="text"
-          maxLength={4}
-          placeholder="● ● ● ●"
+          placeholder="암호"
           value={암호}
-          autoFocus
-          onChange={(e) => { set암호(e.target.value.slice(0, 4)); set틀림(""); }}
+          autoFocus={!!이름}
+          onChange={(e) => { set암호(e.target.value); set틀림(""); }}
           onKeyDown={(e) => { if (e.key === "Enter") 들어가기(); }}
         />
         <button className="btn primary" style={{ width: "100%" }} onClick={들어가기}>
@@ -57,7 +65,7 @@ export function SignIn({ people, onIn }: { people: Person[]; onIn: (p: Person) =
         </button>
         {틀림 && <p className="gateerr">{틀림}</p>}
         <small className="gatenote">
-          암호를 잊으셨으면 대표님께 말씀하세요. 창고 › 사람에서 다시 정해 드립니다.
+          적으신 이름은 다음에 열 때 그대로 떠 있습니다. 암호만 넣으시면 됩니다.
         </small>
       </div>
     </div>

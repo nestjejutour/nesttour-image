@@ -10,7 +10,7 @@ export function Gate({ loading }: { loading?: boolean }) {
     <div className="gate">
       <div className="gatebox">
         <div className="brand" style={{ fontSize: 20, marginBottom: 7 }}>
-          MTMB <span>디자인 스튜디오</span>
+          <span>디자인 스튜디오</span>
         </div>
         {loading ? (
           <p>자료를 불러오는 중입니다…</p>

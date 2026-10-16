@@ -31,8 +31,11 @@ export interface DB {
   history: HistoryEntry[];
   /** "프로젝트id:페이지id" → 그 페이지에서 오간 대화 */
   chats: Record<string, ChatTurn[]>;
-  /** 쓰는 사람들 */
+  /** 들어온 적 있는 사람들 (처음 들어올 때 이름이 적힌다) */
   people: Person[];
+  /** 대표 암호 · 직원 암호. 어느 쪽을 넣었느냐로 자리가 갈린다 */
+  대표암호: string;
+  직원암호: string;
   /** 누가 언제 무엇을 손댔는가 */
   trail: Trail[];
   /** 직원에게 자기가 만든 것만 보일 것인가 (대표가 켠다) */
@@ -90,11 +93,10 @@ function seed(): DB {
     projects: SEED_PROJECTS,
     history: [],
     chats: {},
-    // 대표 한 사람으로 시작한다. 나머지는 대표가 창고에서 더한다.
-    people: [{
-      id: "대표", name: "박시영", pin: "0000", role: "대표",
-      createdAt: new Date().toISOString(),
-    }],
+    // 이름을 미리 깔아 두지 않는다. 처음 들어오는 사람이 제 이름을 적는다.
+    people: [],
+    대표암호: "2230",
+    직원암호: "2012",
     trail: [],
     onlyMine: false,
   };
@@ -122,8 +124,9 @@ export function load(): DB {
     projects: saved.projects?.length ? saved.projects : db.projects,
       history: saved.history ?? [],
       chats: saved.chats ?? {},
-      // 사람이 하나도 없으면 대표라도 있어야 들어올 수 있다
-      people: saved.people?.length ? saved.people : db.people,
+      people: saved.people ?? [],
+      대표암호: saved.대표암호 || db.대표암호,
+      직원암호: saved.직원암호 || db.직원암호,
       trail: saved.trail ?? [],
       onlyMine: saved.onlyMine ?? false,
     };
@@ -145,6 +148,8 @@ export function save(db: DB): void {
         history: db.history,
         chats: db.chats,
         people: db.people,
+        대표암호: db.대표암호,
+        직원암호: db.직원암호,
         trail: db.trail.slice(-600),   // 너무 쌓이면 저장 칸을 잡아먹는다
         onlyMine: db.onlyMine,
       }),
@@ -219,7 +224,9 @@ export function merge(saved: Partial<DB>): DB {
     projects: saved.projects?.length ? saved.projects : db.projects,
     history: saved.history ?? [],
     chats: saved.chats ?? {},
-    people: saved.people?.length ? saved.people : db.people,
+    people: saved.people ?? [],
+    대표암호: saved.대표암호 || db.대표암호,
+    직원암호: saved.직원암호 || db.직원암호,
     trail: saved.trail ?? [],
     onlyMine: saved.onlyMine ?? false,
   };
