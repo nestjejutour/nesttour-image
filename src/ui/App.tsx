@@ -347,13 +347,27 @@ function Studio({
     });
 
   /* ── 분류(메뉴) 늘리고 고치기 ── */
-  const addCategory = (name: string, kind: Category["kind"]) =>
+  const addCategory = (name: string, kind: Category["kind"], parentId?: string) =>
+    update((d) => {
+      // 형제끼리만 차례를 다툰다. 세부 분류는 그 큰 분류 안에서 맨 뒤에 붙는다.
+      const 형제 = d.categories.filter((c) => (c.parentId ?? null) === (parentId ?? null));
+      return {
+        ...d,
+        categories: [...d.categories, {
+          id: uid(), name, kind, parentId,
+          order: Math.max(0, ...형제.map((c) => c.order)) + 1,
+        }],
+      };
+    });
+
+  /** 분류 차례 바꾸기 — 받은 차례대로 번호를 다시 매긴다 (형제끼리만 섞인다) */
+  const reorderCategories = (ids: string[]) =>
     update((d) => ({
       ...d,
-      categories: [...d.categories, {
-        id: uid(), name, kind,
-        order: Math.max(0, ...d.categories.map((c) => c.order)) + 1,
-      }],
+      categories: d.categories.map((c) => {
+        const i = ids.indexOf(c.id);
+        return i >= 0 ? { ...c, order: i } : c;
+      }),
     }));
 
   const renameCategory = (id: string, name: string) =>
@@ -362,8 +376,12 @@ function Studio({
       categories: d.categories.map((c) => (c.id === id && name.trim() ? { ...c, name: name.trim() } : c)),
     }));
 
+  /** 큰 분류를 지우면 그 아래 세부 분류도 함께 지운다 (떠돌이가 생기면 안 된다) */
   const deleteCategory = (id: string) =>
-    update((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }));
+    update((d) => ({
+      ...d,
+      categories: d.categories.filter((c) => c.id !== id && c.parentId !== id),
+    }));
 
   /* ── 담은 선반 ── */
   const takePage = (s: Slide, from: Project) => {
@@ -777,6 +795,7 @@ function Studio({
             onOpenTray={() => setTrayOpen(true)} trayCount={tray.length}
             onDelete={deleteProject} onToggleStatus={toggleStatus}
             onAddCategory={addCategory} onRenameCategory={renameCategory} onDeleteCategory={deleteCategory}
+            onReorderCategories={reorderCategories}
           />
           <Tray items={tray} style={style} pageTypes={db.pageTypes}
             onRemove={(k) => setTray((t) => t.filter((x) => x.key !== k))}

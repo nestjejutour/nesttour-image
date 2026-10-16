@@ -29,9 +29,11 @@ interface Props {
   trayCount: number;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string) => void;
-  onAddCategory: (name: string, kind: Category["kind"]) => void;
+  onAddCategory: (name: string, kind: Category["kind"], parentId?: string) => void;
   onRenameCategory: (id: string, name: string) => void;
   onDeleteCategory: (id: string) => void;
+  /** 분류 차례 바꾸기 — 바뀐 차례대로 번호를 다시 매긴다 */
+  onReorderCategories: (ids: string[]) => void;
 }
 
 const PER_ROW = 5;
@@ -95,7 +97,10 @@ export function Dashboard(p: Props) {
       return key(b) > key(a) ? 1 : key(b) < key(a) ? -1 : 0;
     });
 
-  const inCat = (id: string) => sorted(projects.filter((x) => x.category === id && match(x)));
+  const inCat = (id: string) => {
+    const 범위 = new Set(묶음(id));
+    return sorted(projects.filter((x) => 범위.has(x.category) && match(x)));
+  };
   const filtered = projects.filter(match);
   // 최근에 손댄 것부터. 너무 많으면 고르기가 더 어렵다.
   const inProgress = projects
@@ -104,7 +109,72 @@ export function Dashboard(p: Props) {
     .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
     .slice(0, 3);
 
-  const cats = [...categories].sort((a, b) => a.order - b.order);
+  /**
+   * 큰 분류 → 그 아래 세부 분류 차례로 한 줄씩 펴 놓는다.
+   * (화면은 한 줄짜리 목록이고, 세부 분류는 한 칸 들여 쓴다)
+   */
+  const 줄세우기 = () => {
+    const 아래 = (부모: string | undefined) =>
+      [...categories]
+        .filter((c) => (c.parentId ?? undefined) === 부모)
+        .sort((a, b) => a.order - b.order);
+    const 줄: Category[] = [];
+    for (const 큰 of 아래(undefined)) {
+      줄.push(큰);
+      for (const 세부 of 아래(큰.id)) 줄.push(세부);
+    }
+    // 부모를 잃은 것이 있으면 맨 뒤에라도 보여 준다. 숨어서 사라지면 안 된다
+    for (const c of categories) if (!줄.some((x) => x.id === c.id)) 줄.push(c);
+    return 줄;
+  };
+  const cats = 줄세우기();
+  /** 어느 분류의 세부 분류들 */
+  const 세부들 = (id: string) => categories.filter((c) => c.parentId === id);
+  /** 이 분류와 그 아래 세부 분류 전부 */
+  const 묶음 = (id: string) => [id, ...세부들(id).map((c) => c.id)];
+
+  /* ── 분류 차례 바꾸기 ── */
+  /** 지금 끌고 있는 분류 / 그 위에 올라가 있는 분류 */
+  const [끄는것, set끄는것] = useState<string | null>(null);
+  /** 세부 분류를 넣는 중인 큰 분류 */
+  const [세부넣기, set세부넣기] = useState<string | null>(null);
+  const [세부이름, set세부이름] = useState("");
+  const [놓을곳, set놓을곳] = useState<string | null>(null);
+
+  /** 같은 칸에 걸린 형제들 (차례는 이 안에서만 바뀐다) */
+  const 형제들 = (부모: string | undefined) =>
+    [...categories]
+      .filter((c) => (c.parentId ?? undefined) === (부모 ?? undefined))
+      .sort((a, b) => a.order - b.order)
+      .map((c) => c.id);
+
+  /** 끌어다 놓은 자리로 옮긴다 */
+  const 옮기기 = (from: string | null, to: string) => {
+    if (!from || from === to) return;
+    const a = categories.find((c) => c.id === from);
+    const b = categories.find((c) => c.id === to);
+    // 큰 분류와 세부 분류는 서로 자리를 바꾸지 않는다
+    if (!a || !b || (a.parentId ?? null) !== (b.parentId ?? null)) return;
+    const ids = 형제들(a.parentId);
+    const i = ids.indexOf(from);
+    const j = ids.indexOf(to);
+    if (i < 0 || j < 0) return;
+    ids.splice(i, 1);
+    ids.splice(j, 0, from);
+    p.onReorderCategories(ids);
+  };
+
+  /** 한 칸 위·아래로 — 끌기가 어려울 때 쓰는 길 */
+  const 한칸 = (id: string, d: number) => {
+    const me = categories.find((c) => c.id === id);
+    if (!me) return;
+    const ids = 형제들(me.parentId);
+    const i = ids.indexOf(id);
+    const j = i + d;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    p.onReorderCategories(ids);
+  };
   const shown = sel === "all" ? cats.filter((c) => inCat(c.id).length > 0) : cats.filter((c) => c.id === sel);
   const expanded = sel !== "all" || !!mood || !!q.trim();
 
@@ -116,8 +186,33 @@ export function Dashboard(p: Props) {
         <button className={`navitem ${sel === "all" ? "on" : ""}`} onClick={() => setSel("all")}>
           전체 <span>{filtered.length}</span>
         </button>
-        {cats.map((c) => (
-          <div key={c.id}>
+        {cats.map((c) => {
+          const 형제 = 형제들(c.parentId);
+          const 자리 = 형제.indexOf(c.id);
+          return (
+          <div
+            key={c.id}
+            className={`navrow ${c.parentId ? "세부" : ""} ${끄는것 === c.id ? "끄는중" : ""} ${놓을곳 === c.id ? "놓을자리" : ""}`}
+            draggable={editId !== c.id}
+            onDragStart={(e) => {
+              set끄는것(c.id);
+              e.dataTransfer.effectAllowed = "move";
+              try { e.dataTransfer.setData("text/plain", c.id); } catch { /* 안 받는 브라우저도 있다 */ }
+            }}
+            onDragEnd={() => { set끄는것(null); set놓을곳(null); }}
+            onDragOver={(e) => {
+              if (!끄는것 || 끄는것 === c.id) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              set놓을곳(c.id);
+            }}
+            onDragLeave={() => set놓을곳((x) => (x === c.id ? null : x))}
+            onDrop={(e) => {
+              e.preventDefault();
+              옮기기(끄는것 ?? e.dataTransfer.getData("text/plain"), c.id);
+              set끄는것(null); set놓을곳(null);
+            }}
+          >
             {editId === c.id ? (
               <div className="catedit">
                 <input
@@ -132,6 +227,15 @@ export function Dashboard(p: Props) {
                   }}
                 />
                 <div className="row" style={{ marginTop: 6 }}>
+                  <button className="btn sm" disabled={자리 <= 0} title="한 칸 위로"
+                    onClick={() => 한칸(c.id, -1)}>↑ 위로</button>
+                  <button className="btn sm" disabled={자리 === 형제.length - 1} title="한 칸 아래로"
+                    onClick={() => 한칸(c.id, 1)}>↓ 아래로</button>
+                  {/* 세부 분류는 한 겹까지만. 더 깊어지면 찾기가 더 어려워진다 */}
+                  {!c.parentId && (
+                    <button className="btn sm" title="이 분류 아래에 세부 분류를 만듭니다"
+                      onClick={() => { set세부넣기(c.id); set세부이름(""); setEditId(null); }}>+ 세부 분류</button>
+                  )}
                   {!c.builtIn && inCat(c.id).length === 0 && (
                     <button className="btn sm" onClick={() => { p.onDeleteCategory(c.id); setEditId(null); }}>
                       삭제
@@ -145,15 +249,44 @@ export function Dashboard(p: Props) {
                 className={`navitem ${sel === c.id ? "on" : ""}`}
                 onClick={() => setSel(c.id)}
                 onDoubleClick={() => setEditId(c.id)}
-                title="두 번 누르면 이름을 고칩니다"
+                title="끌어서 차례를 바꿉니다. 두 번 누르면 이름을 고치고 위·아래로 옮깁니다"
               >
+                <span className="grip" aria-hidden>⠿</span>
                 {c.name}
                 {c.kind === "참고 자료" && <em>참고</em>}
                 <span>{inCat(c.id).length}</span>
               </button>
             )}
+
+            {/* 세부 분류 넣기 */}
+            {세부넣기 === c.id && (
+              <div className="catedit 세부">
+                <input
+                  autoFocus
+                  placeholder={`${c.name} 아래 세부 분류 이름`}
+                  value={세부이름}
+                  onChange={(e) => set세부이름(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && 세부이름.trim()) {
+                      p.onAddCategory(세부이름.trim(), c.kind, c.id);
+                      set세부이름("");
+                    }
+                    if (e.key === "Escape") set세부넣기(null);
+                  }}
+                />
+                <div className="row" style={{ marginTop: 6 }}>
+                  <button className="btn sm primary" disabled={!세부이름.trim()}
+                    onClick={() => { p.onAddCategory(세부이름.trim(), c.kind, c.id); set세부이름(""); }}>
+                    넣기
+                  </button>
+                  <button className="btn sm" onClick={() => set세부넣기(null)}>닫기</button>
+                </div>
+                <small>이어서 넣으시려면 계속 적고 Enter 를 누르세요.</small>
+              </div>
+            )}
           </div>
-        ))}
+          );
+        })}
 
         {adding ? (
           <div className="catedit">

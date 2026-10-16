@@ -353,7 +353,7 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .chat-hint b { color: var(--ink); }
 
 .bubble { margin-bottom: 9px; }
-.bubble p { margin: 0; font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
+.bubble p { margin: 0; font-size: 14.5px; line-height: 1.6; white-space: pre-wrap; }
 .bubble.user p {
   background: var(--ink); color: #fff;
   padding: 7px 10px; border-radius: 10px 10px 2px 10px; margin-left: 24px;
@@ -1046,6 +1046,8 @@ table.spec td:first-child { color: var(--muted); width: 38%; }
 .bubble.user .say .saynote { background: rgba(255,255,255,0.12); }
 .bubble.user .say ul.saylist li::before { background: rgba(255,255,255,0.6); }
 
+/* 대화 글자 크기는 한 군데서 정한다 */
+.say, .say p, .saylist li, .saynote { font-size: 14.5px; }
 .say > * { margin: 0 0 7px; }
 .say > *:last-child { margin-bottom: 0; }
 .say p { line-height: 1.62; }
@@ -1071,3 +1073,24 @@ ol.saylist li::before {
   font-size: 11.5px; font-weight: 700; color: var(--accent);
   width: 15px; text-align: center;
 }
+
+/* ── 분류 차례 바꾸기 — 끌어서 옮긴다 ── */
+.navrow { position: relative; }
+.navrow .navitem { cursor: grab; }
+.navrow.끄는중 { opacity: 0.4; }
+.navrow.놓을자리::before {
+  content: ""; position: absolute; left: 2px; right: 2px; top: -2px;
+  height: 2px; background: var(--accent); border-radius: 2px;
+}
+.navitem .grip {
+  color: var(--line); margin-right: 6px; font-size: 11px;
+  letter-spacing: -1px; vertical-align: 1px;
+}
+.navrow:hover .navitem .grip { color: var(--muted); }
+
+/* 세부 분류 — 한 칸 들여 쓰고 옆줄을 그어 딸린 것임을 보인다 */
+.navrow.세부 { margin-left: 13px; border-left: 1px solid var(--line); padding-left: 7px; }
+.navrow.세부 .navitem { font-size: 14.5px; color: var(--muted); }
+.navrow.세부 .navitem.on { color: var(--ink); }
+.catedit.세부 { margin-left: 13px; }
+.catedit small { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
