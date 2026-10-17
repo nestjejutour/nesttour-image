@@ -24,6 +24,15 @@ const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" })
 const pg = await b.newPage({ viewport: { width: 1700, height: 1050 }, deviceScaleFactor: 1.2 });
 const 터짐 = [];
 pg.on("pageerror", (e) => 터짐.push(`${e.message}`));
+
+/* 1700 창에서는 그림 자리를 지키려고 대화칸이 접힌 채로 시작한다.
+   직원이 실제로 하듯 가장자리 「대화」 손잡이를 눌러 편다. */
+const 대화칸열기 = async (pg) => {
+  if (await pg.locator(".dock-closed").count()) {
+    await pg.locator(".dock-closed").click();
+    await pg.waitForTimeout(800);
+  }
+};
 pg.on("console", (m) => { if (m.type() === "error") 터짐.push(`콘솔: ${m.text().slice(0, 120)}`); });
 pg.on("requestfailed", (r) => 터짐.push(`못 받음: ${r.url().slice(0, 100)} — ${r.failure()?.errorText}`));
 pg.on("response", (r) => { if (r.status() >= 400) 터짐.push(`${r.status()}: ${r.url().slice(0, 120)}`); });
@@ -105,6 +114,7 @@ const 규격글 = await pg.getByRole("button", { name: /cm$/ }).first().innerTex
 적(규격글.includes("400 × 70"), "작업 화면에 규격이 적혀 있다", 규격글.trim());
 
 /* ───────────── 6. AI 에게 시킨다 ───────────── */
+await 대화칸열기(pg);
 적(await pg.locator(".보기칩").count() >= 4, "보기 명령어가 떠 있다");
 await pg.locator(".보기칩").first().click(); await pg.waitForTimeout(200);
 await pg.locator(".dock-box textarea").first().press("Enter");

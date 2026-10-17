@@ -28,6 +28,15 @@ const pg = await b.newPage({ viewport: { width: 1700, height: 1050 }, deviceScal
 const 터짐 = [];
 pg.on("pageerror", (e) => 터짐.push(e.message));
 
+/* 1700 창에서는 그림 자리를 지키려고 대화칸이 접힌 채로 시작한다.
+   직원이 실제로 하듯 가장자리 「대화」 손잡이를 눌러 편다. */
+const 대화칸열기 = async (pg) => {
+  if (await pg.locator(".dock-closed").count()) {
+    await pg.locator(".dock-closed").click();
+    await pg.waitForTimeout(800);
+  }
+};
+
 let 받은시스템 = "";
 await pg.route("**/api/ai", async (route) => {
   // postData() 는 몸통이 크면 null 을 돌려준다 (사진이 같이 간다). buffer 로 받는다.
@@ -99,6 +108,7 @@ const 틀 = await pg.evaluate(() => {
 console.log(`${틀 === "banner-ai" ? "✓" : "✗"} 현수막 틀로 열렸다 — ${틀}`);
 
 // 보기 명령어 칩이 떠 있는가
+await 대화칸열기(pg);
 const 칩 = await pg.locator(".보기칩").allTextContents();
 console.log(`${칩.length >= 4 ? "✓" : "✗"} 직원용 보기 명령어 — ${칩.join(" / ") || "(없음)"}`);
 
