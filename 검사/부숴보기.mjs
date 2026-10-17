@@ -154,13 +154,21 @@ await pg.unroute("**/api/ai");
 await pg.route("**/api/ai", (r) => r.abort());
 await pg.locator(".dock-box textarea").first().fill("또 아무거나");
 await pg.locator(".dock-box textarea").first().press("Enter");
-// 얼마나 걸려야 포기하는지 본다 — 멈춘 채로 도는지, 늦게라도 끝나는지
-for (const 초 of [3, 8, 15, 25]) {
-  await pg.waitForTimeout(초 === 3 ? 3000 : 5000);
-  const 아직 = await pg.evaluate(() => !!document.querySelector(".thinking, .dock-busy, .spinner, .working"));
-  console.log(`   ${초}초: ${아직 ? "아직 돈다" : "끝났다"}`);
-  if (!아직) break;
-}
+/*
+  얼마나 걸려야 포기하는지 본다 — 멈춘 채로 도는지, 늦게라도 끝나는지.
+
+  정해 둔 초만 세고 보면 안 된다. 검사 35개를 한꺼번에 돌릴 때는 CPU 가 밀려
+  답이 늦게 온다. 그때 아직 "읽는 중" 인 화면을 보고 "아무 말이 없다" 고 적는다.
+  (실제로 그렇게 한 번 틀린 적이 있다 — 코드는 멀쩡했다)
+  그래서 끝날 때까지 기다리되, 걸린 시간을 적어 둔다.
+*/
+const 잰시작 = Date.now();
+await pg.waitForFunction(
+  () => !document.querySelector(".thinking, .dock-busy, .spinner, .working"),
+  null, { timeout: 60000 },
+).catch(() => {});
+console.log(`   포기까지 ${((Date.now() - 잰시작) / 1000).toFixed(1)}초`);
+await pg.waitForTimeout(600);
 const 끊김 = await pg.evaluate(() => ({
   살았나: !!document.querySelector(".dock-box"),
   돌고있나: !!document.querySelector(".dock-busy, .spinner, .thinking, .working"),
