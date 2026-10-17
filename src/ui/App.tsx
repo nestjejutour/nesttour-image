@@ -625,6 +625,10 @@ function Studio({
     });
 
   /* ── 분류(메뉴) 늘리고 고치기 ── */
+  /** 이름만 보고 인쇄물인지 가늠한다 */
+  const 인쇄물이름인가 = (name: string) =>
+    /현수막|배너|간판|포스터|엑스배너|x배너|플래카드|현판/i.test(name.replace(/\s/g, ""));
+
   const addCategory = (name: string, kind: Category["kind"], parentId?: string) =>
     update((d) => {
       // 형제끼리만 차례를 다툰다. 세부 분류는 그 큰 분류 안에서 맨 뒤에 붙는다.
@@ -634,6 +638,10 @@ function Studio({
         categories: [...d.categories, {
           id: uid(), name, kind, parentId,
           order: Math.max(0, ...형제.map((c) => c.order)) + 1,
+          // 이름이 인쇄물이면 용도도 인쇄물로 잡아 둔다.
+          // "현수막" 이라고 이름 짓고도 문서로 잡혀서 치수 칸이 안 나오는 일이 있었다.
+          // 줄 끝 ⋯ 메뉴에서 언제든 되돌릴 수 있다.
+          ...(인쇄물이름인가(name) ? { 용도: "현수막" as const } : {}),
         }],
       };
     });
@@ -1024,6 +1032,7 @@ function Studio({
           defaultCategory={creating}
           toServer={!!backend.putFile}
           pastProjects={db.projects}
+          on인쇄물={() => { setCreating(null); set규격물을곳(creating); }}
           onCancel={() => setCreating(null)}
           onDone={(p) => addProject(p)}
         />

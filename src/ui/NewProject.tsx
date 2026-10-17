@@ -18,6 +18,15 @@ interface Props {
   toServer: boolean;
   onDone: (p: Project) => void;
   onCancel: () => void;
+  /**
+   * 현수막·배너를 만들겠다고 할 때. 치수를 묻는 화면으로 넘어간다.
+   *
+   * 왜 여기에 두는가: 치수 묻는 화면은 분류 "용도" 가 인쇄물일 때만 떴다.
+   * 그 설정은 줄 끝 ⋯ 메뉴 안에 숨어 있다. 분류 이름을 "현수막" 이라고 지어도
+   * 그걸 안 누르면 cm 칸이 안 나온다 — 알 도리가 없다.
+   * 만드는 화면에 길을 내 두면 설정과 상관없이 항상 치수를 넣을 수 있다.
+   */
+  on인쇄물?: () => void;
 }
 
 type Draft = { slides: { pageTypeId: string; content: Record<string, unknown> }[] };
@@ -123,6 +132,16 @@ export function NewProject(p: Props) {
       </p>
 
       {/* 백지로 시작하는 길을 맨 위에 둔다. 아래에 묻어 두면 못 찾는다. */}
+      {p.on인쇄물 && (
+        <div className="startrow">
+          <div className="grow">
+            <b>현수막 · 배너를 만드시겠습니까?</b>
+            <small>가로 · 세로를 센티미터로 넣고 시작합니다. 그 치수가 그대로 인쇄 크기가 됩니다.</small>
+          </div>
+          <button className="btn" onClick={p.on인쇄물} disabled={busy}>치수 넣고 시작</button>
+        </div>
+      )}
+
       <div className="startrow">
         <div className="grow">
           <b>자료 없이 직접 작성하시겠습니까?</b>
