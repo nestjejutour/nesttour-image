@@ -16,6 +16,8 @@ import { clientKind, moodsOf, type Mood } from "../core/mood";
  */
 
 interface Props {
+  /** 첫 화면 가운데에서 적은 말을 대화창으로 넘긴다 */
+  on시키기?: (말: string) => void;
   projects: Project[];
   categories: Category[];
   style: StylePreset;
@@ -237,6 +239,21 @@ export function Dashboard(p: Props) {
   const shown = sel === "all" ? cats.filter((c) => inCat(c.id).length > 0) : cats.filter((c) => c.id === sel);
   const expanded = sel !== "all" || !!mood || !!q.trim();
 
+  /*
+    첫 화면을 작업대로 쓴다. 분류를 고르거나 찾기 시작하면 그때 서류함이 나온다.
+    "보관함 보기" 를 누르면 이 판을 접는다 — 한 번 접으면 그대로 둔다.
+  */
+  const [보관함보기, set보관함보기] = useState(false);
+  const [첫말, set첫말] = useState("");
+  const 시작판인가 = sel === "all" && !mood && !q.trim() && !보관함보기 && !!p.on시키기;
+  const 최근 = projects;
+  const 시키기 = () => {
+    const t = 첫말.trim();
+    if (!t) return;
+    set첫말("");
+    p.on시키기?.(t);
+  };
+
   return (
     <div className="dash">
       {/* ── 왼쪽: 분류 ── */}
@@ -439,7 +456,59 @@ export function Dashboard(p: Props) {
 
       {/* ── 가운데: 진열 ── */}
       <div className="dash-main">
-        <div className="dash-top">
+        {/*
+          첫 화면은 서류함이 아니라 작업대다.
+
+          대표님: "이 메인페이지가 전체 보관함이 나올게 아니고
+          아무것도 없이 너와 대화로 디자인을 할수 있는 공간이 되는게 맞을거 같아"
+
+          맞는 말이다. 열자마자 지난 파일 목록을 보는 사람은 없다.
+          무언가 만들려고 연다. 그러니 묻는 칸이 먼저 와야 한다.
+          지난 것은 왼쪽 분류에서 언제든 들어간다.
+        */}
+        {시작판인가 && (
+          <div className="시작판">
+            <h1>무엇을 만들어 드릴까요?</h1>
+            <p className="lede">
+              현수막이든 제안서든 말씀만 하십시오. 치수를 모르시면 쓰임새만 말씀하셔도 됩니다.
+            </p>
+
+            <form className="시작칸" onSubmit={(e) => { e.preventDefault(); 시키기(); }}>
+              <textarea
+                value={첫말}
+                onChange={(e) => set첫말(e.target.value)}
+                placeholder="예: 세미나실에 걸 현수막 만들어줘. 문구는 '26년 초우량 대표농가 VIP 제주워크숍'"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); 시키기(); }
+                }}
+              />
+              <button className="btn primary" type="submit" disabled={!첫말.trim()}>시작</button>
+            </form>
+
+            <div className="시작보기">
+              {[
+                "세미나실에 걸 현수막 만들어줘",
+                "행사 무대 뒤 현수막 500×90 으로",
+                "엑스배너 하나 만들어줘",
+                "인천관광공사 제안서 초안 잡아줘",
+              ].map((t) => (
+                <button key={t} className="보기칩" type="button"
+                  onClick={() => { set첫말(""); p.on시키기?.(t); }}>{t}</button>
+              ))}
+            </div>
+
+            <div className="시작손">
+              <button className="btn" onClick={() => p.onNew(sel === "all" ? "proposal" : sel)}>
+                직접 만들기
+              </button>
+              <button className="btn" onClick={() => set보관함보기(true)}>
+                보관함 보기{최근.length ? ` (${최근.length}건)` : ""}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="dash-top" style={시작판인가 ? { display: "none" } : undefined}>
           <div>
             <h1>보관함</h1>
             <p className="lede" style={{ margin: 0 }}>
@@ -470,7 +539,7 @@ export function Dashboard(p: Props) {
           />
         </div>
 
-        <div className="filters">
+        {!시작판인가 && <div className="filters">
           <span className="flabel">정렬</span>
           {(["고침", "만듦", "완료", "이름"] as const).map((v) => (
             <button key={v} className={`btnchip chip ${sortBy === v ? "on" : ""}`} onClick={() => setSortBy(v)}>
@@ -491,16 +560,16 @@ export function Dashboard(p: Props) {
               {v}
             </button>
           ))}
-        </div>
+        </div>}
 
-        <div className="status">
+        {!시작판인가 && <div className="status">
           <span><b>{projects.length}</b> 사례</span>
           <span><b>{p.ruleCount}</b> 규칙</span>
           <span><b>{pageTypes.length}</b> 페이지 타입</span>
           <span className="note">쌓일수록 AI 가 더 잘 만듭니다</span>
-        </div>
+        </div>}
 
-        {inProgress.length > 0 && sel === "all" && !q.trim() && !mood && (
+        {inProgress.length > 0 && sel === "all" && !q.trim() && !mood && !시작판인가 && (
           <>
             <p className="sec">
               이어서 하기 <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
@@ -518,7 +587,7 @@ export function Dashboard(p: Props) {
           </>
         )}
 
-        {shown.length === 0 && (
+        {shown.length === 0 && !시작판인가 && (
           <div className="empty-state">
             <p style={{ fontSize: 18, color: "var(--ink)", marginTop: 0 }}>여기엔 아직 제안서가 없습니다</p>
             <p style={{ fontSize: 15.5 }}>완성본을 올리거나 새 제안서를 만들면 여기 쌓입니다. 아래에 자료를 넣어 두셔도 됩니다.</p>
@@ -526,7 +595,7 @@ export function Dashboard(p: Props) {
         )}
 
         {/* 전체는 분류 화면을 되풀이할 자리가 아니다. 최근 손댄 것만 보여 준다 */}
-        {sel === "all" && filtered.length > 0 && (
+        {sel === "all" && filtered.length > 0 && !시작판인가 && (
           <section>
             <div className="rowhead">
               <p className="sec" style={{ margin: 0 }}>최근 작업</p>
@@ -645,7 +714,8 @@ export function Dashboard(p: Props) {
         })}
 
         {/* 분류에 쌓아 두는 자료 — 현수막 .ai 처럼 제안서가 아닌 것들 */}
-        <Library
+        {!시작판인가 && (
+          <Library
           sel={sel}
           categories={categories.filter((c) => !c.hidden)}
           items={p.library}
@@ -659,6 +729,7 @@ export function Dashboard(p: Props) {
           onNote={p.onNoteLib}
           onReady={(fn) => { 담기.current = fn; }}
         />
+        )}
       </div>
     </div>
   );

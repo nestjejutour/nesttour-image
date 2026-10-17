@@ -255,6 +255,8 @@ function Studio({
   const [openId, setOpenId] = useState<string | null>(null);
   const [browseId, setBrowseId] = useState<string | null>(null);
   /** 보관함에서 고른 분류. 화면을 오갈 때 잃지 않게 여기 둔다 */
+  /** 첫 화면 가운데 칸에서 적은 말. 대화창으로 넘긴다 */
+  const [시킬말, set시킬말] = useState<string | null>(null);
   const [고른분류, set고른분류] = useState("all");
   /** 인쇄물 규격을 묻는 중인 분류 */
   const [규격물을곳, set규격물을곳] = useState<string | null>(null);
@@ -785,6 +787,42 @@ function Studio({
   const applyActions = (as: Action[]): string[] => {
     const known = new Set(db.pageTypes.map((t) => t.id));
 
+    /*
+      보관함에서 "현수막 만들어줘" — 치수까지 AI 가 정해서 그림째 만든다.
+
+      전에는 이 길이 없었다. 보관함에서 현수막을 시키면 AI 가
+      "이렇게 만들면 됩니다" 하고 말로만 답했다 — 화면에는 아무것도 안 나왔다.
+      만들 수단이 "새제안서" 하나뿐이었기 때문이다.
+    */
+    const 인쇄 = as.filter((a) => a.do === "새인쇄물") as Extract<Action, { do: "새인쇄물" }>[];
+    if (인쇄.length) {
+      const 틀 = db.pageTypes.find((t) => t.id === "banner-ai");
+      if (틀) {
+        const 인치 = (cm: number) => Number((cm / 2.54).toFixed(3));
+        const fresh: Project[] = 인쇄.map((m) => {
+          const w = Math.min(2000, Math.max(10, Number(m.가로cm) || 400));
+          const h = Math.min(2000, Math.max(10, Number(m.세로cm) || 90));
+          return {
+            ...newProject(m.title || `현수막 ${w}×${h}cm`, "",
+                          m.category && db.categories.some((c) => c.id === m.category)
+                            ? m.category : (db.categories.find((c) => c.용도 === "현수막")?.id ?? "proposal")),
+            styleOverride: overrideWith(
+              overrideWith(undefined, "slide.widthIn", 인치(w)),
+              "slide.heightIn", 인치(h),
+            ),
+            slides: [{ id: uid(), pageTypeId: 틀.id, content: m.content ?? {} }],
+            assets: { ...loose.current },
+            docs: [...looseDocs.current],
+          };
+        });
+        loose.current = {}; looseDocs.current = [];
+        update((d) => ({ ...d, projects: [...fresh, ...d.projects] }));
+        setCreating(null);
+        if (fresh.length === 1) { setBrowseId(null); setOpenId(fresh[0].id); setLastEdited(fresh[0].id); setCur(0); }
+        return fresh.map((x) => x.id);
+      }
+    }
+
     // 보관함에서 "제안서 만들어줘" — 안을 여러 개 내놓으면 전부 만든다
     const made = as.filter((a) => a.do === "새제안서") as Extract<Action, { do: "새제안서" }>[];
     if (made.length) {
@@ -962,6 +1000,8 @@ function Studio({
 
   const dock = (
     <ChatDock
+      보낼말={시킬말}
+      on보냄={() => set시킬말(null)}
       brain={brain.system}
       style={activeStyle}
       pageTypes={db.pageTypes}
@@ -1119,6 +1159,7 @@ function Studio({
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
+            on시키기={(말: string) => { setDockOpen(true); set시킬말(말); }}
             projects={보이는제안서} categories={보이는분류}
             sel={고른분류} onSel={set고른분류}
             style={style} pageTypes={db.pageTypes} ruleCount={db.rules.filter((r) => r.enabled).length}

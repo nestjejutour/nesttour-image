@@ -1486,3 +1486,27 @@ ol.saylist li::before {
   cursor: pointer; white-space: nowrap; font-family: inherit;
 }
 .보기칩:hover { border-color: var(--accent); color: var(--accent-글); }
+
+/*
+  첫 화면 — 서류함이 아니라 작업대.
+
+  열자마자 지난 파일 목록을 보는 사람은 없다. 무언가 만들려고 연다.
+  그래서 묻는 칸을 가운데 크게 두고, 지난 것은 왼쪽 분류로 밀었다.
+*/
+.시작판 {
+  max-width: 760px; margin: 0 auto; padding: 7vh 20px 40px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.시작판 h1 { font-size: 30px; margin: 0; letter-spacing: -0.4px; }
+.시작판 > .lede { margin: 0 0 6px; font-size: 15px; color: var(--muted); }
+.시작칸 { display: flex; gap: 8px; align-items: stretch; }
+.시작칸 textarea {
+  flex: 1; min-height: 86px; resize: vertical;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 13px 14px; font: inherit; font-size: 15px; line-height: 1.55;
+  background: var(--bg); color: var(--ink);
+}
+.시작칸 textarea:focus { outline: none; border-color: var(--accent); }
+.시작칸 .btn { align-self: stretch; padding-left: 20px; padding-right: 20px; }
+.시작보기 { display: flex; flex-wrap: wrap; gap: 6px; }
+.시작손 { display: flex; gap: 8px; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 18px; }

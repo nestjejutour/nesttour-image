@@ -42,6 +42,11 @@ await pg.evaluate(() => localStorage.clear());
 await pg.reload({ waitUntil: "networkidle" }); await pg.waitForTimeout(1300);
 await pg.locator(".namebox").fill("김민수"); await pg.locator(".pinbox").fill("2012");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1600);
+// 첫 화면이 "무엇을 만들어 드릴까요?" 작업대로 바뀌었다. 서류함을 보려면 한 번 눌러야 한다.
+if (await pg.locator(".시작판").count()) {
+  await pg.getByRole("button", { name: /보관함 보기/ }).click();
+  await pg.waitForTimeout(700);
+}
 
 /* ① 현수막 분류를 만들고 인쇄물로 */
 await pg.locator(".secadd").click(); await pg.waitForTimeout(300);
@@ -50,7 +55,13 @@ await pg.locator(".catnew").press("Enter"); await pg.waitForTimeout(700);
 await pg.locator(".catnew").press("Escape").catch(() => {});
 const 줄 = pg.locator(".navrow").filter({ hasText: "현수막" }).first();
 await 줄.hover(); await 줄.locator(".rowbtn").last().click(); await pg.waitForTimeout(400);
-await pg.getByRole("button", { name: "인쇄물(현수막) 분류로" }).click(); await pg.waitForTimeout(700);
+// 이름이 "현수막" 이면 만들 때 이미 인쇄물로 잡힌다. 그러면 이 메뉴가 없다.
+if (await pg.getByRole("button", { name: "인쇄물(현수막) 분류로" }).count()) {
+  await pg.getByRole("button", { name: "인쇄물(현수막) 분류로" }).click();
+} else {
+  await pg.keyboard.press("Escape");   // 메뉴만 닫는다
+}
+await pg.waitForTimeout(700);
 await pg.getByRole("button", { name: /현수막/ }).first().click(); await pg.waitForTimeout(800);
 
 /* ② 밖에서 받은 .ai 파일을 끌어다 놓는다 */

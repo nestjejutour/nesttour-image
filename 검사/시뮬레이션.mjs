@@ -52,6 +52,11 @@ await 찰칵("01-로그인");
 /* ───────────── 2. 직원으로 들어간다 ───────────── */
 await pg.locator(".namebox").fill("김민수"); await pg.locator(".pinbox").fill("2012");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1600);
+// 첫 화면이 "무엇을 만들어 드릴까요?" 작업대로 바뀌었다. 서류함을 보려면 한 번 눌러야 한다.
+if (await pg.locator(".시작판").count()) {
+  await pg.getByRole("button", { name: /보관함 보기/ }).click();
+  await pg.waitForTimeout(700);
+}
 await 찰칵("02-직원-보관함");
 const 탭들 = (await pg.locator("nav button, .tabs button").allTextContents()).map((t) => t.trim()).filter(Boolean);
 적(!탭들.includes("기록") && !탭들.includes("창고"), "직원에게 기록·창고가 안 보인다", 탭들.join(" / ") || "(탭 없음)");
@@ -77,7 +82,13 @@ await 줄.hover(); await 줄.locator(".rowbtn").last().click(); await pg.waitFor
 const 메뉴 = (await pg.locator(".rowmenu button").allTextContents()).map((t) => t.trim());
 적(!메뉴.some((t) => /지우기|옮기기|빼기/.test(t)), "메뉴 글이 업무용이다", 메뉴.join(" / "));
 await 찰칵("04-분류메뉴");
-await pg.getByRole("button", { name: "인쇄물(현수막) 분류로" }).click(); await pg.waitForTimeout(700);
+// 이름이 "현수막" 이면 만들 때 이미 인쇄물로 잡힌다. 그러면 이 메뉴가 없다.
+if (await pg.getByRole("button", { name: "인쇄물(현수막) 분류로" }).count()) {
+  await pg.getByRole("button", { name: "인쇄물(현수막) 분류로" }).click();
+} else {
+  await pg.keyboard.press("Escape");   // 메뉴만 닫는다
+}
+await pg.waitForTimeout(700);
 await pg.getByRole("button", { name: /현수막/ }).first().click(); await pg.waitForTimeout(800);
 await 찰칵("05-현수막-분류");
 

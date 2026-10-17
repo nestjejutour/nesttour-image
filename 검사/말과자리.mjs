@@ -8,6 +8,11 @@ await pg.evaluate(() => localStorage.clear());
 await pg.reload({ waitUntil: "networkidle" }); await pg.waitForTimeout(1200);
 await pg.locator(".namebox").fill("박시영"); await pg.locator(".pinbox").fill("2230");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1500);
+// 첫 화면이 "무엇을 만들어 드릴까요?" 작업대로 바뀌었다. 서류함을 보려면 한 번 눌러야 한다.
+if (await pg.locator(".시작판").count()) {
+  await pg.getByRole("button", { name: /보관함 보기/ }).click();
+  await pg.waitForTimeout(700);
+}
 
 const 고른분류 = () => pg.locator(".navrow .navitem.on b, .dash-nav > .navitem.on b").first().innerText();
 console.log("머리줄 단추:", (await pg.locator(".topbar .btn.primary").innerText()).trim());

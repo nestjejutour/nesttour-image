@@ -16,6 +16,11 @@ console.log("미리 깔린 이름:", await pg.locator(".whopick").count() ? "있
 await pg.locator(".namebox").fill("박시영");
 await pg.locator(".pinbox").fill("9999");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(400);
+// 첫 화면이 "무엇을 만들어 드릴까요?" 작업대로 바뀌었다. 서류함을 보려면 한 번 눌러야 한다.
+if (await pg.locator(".시작판").count()) {
+  await pg.getByRole("button", { name: /보관함 보기/ }).click();
+  await pg.waitForTimeout(700);
+}
 console.log("틀린 암호:", (await pg.locator(".gateerr").innerText()).trim());
 
 // 대표 암호 2230

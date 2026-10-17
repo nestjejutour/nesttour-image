@@ -27,6 +27,14 @@ import { 미리보기뽑기 } from "../core/thumb";
  */
 
 interface Props {
+  /**
+   * 바깥(첫 화면)에서 건네는 말. 들어오면 그대로 적어 보낸다.
+   *
+   * 첫 화면 가운데에도 묻는 칸이 있는데, 거기서 적은 말을 여기로 넘긴다.
+   * 묻는 칸을 둘로 나누지 않으려는 것이다 — 대화는 한 줄기여야 한다.
+   */
+  보낼말?: string | null;
+  on보냄?: () => void;
   brain: string;
   style: StylePreset;
   pageTypes: PageType[];
@@ -238,12 +246,35 @@ function ClaudeTab(p: Props) {
   };
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [p.turns.length, busy]);
 
+  // 첫 화면에서 건네준 말이 있으면 그대로 보낸다
+  useEffect(() => {
+    if (!p.보낼말 || busy) return;
+    const 말 = p.보낼말;
+    setDraft(말);
+    /*
+      "보냈다" 표시를 보내기 전에 하면 안 된다.
+      그 순간 보낼말이 null 이 되고, 이 useEffect 가 다시 돌면서
+      cleanup 이 아래 예약을 지워 버린다 — 말이 영영 안 나간다.
+      그래서 보내고 나서 표시한다.
+    */
+    const t = setTimeout(() => { p.on보냄?.(); void send(말); }, 30);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.보낼말]);
+
   /** 페이지를 보고 있는가 (아니면 보관함에서 하는 대화) */
   const onPage = !!(p.slide && p.pageType);
 
-  const send = async () => {
+  /**
+   * 말을 보낸다.
+   *
+   * 보낼것을 받는 까닭: 첫 화면에서 넘어온 말은 setDraft 로 넣어도
+   * 이 함수가 보는 draft 는 아직 옛 값이다(그 렌더의 값에 묶여 있다).
+   * 그래서 글자를 그대로 넘겨받아 쓴다.
+   */
+  const send = async (보낼것?: string) => {
     const hasFile = pics.length > 0 || docs.length > 0;
-    const text = draft.trim()
+    const text = (보낼것 ?? draft).trim()
       || (pics.length && !docs.length ? "이 사진을 넣어 주십시오." : "")
       || (docs.length ? "이 자료를 읽고 무엇을 할 수 있는지 알려 주십시오." : "");
     if (!text || busy) return;
@@ -581,7 +612,7 @@ function ClaudeTab(p: Props) {
               }} />
           </label>
         </div>
-        <button className="btn primary" style={{ width: "100%" }} onClick={send}
+        <button className="btn primary" style={{ width: "100%" }} onClick={() => void send()}
           disabled={busy || !!reading || (!draft.trim() && !pics.length && !docs.length)}>보내기</button>
       </div>
     </>
@@ -705,7 +736,7 @@ function CopyTab(p: Props) {
           placeholder={onPage ? "문구를 어떻게 다듬을까요?" : "제안서를 열어 주십시오"}
           disabled={!onPage}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-        <button className="btn primary" onClick={send} disabled={busy || !draft.trim() || !onPage}>보내기</button>
+        <button className="btn primary" onClick={() => void send()} disabled={busy || !draft.trim() || !onPage}>보내기</button>
       </div>
     </>
   );
