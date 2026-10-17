@@ -59,7 +59,7 @@ if (await pg.locator(".시작판").count()) {
 }
 await 찰칵("02-직원-보관함");
 const 탭들 = (await pg.locator("nav button, .tabs button").allTextContents()).map((t) => t.trim()).filter(Boolean);
-적(!탭들.includes("기록") && !탭들.includes("창고"), "직원에게 기록·창고가 안 보인다", 탭들.join(" / ") || "(탭 없음)");
+적(!탭들.includes("기록") && !탭들.includes("설정"), "직원에게 기록·설정이 안 보인다", 탭들.join(" / ") || "(탭 없음)");
 const 직원분류 = (await pg.locator(".navitem").allTextContents()).map((t) => t.trim());
 console.log("   직원이 보는 분류:", 직원분류.join(" | ") || "(없음)");
 
@@ -68,8 +68,8 @@ await pg.getByRole("button", { name: "로그아웃" }).click(); await pg.waitFor
 await pg.locator(".namebox").fill("박시영"); await pg.locator(".pinbox").fill("2230");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1600);
 const 대표탭 = (await pg.locator("nav button, .tabs button").allTextContents()).map((t) => t.trim()).filter(Boolean);
-적(대표탭.some((t) => t.includes("기록")) && 대표탭.some((t) => t.includes("창고")),
-   "대표에게는 기록·창고가 보인다", 대표탭.join(" / "));
+적(대표탭.some((t) => t.includes("기록")) && 대표탭.some((t) => t.includes("설정")),
+   "대표에게는 기록·설정이 보인다", 대표탭.join(" / "));
 await 찰칵("03-대표-보관함");
 
 /* ───────────── 4. 현수막 분류를 만든다 ───────────── */

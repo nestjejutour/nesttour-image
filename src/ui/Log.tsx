@@ -10,6 +10,15 @@ import { uid, type DB } from "../store/db";
 export function Log({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void }) {
   const nameOf = (id: string) => db.projects.find((p) => p.id === id)?.title ?? "(지운 제안서)";
 
+  /*
+    제안서를 열지 않고 보관함에서 바로 나눈 대화는 이 한 자리에 쌓인다.
+    그런데 이름이 제안서 번호가 아니라서, 앞엣것만 떼어 찾으면 늘 헛걸음이었다 —
+    대표님이 여기서 나눈 대화가 죄다 "(지운 제안서)" 로 보였다.
+  */
+  const 두루쓰는대화 = "보관함:전체";
+  const 대화이름 = (k: string) =>
+    k === 두루쓰는대화 ? "보관함에서 나눈 대화" : nameOf(k.split(":")[0]);
+
   const promote = (text: string, projectId: string, scope: RuleScope) =>
     setDb((d) => ({
       ...d,
@@ -88,11 +97,10 @@ export function Log({ db, setDb }: { db: DB; setDb: (f: (d: DB) => DB) => void }
         <section>
           <p className="sec">오간 대화 {chatKeys.length}곳</p>
           {chatKeys.map((k) => {
-            const [pid] = k.split(":");
             const turns = db.chats[k];
             return (
               <div className="logitem" key={k} style={{ display: "block" }}>
-                <small style={{ color: "var(--muted)" }}>{nameOf(pid)}</small>
+                <small style={{ color: "var(--muted)" }}>{대화이름(k)}</small>
                 {turns.map((t, i) => (
                   <div key={i} style={{ fontSize: 15, lineHeight: 1.6, marginTop: 4 }}>
                     <b style={{ color: t.role === "user" ? "var(--ink)" : "var(--accent-글)" }}>

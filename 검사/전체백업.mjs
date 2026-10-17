@@ -73,8 +73,8 @@ console.log(`  저장소 실제: 원본 ${칸센것.원본}개 · 미리보기 $
 봄("원본 파일이 칸에 들어 있다", 칸센것.원본 > 0, `${칸센것.원본}개`);
 
 // 창고 → 보관
-await pg.getByRole("button", { name: "창고", exact: true }).click(); await pg.waitForTimeout(700);
-await pg.getByRole("button", { name: "보관", exact: true }).click(); await pg.waitForTimeout(700);
+await pg.getByRole("button", { name: "설정", exact: true }).click(); await pg.waitForTimeout(700);
+await pg.getByRole("button", { name: "백업", exact: true }).click(); await pg.waitForTimeout(700);
 봄("보관 화면에 「전체 백업」 이 있다", await pg.getByRole("button", { name: "전체 백업" }).count() === 1);
 봄("예전 방식(JSON) 백업도 남아 있다", await pg.getByRole("button", { name: /간편 백업/ }).count() === 1);
 

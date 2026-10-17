@@ -27,7 +27,7 @@ await pg.locator(".catnew").press("Escape"); await pg.waitForTimeout(400);
 console.log("[대표] 분류:", (await 분류()).join(" | "));
 
 // 현수막만 직원에게 보이게
-await pg.getByRole("button", { name: "창고" }).click(); await pg.waitForTimeout(700);
+await pg.getByRole("button", { name: "설정", exact: true }).click(); await pg.waitForTimeout(700);
 await pg.getByRole("button", { name: /^사람/ }).click(); await pg.waitForTimeout(600);
 console.log("[대표] 고를 수 있는 분류:", (await pg.locator(".pick span").allTextContents()).join(" | "));
 await pg.locator(".pick").filter({ hasText: "현수막" }).locator("input").check(); await pg.waitForTimeout(800);

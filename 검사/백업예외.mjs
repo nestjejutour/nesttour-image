@@ -53,8 +53,8 @@ const 들어가기 = async (pg) => {
   }
 };
 const 보관가기 = async (pg) => {
-  await pg.getByRole("button", { name: "창고", exact: true }).click(); await pg.waitForTimeout(600);
-  await pg.getByRole("button", { name: "보관", exact: true }).click(); await pg.waitForTimeout(600);
+  await pg.getByRole("button", { name: "설정", exact: true }).click(); await pg.waitForTimeout(600);
+  await pg.getByRole("button", { name: "백업", exact: true }).click(); await pg.waitForTimeout(600);
 };
 const 탈난말 = async (pg) => (await pg.locator(".gateerr").count()) ? (await pg.locator(".gateerr").innerText()).trim() : "";
 

@@ -43,7 +43,7 @@ await pg.locator(".topbar .btn.primary").click(); await pg.waitForTimeout(1000);
 await pg.getByRole("button", { name: "취소" }).first().click(); await pg.waitForTimeout(1200);
 console.log("머리줄로 들어갔다 나온 분류:", await 고른분류(), "← 현수막 이어야 한다");
 // 자료를 넣고 보관함을 떠났다 와도 제자리인가
-await pg.getByRole("button", { name: "창고" }).click(); await pg.waitForTimeout(700);
+await pg.getByRole("button", { name: "설정", exact: true }).click(); await pg.waitForTimeout(700);
 await pg.getByRole("button", { name: "보관함" }).click(); await pg.waitForTimeout(900);
 console.log("창고 갔다 온 뒤 분류:", await 고른분류(), "← 현수막 이어야 한다");
 await pg.screenshot({ path: `${OUT}/말과자리.png`, clip: { x: 0, y: 0, width: 1300, height: 700 } });

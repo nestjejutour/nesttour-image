@@ -27,7 +27,7 @@ console.log("틀린 암호:", (await pg.locator(".gateerr").innerText()).trim())
 await pg.locator(".pinbox").fill("2230");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1500);
 console.log("대표로 들어옴:", (await pg.locator(".who").innerText()).trim());
-await pg.getByRole("button", { name: "창고", exact: true }).click(); await pg.waitForTimeout(700);
+await pg.getByRole("button", { name: "설정", exact: true }).click(); await pg.waitForTimeout(700);
 await pg.getByRole("button", { name: /^사람/ }).click(); await pg.waitForTimeout(600);
 console.log("사람 목록:", (await pg.locator(".peoplelist .filerow b").allTextContents()).map(t=>t.trim().replace(/\s+/g," ")).join(" | "));
 console.log("암호 칸 보임:", await pg.locator(".pinfield").count(), "개");
@@ -43,7 +43,7 @@ await pg.locator(".pinbox").fill("2012");
 await pg.getByRole("button", { name: "로그인" }).click(); await pg.waitForTimeout(1500);
 console.log("직원으로 들어옴:", (await pg.locator(".who").innerText()).trim());
 // 직원은 창고·기록을 아예 못 본다 — 탭 자체가 없다
-const 직원탭 = await pg.getByRole("button", { name: "창고", exact: true }).count();
+const 직원탭 = await pg.getByRole("button", { name: "설정", exact: true }).count();
 console.log("직원에게 창고 탭:", 직원탭 ? "보임 ✗" : "안 보임 ✓");
 console.log("직원에게 기록 탭:",
   await pg.getByRole("button", { name: "기록", exact: true }).count() ? "보임 ✗" : "안 보임 ✓");

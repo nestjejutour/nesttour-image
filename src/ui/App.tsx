@@ -3,6 +3,7 @@ import { localBackend, merge, newProject, save as 바로저장, uid, type ChatTu
 import type { Backend } from "../store/backend";
 import { firebaseBackend, firebaseReady, watchUser } from "../store/firebase";
 import { Gate } from "./Gate";
+import { 기억한것, 기억해두기 } from "./panels";
 import type { Category, Content, DeckDraft, Doc, Draft, HistoryEntry, LibItem, Person, Project, RuleScope, Slide } from "../core/types";
 import { overrideWith, overridesFrom, rulesFor, styleFor } from "../core/scope";
 import { buildBrain } from "../ai/brain";
@@ -22,7 +23,7 @@ import { Store } from "./Store";
 import { useUndo, type Undo } from "./undo";
 import { VERSION } from "../version";
 
-type View = "보관함" | "기록" | "창고";
+type View = "보관함" | "기록" | "설정";
 
 /** 어디에 저장할지는 설정값이 정한다. 화면 쪽은 몰라도 된다. */
 const backend: Backend = firebaseReady ? firebaseBackend() : localBackend();
@@ -181,6 +182,20 @@ export function App() {
  * 부팅(로그인·불러오기)과 떼어 놓는다.
  * 한 함수 안에서 화면을 중간에 갈아끼우면 React 가 상태 장치 순서를 잃는다.
  */
+/* 편집기에서 양옆이 늘 차지하는 폭 — 페이지 목록 220 + 속성칸 376 + 테두리 2 */
+const 편집기양옆 = 598;
+/** 그림이 들어설 자리가 이보다 좁으면 글씨를 못 읽는다 */
+const 편집최소 = 560;
+
+/** 지금 창에서 대화칸을 펴도 그림 자리가 남는가 */
+function 대화칸을펼칠까(): boolean {
+  if (typeof window === "undefined") return true;
+  const w = window.innerWidth;
+  // 대화칸이 좁아질 수 있는 한계. ChatDock 과 같은 기준을 쓴다(1480 넘으면 둘을 나란히 둔다).
+  const 대화칸최소 = w >= 1480 ? 620 : 280;
+  return w - 편집기양옆 - 대화칸최소 >= 편집최소;
+}
+
 function Studio({
   db, setDb, who, savedAt, saveErr, quiet,
 }: {
@@ -280,10 +295,22 @@ function Studio({
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   /** 지금 보고 있는 페이지. 대화 선반도 같은 페이지를 본다. */
   const [cur, setCur] = useState(0);
-  /** 넓은 화면이면 대화창을 켜 둔다. 좁으면 화면을 다 덮으므로 접어 둔다. */
-  const [dockOpen, setDockOpen] = useState(
-    () => typeof window === "undefined" || window.innerWidth >= 1000,
-  );
+  /**
+   * 대화창을 처음에 펴 둘 것인가.
+   *
+   * 전에는 창이 1000px 만 넘으면 폈다. 그런데 편집기에서 그림이 들어설 자리는
+   * 창 너비가 아니라 "창 − 양옆 칸 − 대화칸" 이다. 1366 노트북에서 그 자리가
+   * 378px 밖에 안 남아 슬라이드가 34% 로 쪼그라들었다. 글씨를 못 읽는다.
+   * 그래서 숫자 하나를 바꾸는 대신, 남는 자리를 재어 보고 정한다.
+   *
+   * 대표님이 손수 접거나 편 적이 있으면 그 뜻을 따른다 — 여기서 덮어쓰지 않는다.
+   */
+  const [dockOpen, setDockOpen] = useState(() => 기억한것("dockOpen") ?? 대화칸을펼칠까());
+  const 대화칸토글 = () => {
+    const 켤까 = !dockOpen;
+    setDockOpen(켤까);
+    기억해두기("dockOpen", 켤까);
+  };
 
   /** db 가 비어 있을 때 들어오는 갱신은 무시한다 */
   const update = (apply: (d: DB) => DB) => setDb((d) => (d ? apply(d) : d));
@@ -1028,7 +1055,7 @@ function Studio({
       onDoc={putDoc}
       toServer={!!backend.putFile}
       open={dockOpen}
-      onToggle={() => setDockOpen(!dockOpen)}
+      onToggle={대화칸토글}
       onBusy={setAiBusy}
     />
   );
@@ -1045,13 +1072,13 @@ function Studio({
   if (!나) return <SignIn 대표암호={db.대표암호} 직원암호={db.직원암호} onIn={들어옴} />;
 
   // 기록·창고는 AI 가 읽는 저장소다. 직원이 들여다볼 자리가 아니다.
-  const 볼수있는탭: View[] = 나.role === "대표" ? ["보관함", "기록", "창고"] : ["보관함"];
+  const 볼수있는탭: View[] = 나.role === "대표" ? ["보관함", "기록", "설정"] : ["보관함"];
   if (!볼수있는탭.includes(view)) setView("보관함");
 
   if (규격물을곳) {
     const c = db.categories.find((x) => x.id === 규격물을곳);
     return (
-      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={대화칸토글} undo={undo}>
         <규격묻기
           분류이름={c?.name ?? "인쇄물"}
           기본W={c?.기본mmW} 기본H={c?.기본mmH}
@@ -1064,7 +1091,7 @@ function Studio({
 
   if (creating !== null) {
     return (
-      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={대화칸토글} undo={undo}>
         <NewProject
           style={baseStyle}
           rules={rulesFor(db.rules, { styleId: baseStyle.id, categoryId: creating, projectId: null })}
@@ -1083,7 +1110,7 @@ function Studio({
 
   if (project) {
     return (
-      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={대화칸토글} undo={undo}>
         <Editor
           project={project} style={styleOf(project)} pageTypes={db.pageTypes}
           categories={db.categories}
@@ -1118,7 +1145,7 @@ function Studio({
 
   if (browsing) {
     return (
-      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+      <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} bare who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={대화칸토글} undo={undo}>
         <div className="withtray">
           <Browse
             project={browsing} style={styleOf(browsing)} pageTypes={db.pageTypes}
@@ -1156,7 +1183,7 @@ function Studio({
   }
 
   return (
-    <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={() => setDockOpen(!dockOpen)} undo={undo}>
+    <Shell view={view} setView={setView} onNew={() => 새로만들기(고른분류 === "all" ? "proposal" : 고른분류)} who={나.name} onOut={나감} tabs={볼수있는탭} savedAt={savedAt} saveErr={saveErr} dock={dock} busy={aiBusy} dockOpen={dockOpen} onDock={대화칸토글} undo={undo}>
       {view === "보관함" && (
         <div className="withtray">
           <Dashboard
@@ -1213,7 +1240,7 @@ function Studio({
         </div>
       )}
       {view === "기록" && <Log db={db} setDb={update} />}
-      {view === "창고" && <Store db={db} setDb={update} 나={나} />}
+      {view === "설정" && <Store db={db} setDb={update} 나={나} />}
     </Shell>
   );
 }

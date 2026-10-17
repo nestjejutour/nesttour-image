@@ -70,7 +70,7 @@ await pg.locator(".card").first().click(); await pg.waitForTimeout(1400);
 await pg.getByRole("button", { name: "편집하기" }).click(); await pg.waitForTimeout(1600);
 화면들.push(["편집", await 재기()]);
 await pg.getByRole("button", { name: "← 보관함" }).click(); await pg.waitForTimeout(1200);
-for (const 탭 of ["기록", "창고"]) {
+for (const 탭 of ["기록", "설정"]) {
   await pg.getByRole("button", { name: 탭, exact: true }).click().catch(() => {});
   await pg.waitForTimeout(1200);
   화면들.push([탭, await 재기()]);

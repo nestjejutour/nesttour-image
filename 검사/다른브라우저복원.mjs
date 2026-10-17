@@ -72,8 +72,8 @@ const 들어가기 = async (pg) => {
   }
 };
 const 보관가기 = async (pg) => {
-  await pg.getByRole("button", { name: "창고", exact: true }).click(); await pg.waitForTimeout(700);
-  await pg.getByRole("button", { name: "보관", exact: true }).click(); await pg.waitForTimeout(700);
+  await pg.getByRole("button", { name: "설정", exact: true }).click(); await pg.waitForTimeout(700);
+  await pg.getByRole("button", { name: "백업", exact: true }).click(); await pg.waitForTimeout(700);
 };
 
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });

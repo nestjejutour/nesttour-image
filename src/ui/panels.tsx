@@ -17,6 +17,23 @@ function readAll(): Record<string, number> {
   }
 }
 
+/**
+ * 켜고 끈 것을 기억하는 자리.
+ *
+ * 너비와 같은 칸에 둔다 — 기기마다 따로 기억되고, 백업에도 함께 담긴다.
+ * 대표님이 손수 접거나 편 것은 다음에도 그대로여야 한다.
+ */
+export function 기억한것(name: string): boolean | null {
+  const v = readAll()[name];
+  return typeof v === "number" ? v !== 0 : null;
+}
+
+export function 기억해두기(name: string, 켬: boolean) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ ...readAll(), [name]: 켬 ? 1 : 0 }));
+  } catch { /* 못 적어도 이번 판은 돈다 */ }
+}
+
 /** 기억되는 크기 하나 */
 export function usePanel(name: string, fallback: number, min: number, max: number) {
   const [v, setV] = useState<number>(() => {
