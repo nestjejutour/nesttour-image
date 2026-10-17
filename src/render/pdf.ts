@@ -51,22 +51,45 @@ export async function downloadPdf(
 
   for (let i = 0; i < plans.length; i++) {
     let blob: Blob | null = null;
+    let 까닭 = "";
     for (let d = 배율; ; d = d && d > 60 ? d / 2 : undefined) {
       try {
         blob = await renderToBlob(plans[i].ops, style, {
           type: "image/jpeg", quality: 인쇄용 ? 0.95 : 0.92, ...(d ? { dpi: d } : {}),
         });
-      } catch { blob = null; }
+        if (!blob) 까닭 = "그림을 떠내지 못했습니다";
+      } catch (e: any) { blob = null;까닭 = e?.message ?? "그림을 뜨다 멈췄습니다"; }
       if (blob || !d || d <= 60) break;
     }
-    if (!blob) continue;
+
+    /*
+      한 장이라도 못 그리면 그 자리에서 멈춘다.
+
+      전에는 continue 로 건너뛰었다. 그러면 10장짜리가 9장으로 나오는데
+      파일은 멀쩡해 보인다. 그대로 인쇄소에 넘어가면 그제야 안다.
+      빠진 파일을 주는 것보다 안 주는 편이 낫다.
+    */
+    if (!blob) {
+      return {
+        ok: false,
+        error: `${i + 1}번째 장을 그리지 못했습니다` +
+          `${까닭 ? ` (${까닭})` : ""}. 전체 ${plans.length}장 중 ${i}장까지 됐습니다. ` +
+          `빠진 장이 있는 파일은 드리지 않습니다 — 그 장을 손본 뒤 다시 저장해 주십시오.`,
+      };
+    }
+
     const dataUrl = await toDataUrl(blob);
     if (i > 0) doc.addPage([w, h], dir);
     doc.addImage(dataUrl, "JPEG", ix, iy, iw, ih);
     onProgress?.(i + 1, plans.length);
   }
 
-  const out = doc.output("blob");
+  let out: Blob;
+  try {
+    out = doc.output("blob");
+  } catch (e: any) {
+    return { ok: false, error: `PDF 를 묶지 못했습니다${e?.message ? ` (${e.message})` : ""}. 다시 시도해 주십시오.` };
+  }
   const name = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
 
   // 옆 패널에서는 내려받기 기능을 거쳐야 한다

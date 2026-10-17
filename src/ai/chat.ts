@@ -1,4 +1,5 @@
 import type { Content, PageType, Slide, StylePreset } from "../core/types";
+import { 비신뢰원칙 } from "./brain";
 
 /**
  * 화면을 보면서 하는 대화.
@@ -322,7 +323,8 @@ ${deckBlock}
 - 고칠 게 없거나 질문이면 actions 를 빈 배열로 두고 say 에만 답하라.
 - 추측해서 숫자를 지어내지 마라. 모르면 그 칸은 "" 로 두고 say 에서 물어라.
 - 위에 적힌 "반드시 지킬 원칙"을 어기는 요청이면, 그대로 하지 말고 왜 그런지 한 문장으로 말하고 대안을 제시하라.
-- JSON 만 출력하라. 설명·코드펜스 금지.${opts.web ? WEB_NOTE : ""}`;
+- JSON 만 출력하라. 설명·코드펜스 금지.
+${비신뢰원칙}${opts.web ? WEB_NOTE : ""}`;
 }
 
 
@@ -431,5 +433,6 @@ ${shelf}
   장소나 주최가 빠졌으면 일단 만들어 보여 주고, 빠진 것은 say 에서 물어라.
 - 제안서를 만들라고 하면 바로 만들어라. 다시 묻지 마라.
   다만 고객사·주제처럼 꼭 필요한 게 없으면 그것만 짧게 물어라.
-- JSON 만 출력하라.${opts.web ? WEB_NOTE : ""}`;
+- JSON 만 출력하라.
+${비신뢰원칙}${opts.web ? WEB_NOTE : ""}`;
 }

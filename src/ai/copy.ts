@@ -1,4 +1,5 @@
 import type { Content, PageType, Rule, StylePreset } from "../core/types";
+import { 비신뢰원칙 } from "./brain";
 
 /**
  * 카피 작업실 — 글만 다루는 창구 (ChatGPT)
@@ -83,6 +84,8 @@ ${pageType.name} — ${pageType.description}
 - 숫자는 천 단위 쉼표를 넣는다. 없는 숫자를 지어내지 마라.
 - 칸마다 들어갈 자리가 정해져 있다. 제목 칸은 제목답게 짧게, 설명 칸은 한 호흡으로.
 - 원래 뜻을 바꾸지 마라. 사실을 바꾸지 마라. 표현만 다듬어라.
+
+${비신뢰원칙}
 
 [대답 형식]
 받은 목록과 같은 path 를 그대로 쓴 JSON 만 출력하라. 설명·코드펜스 금지.

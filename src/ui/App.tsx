@@ -1003,6 +1003,7 @@ function Studio({
       보낼말={시킬말}
       on보냄={() => set시킬말(null)}
       brain={brain.system}
+      brain자료={brain.자료}
       style={activeStyle}
       pageTypes={db.pageTypes}
       rules={activeRules}
