@@ -133,11 +133,19 @@ await pg.route("**/api/ai", (r) => r.fulfill({ status: 200, contentType: "applic
   body: JSON.stringify({ text: "{이건 JSON 이 아니다 ???" }) }));
 await pg.locator(".dock-box textarea").first().fill("아무거나 해줘");
 await pg.locator(".dock-box textarea").first().press("Enter");
-await pg.waitForTimeout(3000);
+// 답이 올 때까지 기다린다. 3초만 세고 보면 아직 "읽는 중" 이라 아무 말도 안 보인다.
+await pg.waitForFunction(
+  () => !document.querySelector(".thinking, .dock-busy, .spinner, .working"),
+  null, { timeout: 25000 },
+).catch(() => {});
+await pg.waitForTimeout(600);
 const 깨진답 = await pg.evaluate(() => ({
   살았나: !!document.querySelector(".dock-box"),
   말: (document.querySelector(".warn b, .picerr")?.textContent || "").trim(),
+  어디: [...document.querySelectorAll(".warn, .picerr, .bubble.assistant")]
+    .map((e) => `${e.className}:${(e.textContent || "").trim().slice(0, 50)}`).join(" | "),
 }));
+console.log("   [살핌]", 깨진답.어디 || "(아무 칸도 없다)");
 적(깨진답.살았나, "AI 가 깨진 답을 줘도 화면이 안 죽는다");
 적(!!깨진답.말, "깨진 답일 때 까닭을 알려 준다", 깨진답.말 || "아무 말이 없다");
 
