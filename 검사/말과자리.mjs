@@ -30,7 +30,11 @@ console.log("빈자리 단추:", (await pg.locator(".빈자리 .btn").allTextCon
 // 신규 등록 → 취소 → 제자리로 돌아와야 한다
 await pg.locator(".빈자리").getByRole("button", { name: "신규 등록" }).click(); await pg.waitForTimeout(900);
 console.log("등록 화면 제목:", (await pg.locator("h1").first().innerText()).trim());
-console.log("등록 화면 단추:", (await pg.locator(".startrow .btn").innerText()).trim());
+// 인쇄물 분류면 곧장 치수를 묻는다. 그 화면에는 .startrow 가 없다.
+console.log("등록 화면 단추:",
+  (await pg.locator(".startrow .btn").count())
+    ? (await pg.locator(".startrow .btn").first().innerText()).trim()
+    : (await pg.locator(".pick span").count()) ? "치수 묻는 화면" : "(없음)");
 await pg.getByRole("button", { name: "취소" }).first().click(); await pg.waitForTimeout(1200);
 console.log("취소하고 돌아온 분류:", await 고른분류(), "← 현수막 이어야 한다");
 
