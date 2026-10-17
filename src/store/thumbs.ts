@@ -72,3 +72,49 @@ export async function 쓰는자리(): Promise<{ 쓴것: number; 줄것: number }
     return { 쓴것: e.usage ?? 0, 줄것: e.quota ?? 0 };
   } catch { return null; }
 }
+
+
+/* ── 통째로 백업하고 되돌리기 ── */
+
+/**
+ * 칸에 든 열쇠를 전부 센다.
+ *
+ * 자료 목록(db.library)만 돌면 "목록에서는 지웠는데 칸에는 남은 것"을 놓친다.
+ * 백업은 놓친 것이 있으면 안 되므로 칸을 직접 훑는다.
+ */
+export const 모든그림키 = () =>
+  한번<IDBValidKey[]>("readonly", (s) => s.getAllKeys());
+
+export const 모든원본키 = () =>
+  한번<IDBValidKey[]>("readonly", (s) => s.getAllKeys(), 원본칸);
+
+/**
+ * 두 칸을 통째로 갈아 끼운다 — 되는 것만 되고 마는 일이 없게.
+ *
+ * 복원은 "전부 아니면 전무" 여야 한다.
+ * 그림만 바뀌고 원본은 옛것으로 남으면, 미리보기와 실제 파일이 어긋난 채로
+ * 대표님이 그걸 모르고 쓰게 된다. 그 편이 아예 실패하는 것보다 나쁘다.
+ *
+ * IndexedDB 의 거래(transaction)는 한 덩어리로 묶이면 통째로 되돌아간다.
+ * 그래서 두 칸을 한 거래에 넣고, 비우고 채우는 일을 거기서 다 한다.
+ * 도중에 자리가 모자라거나 탈이 나면 손대기 전으로 되돌아간다.
+ */
+export async function 통째로바꾸기(
+  그림들: Map<string, string>,
+  원본들: Map<string, Blob>,
+): Promise<void> {
+  const db = await 열기();
+  return new Promise((res, rej) => {
+    const t = db.transaction([칸, 원본칸], "readwrite");
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error ?? new Error("되돌렸습니다"));
+    t.onabort = () => rej(t.error ?? new Error("되돌렸습니다"));
+
+    const 그림칸 = t.objectStore(칸);
+    const 파일칸 = t.objectStore(원본칸);
+    그림칸.clear();
+    파일칸.clear();
+    for (const [id, v] of 그림들) 그림칸.put(v, id);
+    for (const [id, v] of 원본들) 파일칸.put(v, id);
+  });
+}
